@@ -1,0 +1,8 @@
+pandas
+numpy
+dtcwt
+scikit-learn
+matplotlib
+tifffile
+Pillow
+scikit-image 
