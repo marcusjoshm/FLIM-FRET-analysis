@@ -16,6 +16,7 @@
     "segmented_dir": "/Users/joshuamarcus/FLIM-FRET-analysis/segmented",
     "plots_dir": "/Users/joshuamarcus/FLIM-FRET-analysis/plots",
     "lifetime_dir": "/Users/joshuamarcus/FLIM-FRET-analysis/lifetime_images",
+    "raw_data_root": "/Volumes/NX-01-A/FLIM_workflow_test_data/",
     "microscope_params": {
         "bin_width_ns": 0.097,
         "freq_mhz": 78.0,
