@@ -1,0 +1,37 @@
+{
+    "imagej_path": "/Applications/Fiji.app/Contents/MacOS/ImageJ-macosx",
+    "flute_path": "/Users/joshuamarcus/FLUTE/main.py",
+    "macro_files": [
+        "/Users/joshuamarcus/FLIM-FRET-analysis/FLIM_processing_macro_1.ijm",
+        "/Users/joshuamarcus/FLIM-FRET-analysis/FLIM_processing_macro_2.ijm",
+        "/Users/joshuamarcus/FLIM-FRET-analysis/FLIM_processing_macro_3.ijm",
+        "/Users/joshuamarcus/FLIM-FRET-analysis/FLIM_processing_macro_4.ijm",
+        "/Users/joshuamarcus/FLIM-FRET-analysis/FLIM_processing_macro_5.ijm"
+    ],
+    "input_dir": "/Users/joshuamarcus/FLIM-FRET-analysis/input",
+    "output_dir": "/Users/joshuamarcus/FLIM-FRET-analysis/output",
+    "preprocessed_dir": "/Users/joshuamarcus/FLIM-FRET-analysis/preprocessed",
+    "filtered_dir": "/Users/joshuamarcus/FLIM-FRET-analysis/filtered",
+    "npz_dir": "/Users/joshuamarcus/FLIM-FRET-analysis/npz_datasets",
+    "segmented_dir": "/Users/joshuamarcus/FLIM-FRET-analysis/segmented",
+    "plots_dir": "/Users/joshuamarcus/FLIM-FRET-analysis/plots",
+    "lifetime_dir": "/Users/joshuamarcus/FLIM-FRET-analysis/lifetime_images",
+    "microscope_params": {
+        "bin_width_ns": 0.097,
+        "freq_mhz": 78.0,
+        "harmonic": 1
+    },
+    "wavelet_filter_params": {
+        "Gc": 0.30227996721890404,
+        "Sc": 0.4592458920992018,
+        "flevel": 9
+    },
+    "gmm_segmentation_params": {
+        "intensity_threshold": 0.0,
+        "n_components": 2,
+        "covariance_factor_ellipse": 4.0,
+        "covariance_factor_circle": 1.0,
+        "reference_center_G": 0.30227996721890404,
+        "reference_center_S": 0.4592458920992018
+    }
+}
