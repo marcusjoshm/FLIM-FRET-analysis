@@ -8,15 +8,6 @@
         "/Users/joshuamarcus/FLIM-FRET-analysis/FLIM_processing_macro_4.ijm",
         "/Users/joshuamarcus/FLIM-FRET-analysis/FLIM_processing_macro_5.ijm"
     ],
-    "input_dir": "/Users/joshuamarcus/FLIM-FRET-analysis/input",
-    "output_dir": "/Users/joshuamarcus/FLIM-FRET-analysis/output",
-    "preprocessed_dir": "/Users/joshuamarcus/FLIM-FRET-analysis/preprocessed",
-    "filtered_dir": "/Users/joshuamarcus/FLIM-FRET-analysis/filtered",
-    "npz_dir": "/Users/joshuamarcus/FLIM-FRET-analysis/npz_datasets",
-    "segmented_dir": "/Users/joshuamarcus/FLIM-FRET-analysis/segmented",
-    "plots_dir": "/Users/joshuamarcus/FLIM-FRET-analysis/plots",
-    "lifetime_dir": "/Users/joshuamarcus/FLIM-FRET-analysis/lifetime_images",
-    "raw_data_root": "/Volumes/NX-01-A/FLIM_workflow_test_data/",
     "microscope_params": {
         "bin_width_ns": 0.097,
         "freq_mhz": 78.0,
