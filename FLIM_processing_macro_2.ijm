@@ -4,41 +4,132 @@ args = split(macroArgs, ",");
 input_dir = args[0];
 output_dir = args[1];
 
-// Get the list of all files and directories in the input directory
-input_list = getFileList(input_dir);
+// Normalize input/output paths (remove trailing slashes)
+if (endsWith(input_dir, "/")) {
+    input_dir = substring(input_dir, 0, lengthOf(input_dir) - 1);
+}
+if (endsWith(output_dir, "/")) {
+    output_dir = substring(output_dir, 0, lengthOf(output_dir) - 1);
+}
 
-// Iterate through each item in the input directory
-for (i = 0; i < input_list.length; i++) {
-    input_subdir = input_dir + File.separator + input_list[i];
+// Print debug info
+print("FLIM_processing_macro_2.ijm starting");
+print("Input directory: " + input_dir);
+print("Output directory: " + output_dir);
+
+// Track progress
+processed = 0;
+failures = 0;
+
+// Function to normalize file path (remove double slashes)
+function normalizePath(path) {
+    while (indexOf(path, "//") >= 0) {
+        path = replace(path, "//", "/");
+    }
+    return path;
+}
+
+// Function to create directory and all parent directories
+function makeDirectoryRecursive(dir) {
+    dir = normalizePath(dir);
+    if (File.exists(dir)) {
+        return true;
+    }
     
-    // Check if the item is a directory
-    if (File.isDirectory(input_subdir)) {
-        // Create the corresponding output subdirectory
-        output_subdir = output_dir + File.separator + input_list[i];
-        File.makeDirectory(output_subdir);
-        
-        // Get the list of all .bin files in the input subdirectory
-        file_list = getFileList(input_subdir);
-        for (j = 0; j < file_list.length; j++) {
-            if (endsWith(file_list[j], ".bin")) {
-                openFile = input_subdir + File.separator + file_list[j];
-                
-                // Set options for Bio-Formats Importer
-                options = "open=[" + openFile + "] autoscale color_mode=Default open_files_individually open_all_series concatenate_series_when_compatible";
-                run("Bio-Formats Importer", options);
-                
-                // Get the title of the current image
-                title = getTitle();
-                // Replace slashes ("/") with underscores ("_") in the title
-                title = replace(title, "/", "_");
-                // Construct the full path with the modified title
-                path = output_subdir + File.separator + replace(file_list[j], ".bin", ".tiff");
-                // Save the image as a TIFF at the constructed path
-                saveAs("Tiff", path);
-                // Close the current image
-                close();
-            }
+    // Get parent directory
+    parent = File.getParent(dir);
+    
+    // Create parent directory if it doesn't exist
+    if (parent != "" && !File.exists(parent)) {
+        makeDirectoryRecursive(parent);
+    }
+    
+    // Create this directory
+    return File.makeDirectory(dir);
+}
+
+// Recursively process .bin files except FITC.bin which is handled by macro 1
+function scanDirectory(dir) {
+    // Normalize directory path
+    dir = normalizePath(dir);
+    
+    list = getFileList(dir);
+    
+    for (i = 0; i < list.length; i++) {
+        if (endsWith(list[i], "/") || File.isDirectory(dir + File.separator + list[i])) {
+            // It's a directory, scan it recursively
+            scanDirectory(dir + File.separator + list[i]);
+        } 
+        else if (endsWith(list[i], ".bin") && !endsWith(list[i], "FITC.bin")) {
+            // Found .bin file, process it
+            processBinFile(dir, list[i]);
         }
     }
 }
-run("Quit");
+
+// Process a .bin file
+function processBinFile(dir, filename) {
+    binFilePath = normalizePath(dir + File.separator + filename);
+    print("Processing BIN file: " + binFilePath);
+    
+    // Create relative output path
+    relativePath = replace(dir, input_dir, "");
+    if (startsWith(relativePath, File.separator)) {
+        relativePath = substring(relativePath, 1);
+    }
+    
+    // Create output directory mirroring the input directory structure
+    targetDir = output_dir;
+    if (relativePath != "") {
+        targetDir = normalizePath(output_dir + File.separator + relativePath);
+        makeDirectoryRecursive(targetDir);
+        print("Created directory: " + targetDir);
+    }
+    
+    print("Output directory: " + targetDir);
+    
+    // Check if output file already exists
+    outFilename = replace(filename, ".bin", ".tif");
+    outPath = normalizePath(targetDir + File.separator + outFilename);
+    
+    if (File.exists(outPath)) {
+        print("Output file already exists, skipping: " + outPath);
+        return;
+    } else {
+        print("Output file not found, will create: " + outPath);
+    }
+    
+    // Try to open the file with Bio-Formats Importer
+    run("Bio-Formats Importer", "open=[" + binFilePath + "]");
+    
+    // Check if any window was opened
+    if (nImages == 0) {
+        print("Warning: Failed to open " + binFilePath);
+        failures++;
+        return;
+    }
+    
+    // Get the title of the current image
+    title = getTitle();
+    print("Image title: " + title);
+    
+    // Save the image as a TIFF
+    print("Saving to: " + outPath);
+    saveAs("Tiff", outPath);
+    
+    // Close the current image
+    close();
+    processed++;
+    print("Successfully processed: " + filename);
+}
+
+// Create output directory recursively
+makeDirectoryRecursive(output_dir);
+print("Created output directory: " + output_dir);
+
+// Start the scan
+scanDirectory(input_dir);
+
+print("FLIM_processing_macro_2.ijm finished.");
+print("Successfully processed: " + processed + " BIN files");
+print("Failed: " + failures + " BIN files");

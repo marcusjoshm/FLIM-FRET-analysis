@@ -1,6 +1,7 @@
 {
     "imagej_path": "/Applications/Fiji.app/Contents/MacOS/ImageJ-macosx",
     "flute_path": "/Users/joshuamarcus/FLUTE/main.py",
+    "flute_python_path": "/Users/joshuamarcus/FLIM-FRET-analysis/venv/bin/python3",
     "macro_files": [
         "/Users/joshuamarcus/FLIM-FRET-analysis/FLIM_processing_macro_1.ijm",
         "/Users/joshuamarcus/FLIM-FRET-analysis/FLIM_processing_macro_2.ijm",

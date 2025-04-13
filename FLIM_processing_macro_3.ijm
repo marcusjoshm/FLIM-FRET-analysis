@@ -4,55 +4,144 @@ args = split(macroArgs, ",");
 input_dir = args[0];
 preprocessed_dir = args[1];
 
-// Function to move and process files with a given suffix
-function process_flute_files(input_subdir, output_subdir, suffix) {
-    list = getFileList(input_subdir);
+// Normalize input/output paths (remove trailing slashes)
+if (endsWith(input_dir, "/")) {
+    input_dir = substring(input_dir, 0, lengthOf(input_dir) - 1);
+}
+if (endsWith(preprocessed_dir, "/")) {
+    preprocessed_dir = substring(preprocessed_dir, 0, lengthOf(preprocessed_dir) - 1);
+}
+
+// Print debug info
+print("FLIM_processing_macro_3.ijm starting");
+print("Input directory: " + input_dir);
+print("Preprocessed directory: " + preprocessed_dir);
+
+// Track progress
+g_files_processed = 0;
+s_files_processed = 0;
+failures = 0;
+
+// Function to normalize file path (remove double slashes)
+function normalizePath(path) {
+    while (indexOf(path, "//") >= 0) {
+        path = replace(path, "//", "/");
+    }
+    return path;
+}
+
+// Function to create directory and all parent directories
+function makeDirectoryRecursive(dir) {
+    dir = normalizePath(dir);
+    if (File.exists(dir)) {
+        return true;
+    }
+    
+    // Get parent directory
+    parent = File.getParent(dir);
+    
+    // Create parent directory if it doesn't exist
+    if (parent != "" && !File.exists(parent)) {
+        makeDirectoryRecursive(parent);
+    }
+    
+    // Create this directory
+    return File.makeDirectory(dir);
+}
+
+// Process G and S files recursively
+function scanDirectory(dir) {
+    // Normalize directory path
+    dir = normalizePath(dir);
+    
+    list = getFileList(dir);
+    
     for (i = 0; i < list.length; i++) {
-        if (endsWith(list[i], suffix + ".tiff")) {
-            openFile = input_subdir + File.separator + list[i];
-            
-            // Set options for Bio-Formats Importer
-            options = "open=[" + openFile + "] autoscale color_mode=Default open_files_individually open_all_series concatenate_series_when_compatible";
-            run("Bio-Formats Importer", options);
-            
-            // Get the title of the current image
-            title = getTitle();
-            // Replace slashes ("/") with underscores ("_") in the title
-            title = replace(title, "/", "_");
-            // Construct the full path with the modified title
-            path = output_subdir + File.separator + title + ".tiff";
-            // Save the image as a TIFF at the constructed path
-            saveAs("Tiff", path);
-            // Close the current image
+        path = normalizePath(dir + File.separator + list[i]);
+        
+        if (endsWith(list[i], "/") || File.isDirectory(path)) {
+            // Skip directories named FLUTE_* (these are created by FLUTE and should be ignored)
+            if (!startsWith(list[i], "FLUTE_")) {
+                scanDirectory(path);
+            }
+        } 
+        else if (endsWith(list[i], "_g.tiff")) {
+            processGSFile(dir, list[i], "G_unfiltered");
+            g_files_processed++;
+        }
+        else if (endsWith(list[i], "_s.tiff")) {
+            processGSFile(dir, list[i], "S_unfiltered");
+            s_files_processed++;
+        }
+    }
+}
+
+// Process a G or S file
+function processGSFile(dir, filename, targetSubdir) {
+    filePath = normalizePath(dir + File.separator + filename);
+    print("Processing " + targetSubdir + " file: " + filePath);
+    
+    // Create relative output path
+    relativePath = replace(dir, input_dir, "");
+    if (startsWith(relativePath, File.separator)) {
+        relativePath = substring(relativePath, 1);
+    }
+    
+    // Create output directory with G_unfiltered or S_unfiltered subdirectory
+    targetDir = preprocessed_dir;
+    if (relativePath != "") {
+        targetDir = normalizePath(preprocessed_dir + File.separator + relativePath);
+    }
+    
+    targetDir = normalizePath(targetDir + File.separator + targetSubdir);
+    makeDirectoryRecursive(targetDir);
+    print("Target directory: " + targetDir);
+    
+    // Check if output file already exists
+    outPath = normalizePath(targetDir + File.separator + filename);
+    if (File.exists(outPath)) {
+        print("Output file already exists, skipping: " + outPath);
+        return;
+    } else {
+        print("Output file not found, will create: " + outPath);
+    }
+    
+    try {
+        // Open the file
+        open(filePath);
+        
+        // Check if file was opened successfully
+        if (nImages == 0) {
+            print("Failed to open: " + filePath);
+            failures++;
+            return;
+        }
+        
+        // Save to target location
+        saveAs("Tiff", outPath);
+        
+        // Close the image
+        close();
+        print("Successfully processed: " + filename);
+    } catch (exception) {
+        print("Error processing " + filename + ": " + exception);
+        failures++;
+        
+        // Close any open images
+        while (nImages > 0) {
             close();
         }
     }
 }
 
-// Get the list of all subdirectories in the input directory
-input_list = getFileList(input_dir);
-for (i = 0; i < input_list.length; i++) {
-    input_subdir = input_dir + File.separator + input_list[i];
-    
-    // Check if the item is a directory
-    if (File.isDirectory(input_subdir)) {
-        // Define the FLUTE_median and FLUTE_unfiltered directories
-        flute_median_dir = input_subdir + File.separator + "FLUTE_median";
-        flute_unfiltered_dir = input_subdir + File.separator + "FLUTE_unfiltered";
-        
-        // Define the output directories for G and S files
-        output_g_unfiltered_dir = preprocessed_dir + File.separator + input_list[i] + File.separator + "G_unfiltered";
-        output_s_unfiltered_dir = preprocessed_dir + File.separator + input_list[i] + File.separator + "S_unfiltered";
-        
-        // Create output directories
-        File.makeDirectory(preprocessed_dir + File.separator + input_list[i]);
-        File.makeDirectory(output_g_unfiltered_dir);
-        File.makeDirectory(output_s_unfiltered_dir);
-        
-        // Process files in FLUTE_median and FLUTE_unfiltered directories
-        process_flute_files(flute_unfiltered_dir, output_g_unfiltered_dir, "g");
-        process_flute_files(flute_unfiltered_dir, output_s_unfiltered_dir, "s");
-    }
-}
+// Create the main preprocessed directory
+makeDirectoryRecursive(preprocessed_dir);
+print("Created preprocessed directory: " + preprocessed_dir);
 
-run("Quit");
+// Start scanning
+scanDirectory(input_dir);
+
+print("FLIM_processing_macro_3.ijm finished");
+print("Processed " + g_files_processed + " G files");
+print("Processed " + s_files_processed + " S files");
+print("Failed: " + failures + " files");

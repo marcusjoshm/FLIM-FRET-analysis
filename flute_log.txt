@@ -1,0 +1,120 @@
+2025-04-08 19:20:04,156 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s1.tif
+2025-04-08 19:20:04,165 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s2.tif
+2025-04-08 19:20:04,171 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s3.tif
+2025-04-08 19:20:04,178 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s4.tif
+2025-04-08 19:20:04,183 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s1.tif
+2025-04-08 19:20:04,189 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s2.tif
+2025-04-08 19:20:04,196 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s3.tif
+2025-04-08 19:20:04,201 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s4.tif
+2025-04-08 19:20:04,207 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s1.tif
+2025-04-08 19:20:04,216 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s2.tif
+2025-04-08 19:20:04,224 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s3.tif
+2025-04-08 19:20:04,231 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s4.tif
+2025-04-08 19:22:13,301 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s1.tif
+2025-04-08 19:22:13,310 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s2.tif
+2025-04-08 19:22:13,316 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s3.tif
+2025-04-08 19:22:13,321 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s4.tif
+2025-04-08 19:22:13,327 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s1.tif
+2025-04-08 19:22:13,333 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s2.tif
+2025-04-08 19:22:13,339 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s3.tif
+2025-04-08 19:22:13,345 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s4.tif
+2025-04-08 19:22:13,350 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s1.tif
+2025-04-08 19:22:13,356 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s2.tif
+2025-04-08 19:22:13,361 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s3.tif
+2025-04-08 19:22:13,366 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s4.tif
+2025-04-08 19:28:20,774 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s1.tif
+2025-04-08 19:28:20,783 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s2.tif
+2025-04-08 19:28:20,789 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s3.tif
+2025-04-08 19:28:20,794 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s4.tif
+2025-04-08 19:28:20,800 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s1.tif
+2025-04-08 19:28:20,806 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s2.tif
+2025-04-08 19:28:20,813 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s3.tif
+2025-04-08 19:28:20,818 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s4.tif
+2025-04-08 19:28:20,824 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s1.tif
+2025-04-08 19:28:20,830 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s2.tif
+2025-04-08 19:28:20,836 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s3.tif
+2025-04-08 19:28:20,841 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s4.tif
+2025-04-08 19:29:17,562 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s1.tif
+2025-04-08 19:29:17,570 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s2.tif
+2025-04-08 19:29:17,575 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s3.tif
+2025-04-08 19:29:17,581 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s4.tif
+2025-04-08 19:29:17,588 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s1.tif
+2025-04-08 19:29:17,593 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s2.tif
+2025-04-08 19:29:17,599 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s3.tif
+2025-04-08 19:29:17,604 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s4.tif
+2025-04-08 19:29:17,610 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s1.tif
+2025-04-08 19:29:17,615 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s2.tif
+2025-04-08 19:29:17,621 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s3.tif
+2025-04-08 19:29:17,626 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s4.tif
+2025-04-08 20:07:09,062 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s1.tif
+2025-04-08 20:07:09,247 - INFO - Compressing image
+2025-04-08 20:07:09,251 - INFO - Performing FFT on image data
+2025-04-08 20:07:09,597 - INFO - FFT performed successfully, g and s coordinates calculated
+2025-04-08 20:07:09,606 - INFO - ImageHandler initialized successfully for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s1.tif
+2025-04-08 20:07:09,618 - INFO - Saving data: file=/Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1, save_type=None
+2025-04-08 20:07:09,619 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s2.tif
+2025-04-08 20:07:09,799 - INFO - Compressing image
+2025-04-08 20:07:09,800 - INFO - Performing FFT on image data
+2025-04-08 20:07:10,023 - INFO - FFT performed successfully, g and s coordinates calculated
+2025-04-08 20:07:10,031 - INFO - ImageHandler initialized successfully for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s2.tif
+2025-04-08 20:07:10,042 - INFO - Saving data: file=/Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1, save_type=None
+2025-04-08 20:07:10,043 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s3.tif
+2025-04-08 20:07:10,222 - INFO - Compressing image
+2025-04-08 20:07:10,223 - INFO - Performing FFT on image data
+2025-04-08 20:07:10,441 - INFO - FFT performed successfully, g and s coordinates calculated
+2025-04-08 20:07:10,446 - INFO - ImageHandler initialized successfully for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s3.tif
+2025-04-08 20:07:10,460 - INFO - Saving data: file=/Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1, save_type=None
+2025-04-08 20:07:10,461 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s4.tif
+2025-04-08 20:07:10,639 - INFO - Compressing image
+2025-04-08 20:07:10,639 - INFO - Performing FFT on image data
+2025-04-08 20:07:10,859 - INFO - FFT performed successfully, g and s coordinates calculated
+2025-04-08 20:07:10,864 - INFO - ImageHandler initialized successfully for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s4.tif
+2025-04-08 20:07:10,877 - INFO - Saving data: file=/Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1, save_type=None
+2025-04-08 20:07:10,878 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s1.tif
+2025-04-08 20:07:11,055 - INFO - Compressing image
+2025-04-08 20:07:11,056 - INFO - Performing FFT on image data
+2025-04-08 20:07:11,276 - INFO - FFT performed successfully, g and s coordinates calculated
+2025-04-08 20:07:11,281 - INFO - ImageHandler initialized successfully for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s1.tif
+2025-04-08 20:07:11,296 - INFO - Saving data: file=/Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2, save_type=None
+2025-04-08 20:07:11,297 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s2.tif
+2025-04-08 20:07:11,495 - INFO - Compressing image
+2025-04-08 20:07:11,496 - INFO - Performing FFT on image data
+2025-04-08 20:07:11,717 - INFO - FFT performed successfully, g and s coordinates calculated
+2025-04-08 20:07:11,725 - INFO - ImageHandler initialized successfully for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s2.tif
+2025-04-08 20:07:11,738 - INFO - Saving data: file=/Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2, save_type=None
+2025-04-08 20:07:11,738 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s3.tif
+2025-04-08 20:07:11,919 - INFO - Compressing image
+2025-04-08 20:07:11,920 - INFO - Performing FFT on image data
+2025-04-08 20:07:12,139 - INFO - FFT performed successfully, g and s coordinates calculated
+2025-04-08 20:07:12,144 - INFO - ImageHandler initialized successfully for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s3.tif
+2025-04-08 20:07:12,157 - INFO - Saving data: file=/Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2, save_type=None
+2025-04-08 20:07:12,158 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s4.tif
+2025-04-08 20:07:12,336 - INFO - Compressing image
+2025-04-08 20:07:12,337 - INFO - Performing FFT on image data
+2025-04-08 20:07:12,553 - INFO - FFT performed successfully, g and s coordinates calculated
+2025-04-08 20:07:12,557 - INFO - ImageHandler initialized successfully for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2/R_2_s4.tif
+2025-04-08 20:07:12,570 - INFO - Saving data: file=/Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R2, save_type=None
+2025-04-08 20:07:12,571 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s1.tif
+2025-04-08 20:07:12,754 - INFO - Compressing image
+2025-04-08 20:07:12,755 - INFO - Performing FFT on image data
+2025-04-08 20:07:12,996 - INFO - FFT performed successfully, g and s coordinates calculated
+2025-04-08 20:07:13,000 - INFO - ImageHandler initialized successfully for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s1.tif
+2025-04-08 20:07:13,012 - INFO - Saving data: file=/Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3, save_type=None
+2025-04-08 20:07:13,013 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s2.tif
+2025-04-08 20:07:13,192 - INFO - Compressing image
+2025-04-08 20:07:13,194 - INFO - Performing FFT on image data
+2025-04-08 20:07:13,410 - INFO - FFT performed successfully, g and s coordinates calculated
+2025-04-08 20:07:13,415 - INFO - ImageHandler initialized successfully for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s2.tif
+2025-04-08 20:07:13,428 - INFO - Saving data: file=/Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3, save_type=None
+2025-04-08 20:07:13,429 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s3.tif
+2025-04-08 20:07:13,606 - INFO - Compressing image
+2025-04-08 20:07:13,608 - INFO - Performing FFT on image data
+2025-04-08 20:07:13,828 - INFO - FFT performed successfully, g and s coordinates calculated
+2025-04-08 20:07:13,833 - INFO - ImageHandler initialized successfully for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s3.tif
+2025-04-08 20:07:13,845 - INFO - Saving data: file=/Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3, save_type=None
+2025-04-08 20:07:13,846 - INFO - Initializing ImageHandler for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s4.tif
+2025-04-08 20:07:14,022 - INFO - Compressing image
+2025-04-08 20:07:14,023 - INFO - Performing FFT on image data
+2025-04-08 20:07:14,236 - INFO - FFT performed successfully, g and s coordinates calculated
+2025-04-08 20:07:14,241 - INFO - ImageHandler initialized successfully for file: /Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3/R_3_s4.tif
+2025-04-08 20:07:14,254 - INFO - Saving data: file=/Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R3, save_type=None
