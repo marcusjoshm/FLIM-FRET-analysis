@@ -135,3 +135,6 @@ if (!found) {
 }
 
 print("FLIM_processing_macro_1.ijm finished. Processed " + processed + " FITC.bin files.");
+
+// Exit ImageJ when done
+run("Quit");

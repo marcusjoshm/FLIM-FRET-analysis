@@ -256,8 +256,26 @@ def process_tiffs_with_flute(calibration_file, base_output_dir, raw_data_root, m
     for index, row in calibration_data.iterrows():
         try:
             bin_file_full_path = str(row['file_path']).strip()
-            phi_cal = float(row['phi'])
-            m_cal = float(row['modulation'])
+            
+            # Handle different possible column names for phi calibration
+            if 'phi_cal' in row:
+                phi_cal = float(row['phi_cal'])
+            elif 'phi' in row:
+                phi_cal = float(row['phi'])
+            else:
+                print(f"Error: Row {index}: Missing column: 'phi_cal' or 'phi'. Skipping.")
+                skipped_count += 1
+                continue
+            
+            # Handle different possible column names for modulation calibration
+            if 'm_cal' in row:
+                m_cal = float(row['m_cal'])
+            elif 'modulation' in row:
+                m_cal = float(row['modulation'])
+            else:
+                print(f"Error: Row {index}: Missing column: 'm_cal' or 'modulation'. Skipping.")
+                skipped_count += 1
+                continue
             
             # Ensure normalized path and add .bin extension if needed
             normalized_bin_path = os.path.normpath(bin_file_full_path)
@@ -439,26 +457,43 @@ def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibrati
         print("Error: FLUTE processing failed. Cannot continue pipeline.")
         return False
     
-    # === Run Post-FLUTE ImageJ Macros ===
-    # These macros should organize the G, S, and intensity files into separate directories
-    print("Running ImageJ Macro 3 for G and S files...")
-    macro3_success = run_imagej(imagej_path, macro_files[2], output_dir, preprocessed_dir)
-    if not macro3_success:
-        print("Warning: ImageJ Macro 3 (G and S) failed. Will use manual file copying...")
+    # === Organize output files using Python script ===
+    # This replaces the ImageJ Macros 3, 4, and 5 for better reliability
+    print("Organizing output files with Python script...")
     
-    print("Running ImageJ Macro 4 for intensity files...")
-    macro4_success = run_imagej(imagej_path, macro_files[3], output_dir, preprocessed_dir)
-    if not macro4_success:
-        print("Warning: ImageJ Macro 4 (intensity) failed. Will use manual file copying...")
+    try:
+        # Use the new organize_output_files.py script to organize files
+        import organize_output_files
+        print("Successfully imported organize_output_files module")
+        
+        # Call the organize_output_files function directly
+        success_count, error_count = organize_output_files.organize_output_files(output_dir, preprocessed_dir)
+        
+        if success_count > 0:
+            print(f"Successfully organized {success_count} files into preprocessed directory")
+            if error_count > 0:
+                print(f"Warning: {error_count} files could not be organized")
+            organization_success = True
+        else:
+            print(f"Error: No files were successfully organized. Checking for fallback method...")
+            organization_success = False
+            
+    except ImportError as e:
+        print(f"Error importing organize_output_files module: {e}")
+        organization_success = False
+    except Exception as e:
+        print(f"Error organizing files: {e}")
+        organization_success = False
     
-    # === Always manually copy files to preprocessed_dir as a fallback ===
-    print("Manually copying files to preprocessed directory...")
-    copy_success = manually_copy_files_to_preprocessed(output_dir, preprocessed_dir)
+    # If the Python organization failed, try the manual file copying as a fallback
+    if not organization_success:
+        print("Python file organization failed. Using manual file copying as fallback...")
+        copy_success = manually_copy_files_to_preprocessed(output_dir, preprocessed_dir)
+        if not copy_success:
+            print("Error: Manual file copying failed. Pipeline cannot continue.")
+            return False
     
-    if not copy_success:
-        print("Warning: Manual file copying failed or no files to copy.")
-    
-    # Run ImageJ Macro 5 only if we have files in the preprocessed directory
+    # Verify that files exist in the preprocessed directory
     g_files_exist = False
     s_files_exist = False
     intensity_files_exist = False
@@ -468,15 +503,19 @@ def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibrati
             g_files_exist = True
         if "S_unfiltered" in root and any(f.endswith('.tiff') for f in files):
             s_files_exist = True
-        if "intensity" in root and any(f.endswith('.tiff') for f in files):
+        if "Intensity" in root and any(f.endswith('.tiff') for f in files):
             intensity_files_exist = True
     
     if g_files_exist and s_files_exist and intensity_files_exist:
-        print("Running ImageJ Macro 5 for file renaming...")
-        run_imagej(imagej_path, macro_files[4], preprocessed_dir)
-        print("ImageJ Macro 5 finished.")
+        print("Successfully organized all required file types in preprocessed directory.")
     else:
-        print("Skipping ImageJ Macro 5: Missing required files in preprocessed directory.")
+        print("Warning: Some file types are missing in the preprocessed directory.")
+        if not g_files_exist:
+            print("  - Missing G_unfiltered files")
+        if not s_files_exist:
+            print("  - Missing S_unfiltered files")
+        if not intensity_files_exist:
+            print("  - Missing Intensity files")
     
     # Final verification
     for root, dirs, files in os.walk(preprocessed_dir):

@@ -53,6 +53,15 @@ except ImportError as e:
     print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
     run_gmm_segmentation = None # Placeholder
     
+try:
+    # Stage 4: Phasor Transformation
+    from phasor_transform import process_flim_file as run_phasor_transform
+except ImportError as e:
+    # Use current filename in error message
+    print(f"Error: Could not import process_flim_file (as run_phasor_transform) from phasor_transform.py: {e}") 
+    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    run_phasor_transform = None # Placeholder
+    
 # --- New Test Function ---
 def test_flute_integration(config):
     """
@@ -294,65 +303,74 @@ except Exception as e:
         if os.path.exists(test_script):
             os.remove(test_script)
         return False
-        
+    
     # Clean up
     if os.path.exists(test_script):
         os.remove(test_script)
     
-    print("\n===================================")
+    print("\n====================================")
     print("  All FLUTE integration tests passed!")
-    print("===================================")
+    print("====================================")
     
     return True
-    
+
 # --- Argument Parsing ---
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Run FLIM-FRET analysis pipeline stages.")
+    parser = argparse.ArgumentParser(description="FLIM-FRET Analysis Pipeline")
     
-    # Input/Output Arguments
-    parser.add_argument('-i', '--input_dir', 
-                        help="Root directory containing the raw input data (.bin files). Equivalent to 'raw_data_root'.")
-    parser.add_argument('-o', '--output_base_dir',  
-                        help="Base directory where all output subfolders (output, preprocessed, npz_datasets, etc.) will be created.")
-
-    # Stage Selection Arguments
-    parser.add_argument('--preprocess', action='store_true',
-                        help="Run Stage 1: Preprocessing (ImageJ + FLUTE)")
-    parser.add_argument('--filter', action='store_true',
-                        help="Run Stage 2: Wavelet Filtering & NPZ Generation")
-    parser.add_argument('--segment', action='store_true',
-                        help="Run Stage 3: GMM Segmentation, Plotting, Lifetime Saving")
-    parser.add_argument('--all', action='store_true',
-                        help="Run all stages sequentially.")
+    # Required arguments
+    parser.add_argument("--input-dir", required=True, help="Input directory containing raw FLIM-FRET .bin files")
+    parser.add_argument("--output-base-dir", required=True, help="Base output directory for all pipeline stages")
     
-    # New Test Argument
-    parser.add_argument('--test', action='store_true',
-                        help="Run FLUTE integration tests to verify setup")
+    # Pipeline stage control
+    parser.add_argument("--all", action="store_true", help="Run all pipeline stages")
+    parser.add_argument("--preprocess", action="store_true", help="Run preprocessing stage")
+    parser.add_argument("--filter", action="store_true", help="Run wavelet filtering stage")
+    parser.add_argument("--segment", action="store_true", help="Run GMM segmentation stage")
+    parser.add_argument("--phasor", action="store_true", help="Run phasor transformation stage")
     
+    # Testing mode
+    parser.add_argument("--test", action="store_true", help="Run in test mode to verify the environment")
+    
+    # Parse arguments
     args = parser.parse_args()
     
-    # If --test is specified, we don't need input/output dirs
-    if args.test:
-        return args
+    # Validate input directory
+    if not args.test:
+        if not os.path.isdir(args.input_dir):
+            parser.error(f"Input directory '{args.input_dir}' does not exist or is not a directory")
     
-    # Check for required arguments when running pipeline stages
-    if not args.input_dir:
-        parser.error("--input_dir/-i is required when running pipeline stages")
-    if not args.output_base_dir:
-        parser.error("--output_base_dir/-o is required when running pipeline stages")
+    # If no specific stages are selected, and not running in test mode
+    # ask the user what to do
+    if not (args.all or args.preprocess or args.filter or args.segment or args.phasor or args.test):
+        # Not running any specific stage and not in test mode
+        print("No pipeline stages specified. Options:")
+        print("1. Run all stages")
+        print("2. Run preprocessing only")
+        print("3. Run wavelet filtering only")
+        print("4. Run GMM segmentation only")
+        print("5. Run phasor transformation only")
+        print("6. Exit")
         
-    # Default to running all if no specific stage is selected
-    if not any([args.preprocess, args.filter, args.segment, args.all, args.test]):
-        print("No specific stage selected. Defaulting to running all stages (--all).")
-        args.all = True
+        choice = input("Enter your choice (1-6): ")
         
-    # Validate paths
-    if not os.path.isdir(args.input_dir):
-        parser.error(f"Input directory not found: {args.input_dir}")
-    # Check for fixed calibration file in current directory
-    if not os.path.exists("calibration.csv"):
-        parser.error(f"Calibration file not found: calibration.csv (expected in current directory)")
-        
+        if choice == "1":
+            args.all = True
+        elif choice == "2":
+            args.preprocess = True
+        elif choice == "3":
+            args.filter = True
+        elif choice == "4":
+            args.segment = True
+        elif choice == "5":
+            args.phasor = True
+        elif choice == "6":
+            print("Exiting.")
+            sys.exit(0)
+        else:
+            print("Invalid choice. Exiting.")
+            sys.exit(1)
+            
     return args
 
 # --- Helper to load config (less prone to failure if keys change) ---
@@ -385,6 +403,7 @@ def main():
     segmented_dir = os.path.join(args.output_base_dir, 'segmented')
     plots_dir = os.path.join(args.output_base_dir, 'plots')
     lifetime_dir = os.path.join(args.output_base_dir, 'lifetime_images')
+    phasor_dir = os.path.join(args.output_base_dir, 'phasor_output')
     
     # Create base output directory if it doesn't exist
     try:
@@ -397,6 +416,7 @@ def main():
          os.makedirs(segmented_dir, exist_ok=True)
          os.makedirs(plots_dir, exist_ok=True)
          os.makedirs(lifetime_dir, exist_ok=True)
+         os.makedirs(phasor_dir, exist_ok=True)
          
          print(f"Created output directories:")
          print(f" - {output_dir}")
@@ -405,6 +425,7 @@ def main():
          print(f" - {segmented_dir}")
          print(f" - {plots_dir}")
          print(f" - {lifetime_dir}")
+         print(f" - {phasor_dir}")
     except OSError as e:
          print(f"Error creating output directories: {e}", file=sys.stderr)
          sys.exit(1)
@@ -491,6 +512,110 @@ def main():
                 print(f"!!! Uncaught Error during Stage 3: GMM Segmentation: {e}", file=sys.stderr)
         else:
             print("!!! Cannot run Stage 3: run_gmm_segmentation function not available.", file=sys.stderr)
+            
+    # --- Stage 4: Phasor Transformation ---
+    if args.phasor or args.all:
+        print("\n--- Running Stage 4: Phasor Transformation ---")
+        if run_phasor_transform:
+            try:
+                stage_start = time.time()
+                
+                # Create a function to run the phasor transformation on the preprocessed files
+                def process_preprocessed_files(input_dir, output_dir, calibration_file):
+                    success = True
+                    processed_count = 0
+                    error_count = 0
+                    
+                    # Read calibration values if available
+                    calibration_values = None
+                    if os.path.exists(calibration_file):
+                        try:
+                            import pandas as pd
+                            df = pd.read_csv(calibration_file)
+                            # Simple calibration dict - we assume phi_cal and m_cal columns exist
+                            calibration_values = {}
+                            for _, row in df.iterrows():
+                                calibration_values[row['file_path']] = (row['phi_cal'], row['m_cal'])
+                            print(f"Loaded {len(calibration_values)} calibration values from {calibration_file}")
+                        except Exception as e:
+                            print(f"Error loading calibration values: {e}")
+                    
+                    # Process only original FLIM TIFF files in the input directory
+                    # Skip files that have already been processed (like _g.tiff, _s.tiff, _intensity.tiff)
+                    for root, _, files in os.walk(input_dir):
+                        for filename in files:
+                            # Skip derived files that are already processed
+                            if filename.lower().endswith(('_g.tiff', '_s.tiff', '_intensity.tiff')):
+                                continue
+                                
+                            # Process only original TIFF files
+                            if filename.lower().endswith(('.tif', '.tiff')):
+                                input_file = os.path.join(root, filename)
+                                
+                                # Try to find matching calibration values
+                                phi_cal, m_cal = 0.0, 1.0  # Default values
+                                if calibration_values:
+                                    # Simple exact path match (could be enhanced)
+                                    if input_file in calibration_values:
+                                        phi_cal, m_cal = calibration_values[input_file]
+                                    else:
+                                        # Try matching by basename
+                                        base_filename = os.path.basename(input_file)
+                                        for cal_path in calibration_values:
+                                            if os.path.basename(cal_path) == base_filename:
+                                                phi_cal, m_cal = calibration_values[cal_path]
+                                                break
+                                
+                                try:
+                                    # Create a subdirectory structure in output_dir that matches input_dir
+                                    rel_path = os.path.relpath(root, input_dir)
+                                    output_subdir = os.path.join(output_dir, rel_path)
+                                    os.makedirs(output_subdir, exist_ok=True)
+                                    
+                                    # Process the file
+                                    print(f"Processing {input_file} (phi_cal={phi_cal}, m_cal={m_cal})")
+                                    file_success = run_phasor_transform(
+                                        input_file=input_file,
+                                        output_dir=output_subdir,
+                                        phi_cal=phi_cal,
+                                        m_cal=m_cal,
+                                        bin_width_ns=0.2208,  # Standard bin width
+                                        freq_mhz=80,          # Standard laser frequency
+                                        harmonic=1,            # First harmonic
+                                        apply_filter=1,        # Apply median filter once
+                                        threshold_min=0,       # No minimum intensity threshold
+                                        threshold_max=None     # No maximum intensity threshold
+                                    )
+                                    
+                                    if file_success:
+                                        processed_count += 1
+                                    else:
+                                        error_count += 1
+                                        success = False
+                                except Exception as e:
+                                    print(f"Error processing {input_file}: {e}")
+                                    error_count += 1
+                                    success = False
+                    
+                    print(f"Phasor transformation complete: {processed_count} files processed, {error_count} errors")
+                    return success
+                
+                # Run the phasor transformation on preprocessed files
+                success = process_preprocessed_files(
+                    input_dir=preprocessed_dir,
+                    output_dir=phasor_dir,
+                    calibration_file=calibration_file_path
+                )
+                
+                stage_end = time.time()
+                if success:
+                    print(f"--- Stage 4 Finished ({stage_end - stage_start:.2f} seconds) ---")
+                else:
+                    print(f"!!! Stage 4 Completed with some errors ({stage_end - stage_start:.2f} seconds) !!!")
+            except Exception as e:
+                print(f"!!! Uncaught Error during Stage 4: Phasor Transformation: {e}", file=sys.stderr)
+        else:
+            print("!!! Cannot run Stage 4: run_phasor_transform function not available.", file=sys.stderr)
             
     end_pipeline_time = time.time()
     print("\n=================================")

@@ -133,3 +133,6 @@ scanDirectory(input_dir);
 print("FLIM_processing_macro_2.ijm finished.");
 print("Successfully processed: " + processed + " BIN files");
 print("Failed: " + failures + " BIN files");
+
+// Exit ImageJ when done
+run("Quit");
