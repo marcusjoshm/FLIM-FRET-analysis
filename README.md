@@ -25,6 +25,101 @@ This repository contains tools for automating Fluorescence Lifetime Imaging Micr
 - `calibration.csv`: Contains phi_cal and m_cal calibration values for data files
 - ImageJ macros (`.ijm` files): Used for converting .bin files to .tif files
 
+## Installation
+
+Follow these steps to set up the FLIM-FRET analysis pipeline on your system:
+
+### Prerequisites
+
+1. **Python 3.8+** - We recommend using Python 3.8 or newer. [Download Python](https://www.python.org/downloads/)
+2. **ImageJ/Fiji** - Required for .bin file conversion. [Download Fiji](https://fiji.sc/)
+3. **Git** - For cloning the repository. [Download Git](https://git-scm.com/downloads)
+
+### Step 1: Clone the Repository
+
+```bash
+git clone https://github.com/marcusjoshm/FLIM-FRET-analysis.git
+cd FLIM-FRET-analysis
+```
+
+### Step 2: Create a Python Virtual Environment
+
+Creating a virtual environment keeps the dependencies for this project separate from other Python projects.
+
+#### On macOS and Linux:
+
+```bash
+# Create a virtual environment named 'venv'
+python3 -m venv venv
+
+# Activate the virtual environment
+source venv/bin/activate
+```
+
+#### On Windows:
+
+```bash
+# Create a virtual environment named 'venv'
+python -m venv venv
+
+# Activate the virtual environment
+venv\Scripts\activate
+```
+
+After activation, your command prompt should show `(venv)` at the beginning of the line, indicating the virtual environment is active.
+
+### Step 3: Install Dependencies
+
+```bash
+# Install all required packages from requirements.txt
+pip install -r requirements.txt
+```
+
+This will install the following dependencies:
+- numpy, pandas, scipy, matplotlib (data handling and visualization)
+- scikit-image, tifffile, pillow (image processing)
+- scikit-learn (machine learning for GMM segmentation)
+- dtcwt (wavelet transforms)
+- other utility packages
+
+### Step 4: Configure the Pipeline
+
+Create a `config.json` file in the root directory with the following structure:
+
+```json
+{
+  "imagej_path": "/path/to/ImageJ/or/Fiji",
+  "flute_path": "/path/to/FLUTE/executable",
+  "flute_python_path": "/path/to/FLUTE/python/interpreter",
+  "macro_files": [
+    "/path/to/FLIM_processing_macro_1.ijm",
+    "/path/to/FLIM_processing_macro_2.ijm"
+  ],
+  "microscope_params": {
+    "bin_width": 0.097,
+    "frequency": 78,
+    "harmonic": 1
+  }
+}
+```
+
+Replace the paths with the actual paths on your system.
+
+### Step 5: Verify Installation
+
+Run the test mode to verify that all components are working properly:
+
+```bash
+python run_pipeline.py --test
+```
+
+### Troubleshooting
+
+- **Import Errors**: Make sure your virtual environment is activated (`source venv/bin/activate` or `venv\Scripts\activate`)
+- **ImageJ/FLUTE Path Errors**: Check that your `config.json` has the correct paths
+- **Missing Dependencies**: If you encounter errors about missing packages, try installing them individually with `pip install package_name`
+- **Permission Issues**: Make sure ImageJ/Fiji and macro files have execution permissions on Unix systems (`chmod +x /path/to/file`)
+
 ## Data Preparation Guide
 
 To successfully run the FLIM-FRET analysis pipeline, your input data must be structured correctly. Follow these guidelines to ensure proper processing:
