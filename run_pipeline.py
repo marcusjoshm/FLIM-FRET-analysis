@@ -446,8 +446,16 @@ def main():
          print(f"Error creating output directories: {e}", file=sys.stderr)
          sys.exit(1)
     
-    # Define fixed calibration file path
-    calibration_file_path = "calibration.csv"
+    # Look for calibration file in input directory first, fall back to project directory
+    input_calibration_path = os.path.join(args.input_dir, "calibration.csv")
+    project_calibration_path = "calibration.csv"
+    
+    if os.path.exists(input_calibration_path):
+        calibration_file_path = input_calibration_path
+        print(f"Using calibration file from input directory: {calibration_file_path}")
+    else:
+        calibration_file_path = project_calibration_path
+        print(f"Calibration file not found in input directory, using project directory: {calibration_file_path}")
     
     start_pipeline_time = time.time()
     print("\n===================================")

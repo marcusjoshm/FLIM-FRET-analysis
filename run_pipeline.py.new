@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Main script to orchestrate the FLIM-FRET analysis pipeline.
+
+Allows selective execution of different pipeline stages:
+1. Preprocessing (ImageJ Macros + FLUTE TIFF processing)
+2. Wavelet Filtering & NPZ Generation
+3. GMM Segmentation, Plotting, Lifetime Saving
+"""
+
+import argparse
+import time
+import os
+import sys
+import json
+import subprocess
+import re
+from pathlib import Path
+
+# Print sys.path right before imports
+print("--- sys.path before imports in run_pipeline.py ---")
+print(sys.path)
+print("--------------------------------------------------")
+
+# --- Import necessary functions from other scripts ---
+
+# It's generally better practice to organize these into modules,
+# but for simplicity, we'll import directly if they are in the same directory.
+
+try:
+    # Stage 1: Preprocessing & Initial Transformation
+    from TCSPC_preprocessing_AUTOcal_v2_0 import run_preprocessing 
+except ImportError as e:
+    # Use current filename in error message
+    print(f"Error: Could not import run_preprocessing from TCSPC_preprocessing_AUTOcal_v2_0.py: {e}") 
+    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    run_preprocessing = None # Placeholder
+    
+try:
+    # Filename Simplification for compatibility with analysis scripts
+    from simplify_filenames import main as simplify_filenames
+except ImportError as e:
+    # Use current filename in error message
+    print(f"Error: Could not import main (as simplify_filenames) from simplify_filenames.py: {e}") 
+    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    simplify_filenames = None # Placeholder
+
+try:
+    # Stage 2: Wavelet Filtering & NPZ Generation
+    from ComplexWaveletFilter_v1_6 import main as run_wavelet_filtering
+except ImportError as e:
+    # Use current filename in error message
+    print(f"Error: Could not import main (as run_wavelet_filtering) from ComplexWaveletFilter_v1_6.py: {e}") 
+    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    run_wavelet_filtering = None # Placeholder
+    
+try:
+    # Intensity Image Generation for Wavelet Filtering
+    from generate_intensity_images import process_raw_flim_files as generate_intensity_images
+except ImportError as e:
+    # Use current filename in error message
+    print(f"Error: Could not import process_raw_flim_files (as generate_intensity_images) from generate_intensity_images.py: {e}") 
+    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    generate_intensity_images = None # Placeholder
+    
+# Additional imports needed for file operations
+import shutil
+import traceback
+    
+try:
+    # Stage 3: GMM Segmentation, Plotting, Lifetime Saving
+    from GMMSegmentation_v2_6 import main as run_gmm_segmentation
+except ImportError as e:
+    # Use current filename in error message
+    print(f"Error: Could not import main (as run_gmm_segmentation) from GMMSegmentation_v2_6.py: {e}") 
+    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    run_gmm_segmentation = None # Placeholder
+    
+try:
+    # Stage 4: Phasor Transformation
+    from phasor_transform import process_flim_file as run_phasor_transform
+except ImportError as e:
+    # Use current filename in error message
+    print(f"Error: Could not import process_flim_file (as run_phasor_transform) from phasor_transform.py: {e}") 
+    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    run_phasor_transform = None # Placeholder
