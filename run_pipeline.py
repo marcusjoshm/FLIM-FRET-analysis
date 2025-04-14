@@ -337,7 +337,7 @@ def parse_arguments():
     
     # Pipeline stage control
     parser.add_argument("--all", action="store_true", help="Run all pipeline stages")
-    parser.add_argument("--preprocess", action="store_true", help="Run preprocessing stage")
+    parser.add_argument("--preprocess", action="store_true", help="Run preprocessing stage through intensity image generation (Stages 1 and 2A)")
     parser.add_argument("--filter", action="store_true", help="Run wavelet filtering stage")
     parser.add_argument("--segment", action="store_true", help="Run GMM segmentation stage")
     parser.add_argument("--phasor", action="store_true", help="Run phasor transformation stage")
@@ -359,7 +359,7 @@ def parse_arguments():
         # Not running any specific stage and not in test mode
         print("No pipeline stages specified. Options:")
         print("1. Run all stages")
-        print("2. Run preprocessing only")
+        print("2. Run preprocessing through intensity image generation (Stages 1 and 2A)")
         print("3. Run wavelet filtering only")
         print("4. Run GMM segmentation only")
         print("5. Run phasor transformation only")
@@ -492,7 +492,7 @@ def main():
             print("!!! Cannot run Stage 1: run_preprocessing function not available.", file=sys.stderr)
             
     # --- Stage 2A: Generate Intensity Images and Copy G/S Files for Wavelet Filtering ---
-    if args.filter or args.all:
+    if args.preprocess or args.filter or args.all:
         print("\n--- Running Stage 2A: Preparing Data for Wavelet Filtering ---")
         wavelet_input_dir = os.path.join(args.output_base_dir, 'wavelet_intensity_images')
         os.makedirs(wavelet_input_dir, exist_ok=True)
