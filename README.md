@@ -25,6 +25,80 @@ This repository contains tools for automating Fluorescence Lifetime Imaging Micr
 - `calibration.csv`: Contains phi_cal and m_cal calibration values for data files
 - ImageJ macros (`.ijm` files): Used for converting .bin files to .tif files
 
+## Data Preparation Guide
+
+To successfully run the FLIM-FRET analysis pipeline, your input data must be structured correctly. Follow these guidelines to ensure proper processing:
+
+### Required Files
+
+1. **FLIM .bin Files**: Your microscope acquisition data files
+2. **FITC.bin**: Calibration reference file that must be present in your input directory
+3. **calibration.csv**: Contains calibration values for each .bin file
+
+### Directory Structure
+
+The pipeline supports two different directory structures for organizing your .bin files:
+
+#### 1. Hierarchical Structure (Recommended)
+
+```
+Input-Directory/
+├── FITC.bin
+├── calibration.csv
+└── Dish_1_Post-Rapa/
+    ├── R1/
+    │   ├── R_1_s1.bin
+    │   ├── R_1_s2.bin
+    │   ├── R_1_s3.bin
+    │   └── R_1_s4.bin
+    ├── R2/
+    │   ├── R_2_s1.bin
+    │   └── ...
+    └── R3/
+        ├── R_3_s1.bin
+        └── ...
+```
+
+In this structure, .bin files are organized into region folders (R1, R2, R3), which helps keep files organized when you have many samples.
+
+#### 2. Flat Structure
+
+```
+Input-Directory/
+├── FITC.bin
+├── calibration.csv
+└── Dish_1_Post-Rapa/
+    ├── R_1_s1.bin
+    ├── R_1_s2.bin
+    ├── R_1_s3.bin
+    ├── R_1_s4.bin
+    ├── R_2_s1.bin
+    └── ...
+```
+
+In this structure, all .bin files are in the same directory without region-specific folders.
+
+### Calibration File Format
+
+The `calibration.csv` file should contain the following columns:
+- `file_path`: Path to the .bin file (can be relative to input directory)
+- `phi_cal`: Phase calibration value
+- `m_cal`: Modulation calibration value
+
+Example:
+```csv
+file_path,phi_cal,m_cal
+/Dish_1_Post-Rapa/R1/R_1_s1.bin,0.0135,0.98
+/Dish_1_Post-Rapa/R1/R_1_s2.bin,0.0135,0.98
+```
+
+### Notes
+
+- The pipeline now supports placing the `calibration.csv` file in either the project directory or the input directory, with input directory taking precedence if both exist.
+- At least one level of subdirectory is required inside the input directory (e.g., "Dish_1_Post-Rapa").
+- File naming should follow a consistent pattern (e.g., R_1_s2.bin where 1 is the region number and 2 is the sample number).
+- When using the `--simplify-filenames` option, the script automatically detects your directory structure and handles naming accordingly.
+
 ## Usage
 
 ### Complete End-to-End Workflow
