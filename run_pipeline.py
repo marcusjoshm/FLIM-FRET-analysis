@@ -45,6 +45,19 @@ except ImportError as e:
     run_wavelet_filtering = None # Placeholder
     
 try:
+    # Intensity Image Generation for Wavelet Filtering
+    from generate_intensity_images import process_raw_flim_files as generate_intensity_images
+except ImportError as e:
+    # Use current filename in error message
+    print(f"Error: Could not import process_raw_flim_files (as generate_intensity_images) from generate_intensity_images.py: {e}") 
+    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    generate_intensity_images = None # Placeholder
+    
+# Additional imports needed for file operations
+import shutil
+import traceback
+    
+try:
     # Stage 3: GMM Segmentation, Plotting, Lifetime Saving
     from GMMSegmentation_v2_6 import main as run_gmm_segmentation
 except ImportError as e:
@@ -417,6 +430,8 @@ def main():
          os.makedirs(plots_dir, exist_ok=True)
          os.makedirs(lifetime_dir, exist_ok=True)
          os.makedirs(phasor_dir, exist_ok=True)
+         wavelet_intensity_dir = os.path.join(args.output_base_dir, 'wavelet_intensity_images')
+         os.makedirs(wavelet_intensity_dir, exist_ok=True)
          
          print(f"Created output directories:")
          print(f" - {output_dir}")
@@ -426,6 +441,7 @@ def main():
          print(f" - {plots_dir}")
          print(f" - {lifetime_dir}")
          print(f" - {phasor_dir}")
+         print(f" - {wavelet_intensity_dir}")
     except OSError as e:
          print(f"Error creating output directories: {e}", file=sys.stderr)
          sys.exit(1)
@@ -467,27 +483,136 @@ def main():
         else:
             print("!!! Cannot run Stage 1: run_preprocessing function not available.", file=sys.stderr)
             
-    # --- Stage 2: Wavelet Filtering & NPZ Generation ---
+    # --- Stage 2A: Generate Intensity Images and Copy G/S Files for Wavelet Filtering ---
     if args.filter or args.all:
-        print("\n--- Running Stage 2: Wavelet Filtering & NPZ Generation ---")
+        print("\n--- Running Stage 2A: Preparing Data for Wavelet Filtering ---")
+        wavelet_input_dir = os.path.join(args.output_base_dir, 'wavelet_intensity_images')
+        os.makedirs(wavelet_input_dir, exist_ok=True)
+        
+        # 1. Generate intensity images
+        if generate_intensity_images:
+            try:
+                intensity_stage_start = time.time()
+                print("Generating intensity images from raw FLIM data...")
+                
+                # Generate intensity images from raw FLIM data
+                success_count, error_count = generate_intensity_images(
+                    input_dir=preprocessed_dir,
+                    output_dir=wavelet_input_dir
+                )
+                
+                print(f"Successfully generated {success_count} intensity images for wavelet filtering")
+                
+            except Exception as e:
+                print(f"!!! Uncaught Error during intensity image generation: {e}", file=sys.stderr)
+                success_count = 0
+        else:
+            print("!!! Cannot generate intensity images: generate_intensity_images function not available.", file=sys.stderr)
+            success_count = 0
+            
+        # 2. Copy G and S files from preprocessed directory to wavelet input directory
+        print("Copying G and S files from preprocessed directory...")
+        g_count, s_count = 0, 0
+        
+        try:
+            # Walk through preprocessed directory to find G and S files
+            for root, dirs, files in os.walk(preprocessed_dir):
+                for dirname in dirs:
+                    # Look for G_unfiltered and S_unfiltered directories
+                    if dirname in ['G_unfiltered', 'S_unfiltered']:
+                        source_dir = os.path.join(root, dirname)
+                        # Get relative path from preprocessed_dir
+                        relpath = os.path.relpath(os.path.dirname(source_dir), preprocessed_dir)
+                        if relpath == '.':
+                            # Files are in the root directory
+                            target_dir = wavelet_input_dir
+                        else:
+                            target_dir = os.path.join(wavelet_input_dir, relpath)
+                        
+                        # Create target directory if it doesn't exist
+                        os.makedirs(target_dir, exist_ok=True)
+                        
+                        # Copy files
+                        for file in os.listdir(source_dir):
+                            if file.endswith('.tif') or file.endswith('.tiff'):
+                                source_file = os.path.join(source_dir, file)
+                                # For G files: rename from _g.tiff to .g.tiff (change underscore to dot)
+                                if dirname == 'G_unfiltered':
+                                    if '_g.tiff' in file:
+                                        new_filename = file.replace('_g.tiff', '.g.tiff')
+                                    else:
+                                        new_filename = file
+                                    target_file = os.path.join(target_dir, new_filename)
+                                    shutil.copy2(source_file, target_file)
+                                    g_count += 1
+                                    print(f"  Copied G file to: {target_file}")
+                                # For S files: rename from _s.tiff to .s.tiff (change underscore to dot)
+                                elif dirname == 'S_unfiltered':
+                                    if '_s.tiff' in file:
+                                        new_filename = file.replace('_s.tiff', '.s.tiff')
+                                    else:
+                                        new_filename = file
+                                    target_file = os.path.join(target_dir, new_filename)
+                                    shutil.copy2(source_file, target_file)
+                                    s_count += 1
+                                    print(f"  Copied S file to: {target_file}")
+            
+            # Rename intensity files to match expected format (from _wavelet_intensity.tiff to .intensity.tiff)
+            intensity_count = 0
+            for root, dirs, files in os.walk(wavelet_input_dir):
+                for file in files:
+                    if '_wavelet_intensity.tiff' in file:
+                        old_path = os.path.join(root, file)
+                        new_filename = file.replace('_wavelet_intensity.tiff', '.intensity.tiff')
+                        new_path = os.path.join(root, new_filename)
+                        os.rename(old_path, new_path)
+                        intensity_count += 1
+                        
+            print(f"Renamed {intensity_count} intensity files to match expected format")
+            
+            intensity_stage_end = time.time()
+            
+            if g_count > 0 and s_count > 0 and success_count > 0:
+                print(f"Successfully prepared data for wavelet filtering:")
+                print(f"  - {g_count} G files copied")
+                print(f"  - {s_count} S files copied")
+                print(f"  - {success_count} intensity images generated")
+                print(f"--- Stage 2A Finished ({intensity_stage_end - intensity_stage_start:.2f} seconds) ---")
+            else:
+                print(f"!!! Stage 2A Warning: Some data may be missing for wavelet filtering !!!")
+                print(f"  - G files: {g_count}")
+                print(f"  - S files: {s_count}")
+                print(f"  - Intensity images: {success_count}")
+                print(f"--- Stage 2A Finished with warnings ({intensity_stage_end - intensity_stage_start:.2f} seconds) ---")
+                
+        except Exception as e:
+            print(f"!!! Uncaught Error during data preparation for wavelet filtering: {e}", file=sys.stderr)
+            traceback.print_exc()
+
+    # --- Stage 2B: Wavelet Filtering & NPZ Generation ---
+    if args.filter or args.all:
+        print("\n--- Running Stage 2B: Wavelet Filtering & NPZ Generation ---")
         if run_wavelet_filtering:
             try:
                 stage_start = time.time()
+                # Path to intensity images generated in Stage 2A
+                wavelet_intensity_dir = os.path.join(args.output_base_dir, 'wavelet_intensity_images')
+                
                 # Pass required arguments
                 success = run_wavelet_filtering(
                     config, 
-                    preprocessed_dir, 
+                    wavelet_intensity_dir,  # Use wavelet intensity images instead of preprocessed dir
                     npz_dir
                 )
                 stage_end = time.time()
                 if success:
-                    print(f"--- Stage 2 Finished ({stage_end - stage_start:.2f} seconds) ---")
+                    print(f"--- Stage 2B Finished ({stage_end - stage_start:.2f} seconds) ---")
                 else:
-                    print(f"!!! Stage 2 Failed (check errors above) ({stage_end - stage_start:.2f} seconds) !!!")
+                    print(f"!!! Stage 2B Failed (check errors above) ({stage_end - stage_start:.2f} seconds) !!!")
             except Exception as e:
-                print(f"!!! Uncaught Error during Stage 2: Wavelet Filtering: {e}", file=sys.stderr)
+                print(f"!!! Uncaught Error during Stage 2B: Wavelet Filtering: {e}", file=sys.stderr)
         else:
-            print("!!! Cannot run Stage 2: run_wavelet_filtering function not available.", file=sys.stderr)
+            print("!!! Cannot run Stage 2B: run_wavelet_filtering function not available.", file=sys.stderr)
 
     # --- Stage 3: GMM Segmentation, Plotting, Lifetime Saving ---
     if args.segment or args.all:
