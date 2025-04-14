@@ -14,28 +14,39 @@ import shutil
 import glob
 import argparse
 
-def extract_sample_number(filename):
+def extract_file_info(filename):
     """
-    Extract the sample number from a filename like R_1_s2_g.tiff -> 2
+    Extract region and sample numbers from a filename (e.g., R_1_s2_g.tiff)
     
     Args:
         filename (str): Original filename
         
     Returns:
-        int: Extracted sample number, or None if no match found
+        tuple: (region_number, sample_number) or None if no match found
     """
-    # Match pattern like R_1_s2_g.tiff where 2 is the sample number
-    # Also handle cases like R_1_s10_g.tiff for numbers > 9
-    pattern = r'.*_s(\d+)_.*\.tiff?'
+    # Match pattern like R_1_s2_g.tiff where 1 is region and 2 is sample
+    # Also handle cases with double-digit numbers
+    pattern = r'R_*(\d+)_s(\d+)_.*\.tiff?'
     match = re.search(pattern, filename)
     
     if match:
-        return int(match.group(1))
+        region_num = int(match.group(1))
+        sample_num = int(match.group(2))
+        return (region_num, sample_num)
+    
+    # Also try just extracting sample number if no region
+    pattern = r'.*_s(\d+)_.*\.tiff?'
+    match = re.search(pattern, filename)
+    if match:
+        sample_num = int(match.group(1))
+        return (0, sample_num)  # Return 0 as region if no region found
+        
     return None
 
 def simplify_filenames(input_dir, dry_run=False):
     """
     Simplify filenames in the directory structure to sequential numbers.
+    The function can handle both hierarchical (region folders) and flat directory structures.
     
     Args:
         input_dir (str): Root directory containing regions with G_unfiltered, S_unfiltered, intensity folders
@@ -65,45 +76,92 @@ def simplify_filenames(input_dir, dry_run=False):
             if not file_list:
                 continue
                 
-            # Sort files by sample number
+            # Sort files by both region and sample number
             numbered_files = []
             for filename in file_list:
-                sample_num = extract_sample_number(filename)
-                if sample_num is not None:
-                    numbered_files.append((sample_num, filename))
+                file_info = extract_file_info(filename)
+                if file_info is not None:
+                    region_num, sample_num = file_info
+                    numbered_files.append((region_num, sample_num, filename))
                     
-            # Sort by sample number
-            numbered_files.sort(key=lambda x: x[0])
+            # Detect if we have a flat or hierarchical structure by looking at parent directories
+            is_flat_structure = True
+            parent_parts = os.path.normpath(root).split(os.sep)
+            for i, part in enumerate(parent_parts):
+                if part.startswith('R') and len(part) <= 3:
+                    # Found a region directory (like R1, R2) in the path
+                    is_flat_structure = False
+                    break
             
-            # Rename files
-            for i, (sample_num, old_filename) in enumerate(numbered_files):
-                new_filename = f"{sample_num}.tiff"
-                old_path = os.path.join(root, old_filename)
-                new_path = os.path.join(root, new_filename)
+            if is_flat_structure:
+                # For flat structure, sort by both region and sample numbers 
+                # and assign sequential numbers
+                numbered_files.sort(key=lambda x: (x[0], x[1]))  # Sort by region, then sample
+                print(f"  Using flat directory structure mode with sequential numbering")
                 
-                # If the simplified file already exists, skip
-                if os.path.exists(new_path) and old_filename != new_filename:
-                    print(f"  Skipping: {old_filename} -> {new_filename} (destination already exists)")
-                    error_count += 1
-                    continue
-                
-                # Rename file
-                print(f"  {'Would rename' if dry_run else 'Renaming'}: {old_filename} -> {new_filename}")
-                
-                if not dry_run:
-                    try:
-                        # Use copy instead of rename to ensure it works across devices
-                        # Then remove the original
-                        if old_filename != new_filename:  # Avoid unnecessary copies
-                            shutil.copy2(old_path, new_path)
-                            os.remove(old_path)
-                        success_count += 1
-                    except Exception as e:
-                        print(f"  Error renaming {old_filename}: {e}")
+                # Create sequential numbering
+                for i, (region_num, sample_num, old_filename) in enumerate(numbered_files, 1):
+                    new_filename = f"{i}.tiff"
+                    old_path = os.path.join(root, old_filename)
+                    new_path = os.path.join(root, new_filename)
+                    
+                    # If the simplified file already exists, skip
+                    if os.path.exists(new_path) and old_filename != new_filename:
+                        print(f"  Skipping: {old_filename} -> {new_filename} (destination already exists)")
                         error_count += 1
-                else:
-                    # In dry run mode, count as success
-                    success_count += 1
+                        continue
+                    
+                    # Rename file
+                    print(f"  {'Would rename' if dry_run else 'Renaming'}: {old_filename} -> {new_filename}")
+                    
+                    if not dry_run:
+                        try:
+                            # Use copy instead of rename to ensure it works across devices
+                            # Then remove the original
+                            if old_filename != new_filename:  # Avoid unnecessary copies
+                                shutil.copy2(old_path, new_path)
+                                os.remove(old_path)
+                            success_count += 1
+                        except Exception as e:
+                            print(f"  Error renaming {old_filename}: {e}")
+                            error_count += 1
+                    else:
+                        # In dry run mode, count as success
+                        success_count += 1
+            else:
+                # For hierarchical structure, just use sample numbers
+                numbered_files.sort(key=lambda x: x[1])  # Sort by sample number only
+                print(f"  Using hierarchical directory structure mode with sample numbers")
+                
+                # Use sample numbers as filenames
+                for i, (region_num, sample_num, old_filename) in enumerate(numbered_files):
+                    new_filename = f"{sample_num}.tiff"
+                    old_path = os.path.join(root, old_filename)
+                    new_path = os.path.join(root, new_filename)
+                    
+                    # If the simplified file already exists, skip
+                    if os.path.exists(new_path) and old_filename != new_filename:
+                        print(f"  Skipping: {old_filename} -> {new_filename} (destination already exists)")
+                        error_count += 1
+                        continue
+                    
+                    # Rename file
+                    print(f"  {'Would rename' if dry_run else 'Renaming'}: {old_filename} -> {new_filename}")
+                    
+                    if not dry_run:
+                        try:
+                            # Use copy instead of rename to ensure it works across devices
+                            # Then remove the original
+                            if old_filename != new_filename:  # Avoid unnecessary copies
+                                shutil.copy2(old_path, new_path)
+                                os.remove(old_path)
+                            success_count += 1
+                        except Exception as e:
+                            print(f"  Error renaming {old_filename}: {e}")
+                            error_count += 1
+                    else:
+                        # In dry run mode, count as success
+                        success_count += 1
     
     print(f"\n{'[DRY RUN] ' if dry_run else ''}Simplified {success_count} files with {error_count} errors")
     return success_count, error_count
@@ -112,6 +170,8 @@ def main():
     parser = argparse.ArgumentParser(description="Simplify FLIM-FRET file names for compatibility with external tools")
     parser.add_argument("--input-dir", required=True, help="Input directory containing preprocessed files")
     parser.add_argument("--dry-run", action="store_true", help="Print changes without actually renaming files")
+    parser.add_argument("--flat", action="store_true", help="Force flat directory mode (sequential numbering)")
+    parser.add_argument("--hierarchical", action="store_true", help="Force hierarchical directory mode (sample numbering)")
     
     args = parser.parse_args()
     
