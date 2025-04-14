@@ -34,6 +34,15 @@ except ImportError as e:
     print(f"Error: Could not import run_preprocessing from TCSPC_preprocessing_AUTOcal_v2_0.py: {e}") 
     print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
     run_preprocessing = None # Placeholder
+    
+try:
+    # Stage 1B: Filename simplification (optional)
+    from simplify_filenames import simplify_filenames
+except ImportError as e:
+    # Use current filename in error message
+    print(f"Error: Could not import simplify_filenames from simplify_filenames.py: {e}")
+    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    simplify_filenames = None # Placeholder
 
 try:
     # Stage 2: Wavelet Filtering & NPZ Generation
@@ -345,6 +354,9 @@ def parse_arguments():
     # Testing mode
     parser.add_argument("--test", action="store_true", help="Run in test mode to verify the environment")
     
+    # File naming options
+    parser.add_argument("--simplify-filenames", action="store_true", help="Simplify filenames in preprocessed directory (e.g., R_1_s2_g.tiff -> 2.tiff)")
+    
     # Parse arguments
     args = parser.parse_args()
     
@@ -578,6 +590,25 @@ def main():
                         
             print(f"Renamed {intensity_count} intensity files to match expected format")
             
+            # --- Stage 2A Part 3: Simplify filenames (if requested) ---
+            if args.simplify_filenames and simplify_filenames:
+                print("\n--- Running Stage 2A Part 3: Simplifying Filenames ---")
+                try:
+                    simplify_start = time.time()
+                    simple_success, simple_errors = simplify_filenames(preprocessed_dir, dry_run=False)
+                    simplify_end = time.time()
+                    
+                    if simple_success > 0:
+                        print(f"Successfully simplified {simple_success} filenames (with {simple_errors} errors)")
+                        print(f"Filename simplification completed in {simplify_end - simplify_start:.2f} seconds")
+                    else:
+                        print(f"Warning: No files were successfully simplified. Check for errors above.")
+                except Exception as e:
+                    print(f"Error during filename simplification: {e}")
+                    print("Continuing pipeline without filename simplification...")
+            elif args.simplify_filenames and not simplify_filenames:
+                print("Cannot simplify filenames: simplify_filenames function not available.")
+            
             intensity_stage_end = time.time()
             
             if g_count > 0 and s_count > 0 and success_count > 0:
@@ -585,12 +616,16 @@ def main():
                 print(f"  - {g_count} G files copied")
                 print(f"  - {s_count} S files copied")
                 print(f"  - {success_count} intensity images generated")
+                if args.simplify_filenames:
+                    print(f"  - Filenames simplified: {'Yes' if 'simple_success' in locals() and simple_success > 0 else 'No'}")
                 print(f"--- Stage 2A Finished ({intensity_stage_end - intensity_stage_start:.2f} seconds) ---")
             else:
                 print(f"!!! Stage 2A Warning: Some data may be missing for wavelet filtering !!!")
                 print(f"  - G files: {g_count}")
                 print(f"  - S files: {s_count}")
                 print(f"  - Intensity images: {success_count}")
+                if args.simplify_filenames:
+                    print(f"  - Filenames simplified: {'Yes' if 'simple_success' in locals() and simple_success > 0 else 'No'}")
                 print(f"--- Stage 2A Finished with warnings ({intensity_stage_end - intensity_stage_start:.2f} seconds) ---")
                 
         except Exception as e:
