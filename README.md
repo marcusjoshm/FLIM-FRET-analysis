@@ -197,29 +197,37 @@ file_path,phi_cal,m_cal
 
 ## Usage
 
-### Complete End-to-End Workflow
+### Currently Implemented Workflow Options
 
-To run the complete workflow from raw .bin files to processed analysis:
+The following workflow flags are fully implemented and tested:
 
 ```bash
-python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --all
+# OPTION 1: Run preprocessing only (Stages 1-2A) - Convert files and organize them
+python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --preprocessing
+
+# OPTION 2: Run complete processing pipeline (Stages 1-2B) - Preprocessing + wavelet filtering and lifetime calculation
+python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --processing
+
+# OPTION 3: Run LF-specific workflow - Preprocessing with automatic filename simplification 
+python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --LF-preprocessing
+
+# OPTION 4: Run only wavelet filtering (Stage 2B) - For already preprocessed data
+python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --filter
 ```
 
-### Run Specific Stages
+### Additional Options
 
-You can run specific stages of the pipeline:
+You can still run all stages or use the legacy flags:
 
 ```bash
-# Run just the preprocessing stage
+# Run complete workflow (all implemented stages)
+python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --all
+
+# Legacy preprocessing flag (deprecated, use --preprocessing instead)
 python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --preprocess
 
-# Run just the wavelet filtering stage
-python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --filter
-
-# Run just the GMM segmentation stage
+# Future stages (not yet fully implemented)
 python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --segment
-
-# Run just the phasor transformation stage
 python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --phasor
 ```
 
