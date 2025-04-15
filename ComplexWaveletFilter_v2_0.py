@@ -233,17 +233,18 @@ def main(config, preprocessed_dir, npz_dir):
                     process_end = time.time()
                     
                     if result is not None:
-                        # Create output directory with same structure as input
-                        rel_sample_dir = os.path.basename(os.path.dirname(file_paths.get('g', ''))) if '/' in file_paths.get('g', '') else ''
+                        # Save directly to npz_dir without subdirectories
+                        # Extract the sample name and base filename for a clean output file
+                        sample_name = os.path.basename(os.path.dirname(os.path.dirname(file_paths.get('g', '')))) if '/' in file_paths.get('g', '') else ''
                         
-                        if rel_sample_dir:
-                            output_dir = os.path.join(npz_dir, rel_sample_dir)
-                            os.makedirs(output_dir, exist_ok=True)
+                        # Combine sample name with base name for a descriptive filename
+                        if sample_name and sample_name not in base_name:
+                            npz_filename = f"{sample_name}_{base_name}.npz"
                         else:
-                            output_dir = npz_dir
+                            npz_filename = f"{base_name}.npz"
                         
-                        # Save npz file
-                        output_path = os.path.join(output_dir, f"{base_name}.npz")
+                        # Save npz file directly to the main npz_dir
+                        output_path = os.path.join(npz_dir, npz_filename)
                         np.savez(output_path, **result)
                         
                         print(f"  Saving NPZ to: {output_path}")

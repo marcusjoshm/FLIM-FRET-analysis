@@ -451,8 +451,6 @@ def main():
          os.makedirs(plots_dir, exist_ok=True)
          os.makedirs(lifetime_dir, exist_ok=True)
          os.makedirs(phasor_dir, exist_ok=True)
-         wavelet_intensity_dir = os.path.join(args.output_base_dir, 'wavelet_intensity_images')
-         os.makedirs(wavelet_intensity_dir, exist_ok=True)
          
          print(f"Created output directories:")
          print(f" - {output_dir}")
@@ -462,7 +460,6 @@ def main():
          print(f" - {plots_dir}")
          print(f" - {lifetime_dir}")
          print(f" - {phasor_dir}")
-         print(f" - {wavelet_intensity_dir}")
     except OSError as e:
          print(f"Error creating output directories: {e}", file=sys.stderr)
          sys.exit(1)
@@ -512,137 +509,14 @@ def main():
         else:
             print("!!! Cannot run Stage 1: run_preprocessing function not available.", file=sys.stderr)
             
-    # --- Stage 2A: Generate Intensity Images ---
+    # --- Stage 2A: Optional Filename Simplification ---
     if args.preprocess or args.all:
-        print("\n--- Running Stage 2A: Preparing Data for Wavelet Filtering ---")
-        wavelet_input_dir = os.path.join(args.output_base_dir, 'wavelet_intensity_images')
-        os.makedirs(wavelet_input_dir, exist_ok=True)
-        
-        # 1. Generate intensity images
-        if generate_intensity_images:
-            try:
-                intensity_stage_start = time.time()
-                print("Generating intensity images from raw FLIM data...")
-                
-                # Generate intensity images from raw FLIM data
-                success_count, error_count = generate_intensity_images(
-                    input_dir=preprocessed_dir,
-                    output_dir=wavelet_input_dir
-                )
-                
-                print(f"Successfully generated {success_count} intensity images for wavelet filtering")
-                
-            except Exception as e:
-                print(f"!!! Uncaught Error during intensity image generation: {e}", file=sys.stderr)
-                success_count = 0
-        else:
-            print("!!! Cannot generate intensity images: generate_intensity_images function not available.", file=sys.stderr)
-            success_count = 0
-            
-        # 2. Copy G and S files from preprocessed directory to wavelet input directory
-        print("Copying G and S files from preprocessed directory...")
-        g_count, s_count = 0, 0
-        
         try:
-            # Walk through preprocessed directory to find G and S files
-            for root, dirs, files in os.walk(preprocessed_dir):
-                if 'G_unfiltered' in dirs or 'S_unfiltered' in dirs or 'intensity' in dirs:
-                    # This directory contains our target folders
-                    sample_dir = root
-                    
-                    # Get relative path from preprocessed_dir
-                    relpath = os.path.relpath(sample_dir, preprocessed_dir)
-                    if relpath == '.':
-                        # Files are in the root directory
-                        target_dir = wavelet_input_dir
-                    else:
-                        target_dir = os.path.join(wavelet_input_dir, relpath)
-                    
-                    # Create target directory if it doesn't exist
-                    os.makedirs(target_dir, exist_ok=True)
-                    
-                    # Process G files
-                    if 'G_unfiltered' in dirs:
-                        g_dir = os.path.join(sample_dir, 'G_unfiltered')
-                        for file in os.listdir(g_dir):
-                            if file.endswith('.tif') or file.endswith('.tiff'):
-                                source_file = os.path.join(g_dir, file)
-                                # For G files: rename from _g.tiff to .g.tiff (change underscore to dot)
-                                if '_g.tiff' in file:
-                                    new_filename = file.replace('_g.tiff', '.g.tiff')
-                                elif '_g.tif' in file:
-                                    new_filename = file.replace('_g.tif', '.g.tif')
-                                else:
-                                    new_filename = file
-                                target_file = os.path.join(target_dir, new_filename)
-                                shutil.copy2(source_file, target_file)
-                                g_count += 1
-                                print(f"  Copied G file to: {target_file}")
-                    
-                    # Process S files
-                    if 'S_unfiltered' in dirs:
-                        s_dir = os.path.join(sample_dir, 'S_unfiltered')
-                        for file in os.listdir(s_dir):
-                            if file.endswith('.tif') or file.endswith('.tiff'):
-                                source_file = os.path.join(s_dir, file)
-                                # For S files: rename from _s.tiff to .s.tiff (change underscore to dot)
-                                if '_s.tiff' in file:
-                                    new_filename = file.replace('_s.tiff', '.s.tiff')
-                                elif '_s.tif' in file:
-                                    new_filename = file.replace('_s.tif', '.s.tif')
-                                else:
-                                    new_filename = file
-                                target_file = os.path.join(target_dir, new_filename)
-                                shutil.copy2(source_file, target_file)
-                                s_count += 1
-                                print(f"  Copied S file to: {target_file}")
-                    
-                    # Also copy intensity files if they're not being generated
-                    if 'intensity' in dirs and success_count == 0:
-                        int_dir = os.path.join(sample_dir, 'intensity')
-                        for file in os.listdir(int_dir):
-                            if file.endswith('.tif') or file.endswith('.tiff'):
-                                source_file = os.path.join(int_dir, file)
-                                # For intensity files: rename from _intensity.tiff to .intensity.tiff
-                                if '_intensity.tiff' in file:
-                                    new_filename = file.replace('_intensity.tiff', '.intensity.tiff')
-                                elif '_intensity.tif' in file:
-                                    new_filename = file.replace('_intensity.tif', '.intensity.tif')
-                                else:
-                                    new_filename = file
-                                target_file = os.path.join(target_dir, new_filename)
-                                shutil.copy2(source_file, target_file)
-                                intensity_count += 1
-                                print(f"  Copied intensity file to: {target_file}")
+            intensity_stage_start = time.time()
             
-            # Rename intensity files to match expected format (from _wavelet_intensity.tiff to .intensity.tiff)
-            renamed_count = 0
-            for root, dirs, files in os.walk(wavelet_input_dir):
-                for file in files:
-                    if '_wavelet_intensity.tiff' in file:
-                        old_path = os.path.join(root, file)
-                        new_filename = file.replace('_wavelet_intensity.tiff', '.intensity.tiff')
-                        new_path = os.path.join(root, new_filename)
-                        os.rename(old_path, new_path)
-                        renamed_count += 1
-                    elif '_intensity.tiff' in file and not file.endswith('.intensity.tiff'):
-                        old_path = os.path.join(root, file)
-                        new_filename = file.replace('_intensity.tiff', '.intensity.tiff')
-                        new_path = os.path.join(root, new_filename)
-                        os.rename(old_path, new_path)
-                        renamed_count += 1
-                    elif '_intensity.tif' in file and not file.endswith('.intensity.tif'):
-                        old_path = os.path.join(root, file)
-                        new_filename = file.replace('_intensity.tif', '.intensity.tif')
-                        new_path = os.path.join(root, new_filename)
-                        os.rename(old_path, new_path)
-                        renamed_count += 1
-                        
-            print(f"Renamed {renamed_count} intensity files to match expected format")
-            
-            # --- Stage 2A Part 3: Simplify filenames (if requested) ---
+            # --- Stage 2A: Simplify filenames (if requested) ---
             if args.simplify_filenames and simplify_filenames:
-                print("\n--- Running Stage 2A Part 3: Simplifying Filenames ---")
+                print("\n--- Running Stage 2A: Simplifying Filenames ---")
                 try:
                     simplify_start = time.time()
                     simple_success, simple_errors = simplify_filenames(preprocessed_dir, dry_run=False)
@@ -658,28 +532,11 @@ def main():
                     print("Continuing pipeline without filename simplification...")
             elif args.simplify_filenames and not simplify_filenames:
                 print("Cannot simplify filenames: simplify_filenames function not available.")
-            
+                
             intensity_stage_end = time.time()
-            
-            if g_count > 0 and s_count > 0 and success_count > 0:
-                print(f"Successfully prepared data for wavelet filtering:")
-                print(f"  - {g_count} G files copied")
-                print(f"  - {s_count} S files copied")
-                print(f"  - {success_count} intensity images generated")
-                if args.simplify_filenames:
-                    print(f"  - Filenames simplified: {'Yes' if 'simple_success' in locals() and simple_success > 0 else 'No'}")
-                print(f"--- Stage 2A Finished ({intensity_stage_end - intensity_stage_start:.2f} seconds) ---")
-            else:
-                print(f"!!! Stage 2A Warning: Some data may be missing for wavelet filtering !!!")
-                print(f"  - G files: {g_count}")
-                print(f"  - S files: {s_count}")
-                print(f"  - Intensity images: {success_count}")
-                if args.simplify_filenames:
-                    print(f"  - Filenames simplified: {'Yes' if 'simple_success' in locals() and simple_success > 0 else 'No'}")
-                print(f"--- Stage 2A Finished with warnings ({intensity_stage_end - intensity_stage_start:.2f} seconds) ---")
                 
         except Exception as e:
-            print(f"!!! Uncaught Error during data preparation for wavelet filtering: {e}", file=sys.stderr)
+            print(f"!!! Uncaught Error during Stage 2A: {e}", file=sys.stderr)
             traceback.print_exc()
 
     # --- Stage 2B: Wavelet Filtering & NPZ Generation ---
