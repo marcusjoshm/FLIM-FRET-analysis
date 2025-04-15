@@ -380,20 +380,23 @@ def calculate_local_noise_variance(transformed_data, N):
     
     Args:
         transformed_data: DTCWT transformed data
-        N (int): Window size for local variance calculation
+        N (int): Window size for local variance calculation or filter level
         
     Returns:
         list: Matrices of local noise variance for each level and band
     """
     sigma_n_squared_matrices = []
 
-    def local_noise_variance(coeffs, N):
+    # If N is a filter level rather than window size, set window size to a constant value
+    window_size = 3 if N > 10 else N
+
+    def local_noise_variance(coeffs, window_size):
         sigma_n_squared = np.zeros_like(coeffs, dtype=float)
         height, width = coeffs.shape
         for x in range(width):
             for y in range(height):
-                x_min, x_max = max(0, x - N), min(width, x + N + 1)
-                y_min, y_max = max(0, y - N), min(height, y + N + 1)
+                x_min, x_max = max(0, x - window_size), min(width, x + window_size + 1)
+                y_min, y_max = max(0, y - window_size), min(height, y + window_size + 1)
                 window = coeffs[y_min:y_max, x_min:x_max]
                 local_variance = np.mean(np.abs(window)**2)
                 sigma_n_squared[y, x] = local_variance
@@ -404,7 +407,7 @@ def calculate_local_noise_variance(transformed_data, N):
         highpasses = transformed_data.highpasses[level]
         for band in range(highpasses.shape[2]):
             coeffs = highpasses[:, :, band]
-            sigma_n_squared = local_noise_variance(coeffs, N)
+            sigma_n_squared = local_noise_variance(coeffs, window_size)
             sigma_n_squared_matrices.append((level, band, sigma_n_squared))
 
     return sigma_n_squared_matrices
@@ -561,73 +564,75 @@ def process_dataset(g_file, s_file, int_file, flevel, omega, ref_g, ref_s):
             s_data = s_data[:min_rows, :min_cols]
             int_data = int_data[:min_rows, :min_cols]
         
-        # Step 3: Create mask for valid pixels (intensity threshold)
-        intensity_threshold = 5  # Minimum intensity to consider valid
-        valid_mask = int_data > intensity_threshold
-        
-        # Apply mask to input data
-        g_masked = np.copy(g_data)
-        s_masked = np.copy(s_data)
-        g_masked[~valid_mask] = 0
-        s_masked[~valid_mask] = 0
-        
-        # Step 4: Calculate unfiltered lifetime
+        # Step 3: Calculate unfiltered lifetime
         print(f"  Calculating unfiltered lifetime...")
         lifetime_unfiltered = calculate_lifetime(g_data, s_data, omega)
         
-        # Step 5: Apply complex wavelet filtering
+        # Step 4: Apply complex wavelet filtering
         print(f"  Applying complex wavelet filtering (level {flevel})...")
+
+        # Compute Fourier coefficients
+        Freal_rescale = g_data * int_data
+        Fimag_rescale = s_data * int_data
+
+        # Freal transformations and filtering
+        print(f"  Processing real Fourier coefficients...")
+        Freal_ans = anscombe_transform(Freal_rescale)
+        Freal_transformed, Freal_transformed_object = perform_dtcwt_transform(Freal_ans, flevel)
+        median_values = calculate_median_values(Freal_transformed)
+        sigma_g_squared = median_values / 0.6745
+        sigma_n_squared = calculate_local_noise_variance(Freal_transformed, flevel)
+        phi_prime = compute_phi_prime(Freal_transformed, sigma_g_squared, sigma_n_squared)
+        update_coefficients(Freal_transformed, phi_prime)
+        Freal_reconstructed_filtered = perform_inverse_dtcwt_transform(Freal_transformed)
+        Freal_filtered = reverse_anscombe_transform(Freal_reconstructed_filtered)
+
+        # Fimag transformations and filtering
+        print(f"  Processing imaginary Fourier coefficients...")
+        Fimag_ans = anscombe_transform(Fimag_rescale)
+        Fimag_transformed, Fimag_transformed_object = perform_dtcwt_transform(Fimag_ans, flevel)
+        median_values = calculate_median_values(Fimag_transformed)
+        sigma_g_squared = median_values / 0.6745
+        sigma_n_squared = calculate_local_noise_variance(Fimag_transformed, flevel)
+        phi_prime = compute_phi_prime(Fimag_transformed, sigma_g_squared, sigma_n_squared)
+        update_coefficients(Fimag_transformed, phi_prime)
+        Fimag_reconstructed_filtered = perform_inverse_dtcwt_transform(Fimag_transformed)
+        Fimag_filtered = reverse_anscombe_transform(Fimag_reconstructed_filtered)
+
+        # Intensity transformations and filtering
+        print(f"  Processing intensity values...")
+        Intensity_ans = anscombe_transform(int_data)
+        Intensity_transformed, Intensity_transformed_object = perform_dtcwt_transform(Intensity_ans, flevel)
+        median_values = calculate_median_values(Intensity_transformed)
+        sigma_g_squared = median_values / 0.6745
+        sigma_n_squared = calculate_local_noise_variance(Intensity_transformed, flevel)
+        phi_prime = compute_phi_prime(Intensity_transformed, sigma_g_squared, sigma_n_squared)
+        update_coefficients(Intensity_transformed, phi_prime)
+        Intensity_reconstructed_filtered = perform_inverse_dtcwt_transform(Intensity_transformed)
+        Intensity_filtered = reverse_anscombe_transform(Intensity_reconstructed_filtered)
+
+        # Calculate filtered G and S by dividing filtered Fourier coefficients by filtered intensity
+        with np.errstate(divide='ignore', invalid='ignore'):
+            g_filtered = Freal_filtered / Intensity_filtered
+            s_filtered = Fimag_filtered / Intensity_filtered
+
+        # Handle NaN values
+        g_filtered_clean = np.nan_to_num(g_filtered)
+        s_filtered_clean = np.nan_to_num(s_filtered)
         
-        # Apply Anscombe transform
-        g_anscombe = anscombe_transform(g_masked)
-        s_anscombe = anscombe_transform(s_masked)
-        
-        # Perform DTCWT transform
-        g_transform, g_transform_obj = perform_dtcwt_transform(g_anscombe, flevel)
-        s_transform, s_transform_obj = perform_dtcwt_transform(s_anscombe, flevel)
-        
-        # Calculate noise parameters
-        local_window_size = 3
-        sigma_g_squared_g = calculate_median_values(g_transform) ** 2
-        sigma_g_squared_s = calculate_median_values(s_transform) ** 2
-        
-        # Calculate local noise variance
-        g_noise_var = calculate_local_noise_variance(g_transform, local_window_size)
-        s_noise_var = calculate_local_noise_variance(s_transform, local_window_size)
-        
-        # Compute modified coefficients
-        g_updated_coeffs = compute_phi_prime(g_transform, sigma_g_squared_g, g_noise_var)
-        s_updated_coeffs = compute_phi_prime(s_transform, sigma_g_squared_s, s_noise_var)
-        
-        # Update coefficients
-        update_coefficients(g_transform, g_updated_coeffs)
-        update_coefficients(s_transform, s_updated_coeffs)
-        
-        # Perform inverse transform
-        g_filtered_anscombe = perform_inverse_dtcwt_transform(g_transform)
-        s_filtered_anscombe = perform_inverse_dtcwt_transform(s_transform)
-        
-        # Reverse Anscombe transform
-        g_filtered = reverse_anscombe_transform(g_filtered_anscombe)
-        s_filtered = reverse_anscombe_transform(s_filtered_anscombe)
-        
-        # Restore masked areas
-        g_filtered[~valid_mask] = np.nan
-        s_filtered[~valid_mask] = np.nan
-        
-        # Step 6: Calculate filtered lifetime
+        # Step 5: Calculate filtered lifetime using filtered G and S
         print(f"  Calculating filtered lifetime...")
-        lifetime_filtered = calculate_lifetime(g_filtered, s_data, omega)
+        lifetime_filtered = calculate_lifetime(g_filtered_clean, s_filtered_clean, omega)
         
-        # Step 7: Create output dictionary with required structure
+        # Step 6: Create output dictionary with required structure
         result = {
-            'G': g_filtered,          # Wavelet-filtered G
-            'S': s_filtered,          # Wavelet-filtered S
-            'A': int_data,            # Intensity 
-            'T': lifetime_filtered,   # Filtered lifetime
-            'GU': g_data,             # Unfiltered G
-            'SU': s_data,             # Unfiltered S
-            'TU': lifetime_unfiltered # Unfiltered lifetime
+            'G': g_filtered_clean,      # Wavelet-filtered G
+            'S': s_filtered_clean,      # Wavelet-filtered S
+            'A': int_data,              # Original intensity (not filtered)
+            'T': lifetime_filtered,     # Filtered lifetime (from filtered G and S)
+            'GU': g_data,               # Unfiltered G
+            'SU': s_data,               # Unfiltered S
+            'TU': lifetime_unfiltered   # Unfiltered lifetime
         }
         
         # Add metadata
