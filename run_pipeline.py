@@ -53,14 +53,20 @@ except ImportError as e:
     print(f"Warning: Could not import from ComplexWaveletFilter_v2_0.py: {e}")
     print("Falling back to v1.6 implementation...")
     try:
-        # Fall back to v1.6 if v2.0 is not available
         from ComplexWaveletFilter_v1_6 import main as run_wavelet_filtering
-        print("Using ComplexWaveletFilter_v1_6 implementation")
+        print("Using Complex Wavelet Filter v1.6 implementation")
     except ImportError as e:
-        # Use current filename in error message
         print(f"Error: Could not import main (as run_wavelet_filtering) from either wavelet filter version: {e}") 
         print("Ensure at least one wavelet filter implementation is in the same directory.")
         run_wavelet_filtering = None # Placeholder
+    
+try:
+    # Stage 3: Phasor Visualization
+    from phasor_visualization import run_phasor_visualization
+except ImportError as e:
+    print(f"Error: Could not import run_phasor_visualization from phasor_visualization.py: {e}")
+    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    run_phasor_visualization = None # Placeholder
     
 try:
     # Intensity Image Generation for Wavelet Filtering
@@ -364,6 +370,7 @@ def parse_arguments():
     # Individual stages (for advanced users)
     parser.add_argument("--preprocess", action="store_true", help="[DEPRECATED] Use --preprocessing instead")
     parser.add_argument("--filter", action="store_true", help="Run only Stage 2B: wavelet filtering and lifetime calculation")
+    parser.add_argument("--visualize", action="store_true", help="Run Stage 3: Interactive phasor visualization and plot generation")
     parser.add_argument("--segment", action="store_true", help="Run GMM segmentation stage")
     parser.add_argument("--phasor", action="store_true", help="Run phasor transformation stage")
     
@@ -384,19 +391,20 @@ def parse_arguments():
     # If no specific stages are selected, and not running in test mode
     # ask the user what to do
     if not (args.all or args.preprocessing or args.processing or args.LF_preprocessing or
-            args.preprocess or args.filter or args.segment or args.phasor or args.test):
+            args.preprocess or args.filter or args.visualize or args.segment or args.phasor or args.test):
         # Not running any specific stage and not in test mode
         print("No pipeline stages specified. Options:")
         print("1. Preprocessing (.bin to .tif conversion + phasor transformation)")
         print("2. Processing (preprocessing + wavelet filtering and lifetime calculation)")
         print("3. LF preprocessing (preprocessing with simplified filenames)")
         print("4. Filter only (wavelet filtering)")
-        print("5. Segment (GMM segmentation)")
-        print("6. Phasor (phasor transformation only)")
-        print("7. All stages")
-        print("8. Exit")
+        print("5. Visualize (interactive phasor plots)")
+        print("6. Segment (GMM segmentation)")
+        print("7. Phasor (phasor transformation only)")
+        print("8. All stages")
+        print("9. Exit")
         
-        choice = input("Select an option (1-8): ")
+        choice = input("Select an option (1-9): ")
         
         if choice == "1":
             args.preprocessing = True
@@ -407,12 +415,14 @@ def parse_arguments():
         elif choice == "4":
             args.filter = True
         elif choice == "5":
-            args.segment = True
+            args.visualize = True
         elif choice == "6":
-            args.phasor = True
+            args.segment = True
         elif choice == "7":
-            args.all = True
+            args.phasor = True
         elif choice == "8":
+            args.all = True
+        elif choice == "9":
             print("Exiting.")
             sys.exit(0)
         else:
@@ -585,9 +595,30 @@ def main():
         else:
             print("!!! Cannot run Stage 2B: run_wavelet_filtering function not available.", file=sys.stderr)
 
-    # --- Stage 3: GMM Segmentation, Plotting, Lifetime Saving ---
+    # --- Stage 3: Interactive Phasor Visualization ---
+    if args.visualize or args.all:
+        print("\n--- Running Stage 3: Interactive Phasor Visualization ---")
+        if run_phasor_visualization:
+            try:
+                stage_start = time.time()
+                
+                # Run interactive phasor visualization
+                success = run_phasor_visualization(args.output_base_dir)
+                
+                stage_end = time.time()
+                if success:
+                    print(f"--- Stage 3 Finished ({stage_end - stage_start:.2f} seconds) ---")
+                else:
+                    print(f"!!! Stage 3 Exited (user may have aborted) ({stage_end - stage_start:.2f} seconds) !!!")
+            except Exception as e:
+                print(f"!!! Uncaught Error during Stage 3: Phasor Visualization: {e}", file=sys.stderr)
+                traceback.print_exc()
+        else:
+            print("!!! Cannot run Stage 3: run_phasor_visualization function not available.", file=sys.stderr)
+
+    # --- Stage 4: GMM Segmentation, Plotting, Lifetime Saving ---
     if args.segment or args.all:
-        print("\n--- Running Stage 3: GMM Segmentation, Plotting, Lifetime Saving ---")
+        print("\n--- Running Stage 4: GMM Segmentation, Plotting, Lifetime Saving ---")
         if run_gmm_segmentation:
             try:
                 stage_start = time.time()
@@ -601,17 +632,17 @@ def main():
                 )
                 stage_end = time.time()
                 if success:
-                    print(f"--- Stage 3 Finished ({stage_end - stage_start:.2f} seconds) ---")
+                    print(f"--- Stage 4 Finished ({stage_end - stage_start:.2f} seconds) ---")
                 else:
-                    print(f"!!! Stage 3 Failed (check errors above) ({stage_end - stage_start:.2f} seconds) !!!")
+                    print(f"!!! Stage 4 Failed (check errors above) ({stage_end - stage_start:.2f} seconds) !!!")
             except Exception as e:
-                print(f"!!! Uncaught Error during Stage 3: GMM Segmentation: {e}", file=sys.stderr)
+                print(f"!!! Uncaught Error during Stage 4: GMM Segmentation: {e}", file=sys.stderr)
         else:
-            print("!!! Cannot run Stage 3: run_gmm_segmentation function not available.", file=sys.stderr)
+            print("!!! Cannot run Stage 4: run_gmm_segmentation function not available.", file=sys.stderr)
             
-    # --- Stage 4: Phasor Transformation ---
+    # --- Stage 5: Phasor Transformation ---
     if args.phasor or args.all:
-        print("\n--- Running Stage 4: Phasor Transformation ---")
+        print("\n--- Running Stage 5: Phasor Transformation ---")
         if run_phasor_transform:
             try:
                 stage_start = time.time()
@@ -705,13 +736,13 @@ def main():
                 
                 stage_end = time.time()
                 if success:
-                    print(f"--- Stage 4 Finished ({stage_end - stage_start:.2f} seconds) ---")
+                    print(f"--- Stage 5 Finished ({stage_end - stage_start:.2f} seconds) ---")
                 else:
-                    print(f"!!! Stage 4 Completed with some errors ({stage_end - stage_start:.2f} seconds) !!!")
+                    print(f"!!! Stage 5 Completed with some errors ({stage_end - stage_start:.2f} seconds) !!!")
             except Exception as e:
-                print(f"!!! Uncaught Error during Stage 4: Phasor Transformation: {e}", file=sys.stderr)
+                print(f"!!! Uncaught Error during Stage 5: Phasor Transformation: {e}", file=sys.stderr)
         else:
-            print("!!! Cannot run Stage 4: run_phasor_transform function not available.", file=sys.stderr)
+            print("!!! Cannot run Stage 5: run_phasor_transform function not available.", file=sys.stderr)
             
     end_pipeline_time = time.time()
     print("\n=================================")
