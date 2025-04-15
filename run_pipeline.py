@@ -359,6 +359,7 @@ def parse_arguments():
     # Workflow groupings
     parser.add_argument("--preprocessing", action="store_true", help="Run Stages 1-2A: convert files, phasor transformation, and organize files")
     parser.add_argument("--processing", action="store_true", help="Run Stages 1-2B: preprocessing + wavelet filtering and lifetime calculation")
+    parser.add_argument("--LF-preprocessing", action="store_true", help="LF workflow: Run preprocessing with automatic filename simplification")
     
     # Individual stages (for advanced users)
     parser.add_argument("--preprocess", action="store_true", help="[DEPRECATED] Use --preprocessing instead")
@@ -382,33 +383,36 @@ def parse_arguments():
     
     # If no specific stages are selected, and not running in test mode
     # ask the user what to do
-    if not (args.all or args.preprocessing or args.processing or 
+    if not (args.all or args.preprocessing or args.processing or args.LF_preprocessing or
             args.preprocess or args.filter or args.segment or args.phasor or args.test):
         # Not running any specific stage and not in test mode
         print("No pipeline stages specified. Options:")
         print("1. Preprocessing (.bin to .tif conversion + phasor transformation)")
         print("2. Processing (preprocessing + wavelet filtering and lifetime calculation)")
-        print("3. Filter only (wavelet filtering)")
-        print("4. Segment (GMM segmentation)")
-        print("5. Phasor (phasor transformation only)")
-        print("6. All stages")
-        print("7. Exit")
+        print("3. LF preprocessing (preprocessing with simplified filenames)")
+        print("4. Filter only (wavelet filtering)")
+        print("5. Segment (GMM segmentation)")
+        print("6. Phasor (phasor transformation only)")
+        print("7. All stages")
+        print("8. Exit")
         
-        choice = input("Select an option (1-7): ")
+        choice = input("Select an option (1-8): ")
         
         if choice == "1":
             args.preprocessing = True
         elif choice == "2":
             args.processing = True
         elif choice == "3":
-            args.filter = True
+            args.LF_preprocessing = True
         elif choice == "4":
-            args.segment = True
+            args.filter = True
         elif choice == "5":
-            args.phasor = True
+            args.segment = True
         elif choice == "6":
-            args.all = True
+            args.phasor = True
         elif choice == "7":
+            args.all = True
+        elif choice == "8":
             print("Exiting.")
             sys.exit(0)
         else:
@@ -494,7 +498,7 @@ def main():
     print("===================================")
 
     # --- Stage 1: Preprocessing ---
-    if args.preprocess or args.preprocessing or args.processing or args.all:
+    if args.preprocess or args.preprocessing or args.processing or args.LF_preprocessing or args.all:
         print("\n--- Running Stage 1: Preprocessing ---")
         if run_preprocessing:
             try:
@@ -520,12 +524,12 @@ def main():
             print("!!! Cannot run Stage 1: run_preprocessing function not available.", file=sys.stderr)
             
     # --- Stage 2A: Optional Filename Simplification ---
-    if args.preprocess or args.preprocessing or args.processing or args.all:
+    if args.preprocess or args.preprocessing or args.processing or args.LF_preprocessing or args.all:
         try:
             intensity_stage_start = time.time()
             
-            # --- Stage 2A: Simplify filenames (if requested) ---
-            if args.simplify_filenames and simplify_filenames:
+            # --- Stage 2A: Simplify filenames (if requested or LF workflow) ---
+            if (args.simplify_filenames or args.LF_preprocessing) and simplify_filenames:
                 print("\n--- Running Stage 2A: Simplifying Filenames ---")
                 try:
                     simplify_start = time.time()
