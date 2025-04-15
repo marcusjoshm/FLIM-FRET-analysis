@@ -46,12 +46,21 @@ except ImportError as e:
 
 try:
     # Stage 2: Wavelet Filtering & NPZ Generation
-    from ComplexWaveletFilter_v1_6 import main as run_wavelet_filtering
+    # First try the advanced v2.0 implementation
+    from ComplexWaveletFilter_v2_0 import main as run_wavelet_filtering
+    print("Using advanced Complex Wavelet Filter v2.0 implementation")
 except ImportError as e:
-    # Use current filename in error message
-    print(f"Error: Could not import main (as run_wavelet_filtering) from ComplexWaveletFilter_v1_6.py: {e}") 
-    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
-    run_wavelet_filtering = None # Placeholder
+    print(f"Warning: Could not import from ComplexWaveletFilter_v2_0.py: {e}")
+    print("Falling back to v1.6 implementation...")
+    try:
+        # Fall back to v1.6 if v2.0 is not available
+        from ComplexWaveletFilter_v1_6 import main as run_wavelet_filtering
+        print("Using ComplexWaveletFilter_v1_6 implementation")
+    except ImportError as e:
+        # Use current filename in error message
+        print(f"Error: Could not import main (as run_wavelet_filtering) from either wavelet filter version: {e}") 
+        print("Ensure at least one wavelet filter implementation is in the same directory.")
+        run_wavelet_filtering = None # Placeholder
     
 try:
     # Intensity Image Generation for Wavelet Filtering
@@ -641,6 +650,14 @@ def main():
                 # Path to intensity images generated in Stage 2A
                 wavelet_intensity_dir = os.path.join(args.output_base_dir, 'wavelet_intensity_images')
                 
+                # Add required microscope parameters if missing in config
+                if "microscope_params" not in config:
+                    config["microscope_params"] = {}
+                if "frequency" not in config["microscope_params"]:
+                    config["microscope_params"]["frequency"] = 78.0  # Default frequency (MHz)
+                if "harmonic" not in config["microscope_params"]:
+                    config["microscope_params"]["harmonic"] = 1     # Default harmonic
+                
                 # Pass required arguments
                 success = run_wavelet_filtering(
                     config, 
@@ -654,6 +671,7 @@ def main():
                     print(f"!!! Stage 2B Failed (check errors above) ({stage_end - stage_start:.2f} seconds) !!!")
             except Exception as e:
                 print(f"!!! Uncaught Error during Stage 2B: Wavelet Filtering: {e}", file=sys.stderr)
+                traceback.print_exc()  # Print the full error traceback for debugging
         else:
             print("!!! Cannot run Stage 2B: run_wavelet_filtering function not available.", file=sys.stderr)
 
