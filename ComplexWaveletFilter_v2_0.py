@@ -62,12 +62,13 @@ def main(config, preprocessed_dir, npz_dir):
     # Calculate angular frequency
     omega_rad_per_ns = 2 * np.pi * freq_mhz * 1e6 * harmonic * 1e-9
     
-    print(f"\nStarting Complex Wavelet Filtering with advanced implementation")
+    print("Starting Complex Wavelet Filtering with advanced implementation")
     print(f"Input directory: {preprocessed_dir}")
     print(f"Output directory: {npz_dir}")
     print(f"Filter level: {flevel}")
     print(f"Reference fluorophore: G={REF_G}, S={REF_S}")
-    print(f"Calculated Omega (rad/ns): {omega_rad_per_ns:.4f}")
+    print(f"Calculated Omega (rad/ns): {omega_rad_per_ns:.4f}\n")
+    print("Looking for FLIM data files in the preprocessed directory...")
     
     # Create output directory if it doesn't exist
     os.makedirs(npz_dir, exist_ok=True)
@@ -76,42 +77,123 @@ def main(config, preprocessed_dir, npz_dir):
         print(f"Error: Input directory not found: {preprocessed_dir}", file=sys.stderr)
         return False
     
-    # Process files
-    processed_count = 0
-    skipped_count = 0
+    # Initialize dataset dictionary to store matched G/S/intensity files
+    datasets = {}
     
-    # Walk through input directory to find G, S, and intensity files
+    # First, look for subdirectories with the expected structure (G_unfiltered, S_unfiltered, intensity)
+    sample_dirs = []
+    
     for root, dirs, files in os.walk(preprocessed_dir):
-        # Look for our target files
-        g_files = [f for f in files if f.lower().endswith('.g.tiff') or f.lower().endswith('.g.tif')]
-        s_files = [f for f in files if f.lower().endswith('.s.tiff') or f.lower().endswith('.s.tif')]
-        intensity_files = [f for f in files if f.lower().endswith('.intensity.tiff') or f.lower().endswith('.intensity.tif')]
+        # Check if this directory has our target subdirectories
+        if 'G_unfiltered' in dirs and 'S_unfiltered' in dirs and 'intensity' in dirs:
+            sample_dirs.append(root)
+    
+    if not sample_dirs:
+        # If we didn't find the expected directory structure, try looking directly for files
+        print("Did not find standard directory structure, searching for individual files...")
         
-        # Skip directories without our target files
-        if not g_files and not s_files and not intensity_files:
-            continue
-        
-        relative_path = os.path.relpath(root, preprocessed_dir)
-        print(f"\nFound files in: {relative_path if relative_path != '.' else 'root'}")
-        print(f"  {len(g_files)} G files, {len(s_files)} S files, {len(intensity_files)} intensity files")
-        
-        # Group files by base name
-        datasets = {}
-        
-        # Process G files - extract base name without extension
-        for g_file in g_files:
-            base_name = g_file[:-len(".g.tiff")] if g_file.endswith('.g.tiff') else g_file[:-len(".g.tif")]
-            datasets.setdefault(base_name, {})['g'] = os.path.join(root, g_file)
+        for root, dirs, files in os.walk(preprocessed_dir):
+            # Look for our target files
+            g_files = [f for f in files if f.lower().endswith('.g.tiff') or f.lower().endswith('.g.tif') or '_g.tiff' in f.lower() or '_g.tif' in f.lower()]
+            s_files = [f for f in files if f.lower().endswith('.s.tiff') or f.lower().endswith('.s.tif') or '_s.tiff' in f.lower() or '_s.tif' in f.lower()]
+            intensity_files = [f for f in files if f.lower().endswith('.intensity.tiff') or f.lower().endswith('.intensity.tif') or '_intensity.tiff' in f.lower() or '_intensity.tif' in f.lower()]
             
-        # Process S files
-        for s_file in s_files:
-            base_name = s_file[:-len(".s.tiff")] if s_file.endswith('.s.tiff') else s_file[:-len(".s.tif")]
-            datasets.setdefault(base_name, {})['s'] = os.path.join(root, s_file)
+            # Skip directories without any target files
+            if not g_files and not s_files and not intensity_files:
+                continue
             
-        # Process intensity files
-        for int_file in intensity_files:
-            base_name = int_file[:-len(".intensity.tiff")] if int_file.endswith('.intensity.tiff') else int_file[:-len(".intensity.tif")]
-            datasets.setdefault(base_name, {})['int'] = os.path.join(root, int_file)
+            print(f"Found files in: {os.path.relpath(root, preprocessed_dir) if root != preprocessed_dir else 'root'}")
+            print(f"  {len(g_files)} G files, {len(s_files)} S files, {len(intensity_files)} intensity files")
+            
+            # Process the files in this directory
+            for g_file in g_files:
+                if '_g.tiff' in g_file.lower() or '_g.tif' in g_file.lower():
+                    # Extract base name (everything before _g)
+                    base_name = os.path.splitext(g_file)[0][:-2]  # Remove _g
+                else:
+                    base_name = os.path.splitext(g_file)[0]
+                datasets.setdefault(base_name, {})['g'] = os.path.join(root, g_file)
+            
+            for s_file in s_files:
+                if '_s.tiff' in s_file.lower() or '_s.tif' in s_file.lower():
+                    # Extract base name (everything before _s)
+                    base_name = os.path.splitext(s_file)[0][:-2]  # Remove _s
+                else:
+                    base_name = os.path.splitext(s_file)[0]
+                datasets.setdefault(base_name, {})['s'] = os.path.join(root, s_file)
+            
+            for int_file in intensity_files:
+                if '_intensity.tiff' in int_file.lower() or '_intensity.tif' in int_file.lower() or '_wavelet_intensity.tiff' in int_file.lower():
+                    # Extract base name (everything before _intensity or _wavelet_intensity)
+                    if '_wavelet_intensity' in int_file:
+                        base_name = int_file.split('_wavelet_intensity')[0]
+                    else:
+                        base_name = int_file.split('_intensity')[0]
+                else:
+                    base_name = os.path.splitext(int_file)[0]
+                datasets.setdefault(base_name, {})['int'] = os.path.join(root, int_file)
+    else:
+        # Process samples with standard directory structure
+        for sample_dir in sample_dirs:
+            print(f"Found sample directory: {os.path.relpath(sample_dir, preprocessed_dir) if sample_dir != preprocessed_dir else 'root'}")
+            
+            # Get the G files
+            g_dir = os.path.join(sample_dir, 'G_unfiltered')
+            g_files = [f for f in os.listdir(g_dir) if f.endswith('.tif') or f.endswith('.tiff')]
+            
+            # Get the S files
+            s_dir = os.path.join(sample_dir, 'S_unfiltered')
+            s_files = [f for f in os.listdir(s_dir) if f.endswith('.tif') or f.endswith('.tiff')]
+            
+            # Get the intensity files
+            intensity_dir = os.path.join(sample_dir, 'intensity')
+            intensity_files = [f for f in os.listdir(intensity_dir) if f.endswith('.tif') or f.endswith('.tiff')]
+            
+            print(f"  {len(g_files)} G files, {len(s_files)} S files, {len(intensity_files)} intensity files")
+            
+            # Process all G files
+            for g_file in g_files:
+                # Extract the base name from the G filename
+                if '_g.tiff' in g_file:
+                    base_name = g_file.split('_g.tiff')[0]
+                elif '_g.tif' in g_file:
+                    base_name = g_file.split('_g.tif')[0]
+                else:
+                    base_name = os.path.splitext(g_file)[0]
+                
+                # Look for matching S and intensity files
+                s_match = None
+                int_match = None
+                
+                # Find matching S file
+                for s_file in s_files:
+                    if '_s.tiff' in s_file and s_file.split('_s.tiff')[0] == base_name:
+                        s_match = s_file
+                        break
+                    elif '_s.tif' in s_file and s_file.split('_s.tif')[0] == base_name:
+                        s_match = s_file
+                        break
+                
+                # Find matching intensity file
+                for int_file in intensity_files:
+                    if '_intensity.tiff' in int_file and int_file.split('_intensity.tiff')[0] == base_name:
+                        int_match = int_file
+                        break
+                    elif '_intensity.tif' in int_file and int_file.split('_intensity.tif')[0] == base_name:
+                        int_match = int_file
+                        break
+                    elif '_wavelet_intensity.tiff' in int_file and int_file.split('_wavelet_intensity.tiff')[0] == base_name:
+                        int_match = int_file
+                        break
+                
+                # Add the complete dataset to our dictionary
+                if s_match and int_match:
+                    full_base_name = f"{os.path.basename(sample_dir)}_{base_name}" if sample_dir != preprocessed_dir else base_name
+                    datasets[full_base_name] = {
+                        'g': os.path.join(g_dir, g_file),
+                        's': os.path.join(s_dir, s_match),
+                        'int': os.path.join(intensity_dir, int_match)
+                    }
         
         # Process each complete dataset
         for base_name, file_paths in datasets.items():
