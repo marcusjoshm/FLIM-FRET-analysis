@@ -18,6 +18,9 @@ This repository contains tools for automating Fluorescence Lifetime Imaging Micr
 - `run_pipeline.py`: The main pipeline orchestrator for end-to-end workflow
 - `TCSPC_preprocessing_AUTOcal_v2_0.py`: Handles the preprocessing stage (ImageJ + FLUTE)
 - `ComplexWaveletFilter_v2_0.py`: Performs advanced wavelet filtering with DTCWT and creates NPZ datasets
+  - Uses the **dtcwt** Python package for sophisticated noise reduction
+  - Implements Anscombe transform for variance stabilization
+  - Produces both filtered and unfiltered lifetime calculations
 - `simplify_filenames.py`: Optional tool to convert complex filenames to simpler format
 - `GMMSegmentation_v2_6.py`: Performs GMM-based segmentation and analysis
 - `phasor_transform.py`: Performs phasor transformation without GUI dependencies
@@ -35,6 +38,9 @@ Follow these steps to set up the FLIM-FRET analysis pipeline on your system:
 1. **Python 3.8+** - We recommend using Python 3.8 or newer. [Download Python](https://www.python.org/downloads/)
 2. **ImageJ/Fiji** - Required for .bin file conversion. [Download Fiji](https://fiji.sc/)
 3. **Git** - For cloning the repository. [Download Git](https://git-scm.com/downloads)
+4. **Python Libraries** - Several specialized Python packages are required:
+   - **dtcwt** (≥0.12.0) - Required for advanced wavelet filtering
+   - See requirements.txt for complete dependency list
 
 ### Step 1: Clone the Repository
 
@@ -80,8 +86,10 @@ This will install the following dependencies:
 - numpy, pandas, scipy, matplotlib (data handling and visualization)
 - scikit-image, tifffile, pillow (image processing)
 - scikit-learn (machine learning for GMM segmentation)
-- dtcwt (dual-tree complex wavelet transform for noise reduction)
+- **dtcwt** (Dual-Tree Complex Wavelet Transform) - **CRITICAL** for the advanced wavelet filtering in Stage 2B
 - other utility packages
+
+> **Note:** The dtcwt package is essential for the Complex Wavelet Filter functionality. This advanced filtering uses dual-tree complex wavelets to significantly improve noise reduction compared to traditional methods while preserving important signal features.
 
 ### Step 4: Configure the Pipeline
 
