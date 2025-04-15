@@ -17,6 +17,8 @@ import glob
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
+from matplotlib.ticker import LogFormatter
+from matplotlib import colors
 import datetime
 import re
 
@@ -196,80 +198,91 @@ def generate_phasor_plot(g_data, s_data, intensity, title, contour=True):
     
     # Check for empty data
     if len(g_data) == 0 or len(s_data) == 0:
-        fig, ax = plt.subplots(figsize=(10, 8))
+        fig, ax = plt.subplots(figsize=(8, 6))
         ax.set_title(f"{title} - No valid data points")
-        ax.set_xlabel("G")
-        ax.set_ylabel("S")
+        ax.set_xlabel("\n$G$")
+        ax.set_ylabel("$S$\n")
         ax.grid(True, alpha=0.3)
         return fig
     
-    fig, ax = plt.subplots(figsize=(10, 8))
+    # Create a universal circle for reference
+    x = np.linspace(0, 1.0, 100)
+    y = np.linspace(0, 0.7, 100)
+    X, Y = np.meshgrid(x, y)
+    F = (X**2 + Y**2 - X)  # Universal circle equation
     
-    # Create a reference semicircle
-    theta = np.linspace(0, np.pi, 100)
-    x_circle = 0.5 + 0.5 * np.cos(theta)
-    y_circle = 0.5 * np.sin(theta)
-    ax.plot(x_circle, y_circle, 'k--', alpha=0.5)
+    # Set plot limits
+    x_scale = [-0.005, 1.005]
+    y_scale = [0, 0.7]
     
-    # Draw the universal circle
-    x = np.linspace(0, 1, 100)
-    ax.plot(x, np.sqrt(x - x**2), 'k--', alpha=0.3)
+    # Calculate bin widths using IQR or use fixed bins
+    iqr_x = np.percentile(g_data, 75) - np.percentile(g_data, 25)
+    bin_width_x = 2 * iqr_x * (len(g_data) ** (-1/3))
+    bin_width_x = np.nan_to_num(bin_width_x)
+
+    iqr_y = np.percentile(s_data, 75) - np.percentile(s_data, 25)
+    bin_width_y = 2 * iqr_y * (len(s_data) ** (-1/3))
+    bin_width_y = np.nan_to_num(bin_width_y)
     
-    # Apply intensity weighting
-    # Each point is duplicated based on its intensity
-    intensity_int = np.round(intensity).astype(int)
-    g_weighted = np.repeat(g_data, intensity_int)
-    s_weighted = np.repeat(s_data, intensity_int)
+    # Set a small threshold for bin width to detect impractical values
+    min_bin_width = np.finfo(float).eps
     
-    if contour:
-        # Create a 2D histogram for contour plot
-        hist, xedges, yedges = np.histogram2d(
-            g_weighted, 
-            s_weighted, 
-            bins=[100, 100], 
-            range=[[0, 1], [0, 0.7]]
-        )
-        
-        # Contour levels on a log scale
-        levels = np.logspace(
-            np.log10(max(1, hist.max()/1000)), 
-            np.log10(hist.max()), 
-            20
-        )
-        
-        # Create contour plot
-        X, Y = np.meshgrid(xedges[:-1] + 0.005, yedges[:-1] + 0.0035)
-        contour = ax.contourf(
-            X, Y, hist.T, 
-            levels=levels, 
-            cmap='viridis', 
-            norm=LogNorm(), 
-            alpha=0.7
-        )
-        plt.colorbar(contour, ax=ax, label='Pixel Count (log scale)')
+    # Calculate number of bins, or set manually if bin widths are too small
+    if bin_width_x <= min_bin_width or bin_width_y <= min_bin_width:
+        num_bins_x = 100  # Default number of bins
+        num_bins_y = 100
     else:
-        # Create a scatter plot
-        ax.scatter(
-            g_data, s_data, 
-            c=intensity, 
-            cmap='viridis', 
-            alpha=0.5, 
-            s=1,
-            norm=LogNorm()
-        )
-        plt.colorbar(ax=ax.collections[0], label='Intensity')
+        num_bins_x = int(np.ceil((np.max(g_data) - np.min(g_data)) / bin_width_x)) // 2
+        num_bins_y = int(np.ceil((np.max(s_data) - np.min(s_data)) / bin_width_y)) // 2
+        # Ensure a reasonable number of bins
+        num_bins_x = max(50, min(200, num_bins_x))
+        num_bins_y = max(50, min(200, num_bins_y))
+    
+    # Create 2D histogram
+    hist_vals, _, _ = np.histogram2d(g_data, s_data, bins=(num_bins_x, num_bins_y), weights=intensity)
+    vmax = hist_vals.max()
+    vmin = hist_vals.min()
+    
+    # Create the plot
+    fig, ax = plt.subplots(figsize=(8, 6))
+    
+    # Generate the 2D histogram
+    h = ax.hist2d(g_data, s_data, 
+                bins=(num_bins_x, num_bins_y), 
+                weights=intensity, 
+                cmap='nipy_spectral', 
+                norm=colors.SymLogNorm(linthresh=50, linscale=1, vmax=vmax, vmin=vmin), 
+                zorder=1, 
+                cmin=0.01)
     
     # Set plot properties
-    ax.set_title(title)
-    ax.set_xlabel("G (Real)")
-    ax.set_ylabel("S (Imaginary)")
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 0.7)
-    ax.grid(True, alpha=0.3)
+    ax.set_facecolor('white')
+    ax.set_xlabel('\n$G$')
+    ax.set_ylabel('$S$\n')
+    ax.set_xlim(x_scale)
+    ax.set_ylim(y_scale)
     
-    # Add timestamp to figure
+    # Add the universal circle contour
+    ax.contour(X, Y, F, [0], colors='black', linewidths=1, zorder=2)
+    
+    # Add the colorbar with custom formatting
+    near_zero = 0.1
+    cbar = fig.colorbar(h[3], ax=ax, format=LogFormatter(10, labelOnlyBase=True))
+    
+    # Calculate appropriate ticks for the colorbar
+    if vmax > 1:
+        ticks = [near_zero] + [10**i for i in range(1, int(np.log10(vmax)) + 1)]
+        tick_labels = ['0'] + [f'$10^{i}$' for i in range(1, int(np.log10(vmax)) + 1)]
+        cbar.set_ticks(ticks)
+        cbar.set_ticklabels(tick_labels)
+    
+    cbar.set_label('Frequency')
+    
+    # Set title with timestamp
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    fig.text(0.02, 0.02, f"Generated: {timestamp}", fontsize=8)
+    ax.set_title(f"{title}\n({timestamp})")
+    
+    fig.tight_layout()
     
     return fig
 
