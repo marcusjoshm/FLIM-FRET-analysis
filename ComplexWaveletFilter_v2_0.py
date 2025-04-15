@@ -47,18 +47,36 @@ def main(config, preprocessed_dir, npz_dir):
     Returns:
         bool: True if successful, False if failed
     """
-    # Extract parameters from config, using defaults if not found
+    # Initialize counters
+    processed_count = 0
+    skipped_count = 0
+    
+    # Validate inputs
+    if not os.path.isdir(preprocessed_dir):
+        print(f"Error: Input directory does not exist: {preprocessed_dir}", file=sys.stderr)
+        return False
+        
+    if not os.path.isdir(npz_dir):
+        os.makedirs(npz_dir, exist_ok=True)
+        
+    # Extract parameters from config
     try:
-        freq_mhz = config["microscope_params"]["frequency"]
-        harmonic = config["microscope_params"]["harmonic"]
-    except KeyError as e:
-        print(f"Warning: Missing parameter in config: {e}. Using defaults.")
+        flevel = config.get("wavelet_params", {}).get("filter_level", 9)
+        ref_g = config.get("wavelet_params", {}).get("reference_g", 0.30227996721890404)
+        ref_s = config.get("wavelet_params", {}).get("reference_s", 0.4592458920992018)
+        
+        # Get microscope parameters
+        microscope_params = config.get("microscope_params", {})
+        freq_mhz = microscope_params.get("frequency", 78.0)
+        harmonic = microscope_params.get("harmonic", 1)
+    except Exception as e:
+        print(f"Error extracting parameters from config: {e}", file=sys.stderr)
+        flevel = 9  # Default filter level
+        ref_g = 0.30227996721890404  # Default reference G
+        ref_s = 0.4592458920992018  # Default reference S
         freq_mhz = 78.0  # Default frequency in MHz
-        harmonic = 1     # Default harmonic
-    
-    # Hard-code filter level to 9 as specified
-    flevel = DEFAULT_FLEVEL
-    
+        harmonic = 1  # Default harmonic
+        
     # Calculate angular frequency
     omega_rad_per_ns = 2 * np.pi * freq_mhz * 1e6 * harmonic * 1e-9
     
@@ -66,7 +84,7 @@ def main(config, preprocessed_dir, npz_dir):
     print(f"Input directory: {preprocessed_dir}")
     print(f"Output directory: {npz_dir}")
     print(f"Filter level: {flevel}")
-    print(f"Reference fluorophore: G={REF_G}, S={REF_S}")
+    print(f"Reference fluorophore: G={ref_g}, S={ref_s}")
     print(f"Calculated Omega (rad/ns): {omega_rad_per_ns:.4f}\n")
     print("Looking for FLIM data files in the preprocessed directory...")
     
@@ -209,21 +227,26 @@ def main(config, preprocessed_dir, npz_dir):
                         file_paths['int'],
                         flevel,
                         omega_rad_per_ns,
-                        REF_G,
-                        REF_S
+                        ref_g,
+                        ref_s
                     )
                     process_end = time.time()
                     
                     if result is not None:
-                        # Construct output path mirroring input structure
-                        output_dir = os.path.join(npz_dir, relative_path)
-                        os.makedirs(output_dir, exist_ok=True)
+                        # Create output directory with same structure as input
+                        rel_sample_dir = os.path.basename(os.path.dirname(file_paths.get('g', ''))) if '/' in file_paths.get('g', '') else ''
                         
-                        # Save result to NPZ file
-                        output_file = os.path.join(output_dir, f"{base_name}_processed.npz")
-                        print(f"  Saving NPZ to: {output_file}")
-                        save_npz(output_file, result)
+                        if rel_sample_dir:
+                            output_dir = os.path.join(npz_dir, rel_sample_dir)
+                            os.makedirs(output_dir, exist_ok=True)
+                        else:
+                            output_dir = npz_dir
                         
+                        # Save npz file
+                        output_path = os.path.join(output_dir, f"{base_name}.npz")
+                        np.savez(output_path, **result)
+                        
+                        print(f"  Saving NPZ to: {output_path}")
                         print(f"  Processing completed in {process_end - process_start:.2f} seconds")
                         processed_count += 1
                     else:
@@ -620,8 +643,7 @@ def process_dataset(g_file, s_file, int_file, flevel, omega, ref_g, ref_s):
         return None
 
 def save_npz(file_path, data_dict):
-    """
-    Save processed data to NPZ file.
+    """Save processed data to NPZ file.
     
     Args:
         file_path (str): Output file path
@@ -634,28 +656,11 @@ def save_npz(file_path, data_dict):
         # Create the output directory if it doesn't exist
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         
-        # Extract arrays and metadata
-        arrays = {}
-        metadata = {}
-        
-        for key, value in data_dict.items():
-            if isinstance(value, np.ndarray) and value.size > 1:
-                arrays[key] = value
-            else:
-                metadata[key] = value
-        
-        # Save the arrays
-        np.savez(file_path, **arrays)
-        
-        # Optionally save metadata separately
-        metadata_path = file_path.replace('.npz', '_metadata.npz')
-        if metadata:
-            np.savez(metadata_path, **metadata)
-            
+        # Save the file
+        np.savez(file_path, **data_dict)
         return True
-        
     except Exception as e:
-        print(f"  Error saving NPZ file: {e}")
+        print(f"Error saving NPZ file: {e}", file=sys.stderr)
         return False
 
 if __name__ == "__main__":

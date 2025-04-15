@@ -512,8 +512,8 @@ def main():
         else:
             print("!!! Cannot run Stage 1: run_preprocessing function not available.", file=sys.stderr)
             
-    # --- Stage 2A: Generate Intensity Images and Copy G/S Files for Wavelet Filtering ---
-    if (args.preprocess or args.filter or args.all) and not args.skip_file_prep:
+    # --- Stage 2A: Generate Intensity Images ---
+    if args.preprocess or args.all:
         print("\n--- Running Stage 2A: Preparing Data for Wavelet Filtering ---")
         wavelet_input_dir = os.path.join(args.output_base_dir, 'wavelet_intensity_images')
         os.makedirs(wavelet_input_dir, exist_ok=True)
