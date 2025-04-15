@@ -355,8 +355,14 @@ def parse_arguments():
     
     # Pipeline stage control
     parser.add_argument("--all", action="store_true", help="Run all pipeline stages")
-    parser.add_argument("--preprocess", action="store_true", help="Run preprocessing stage through intensity image generation (Stages 1 and 2A)")
-    parser.add_argument("--filter", action="store_true", help="Run wavelet filtering stage")
+    
+    # Workflow groupings
+    parser.add_argument("--preprocessing", action="store_true", help="Run Stages 1-2A: convert files, phasor transformation, and organize files")
+    parser.add_argument("--processing", action="store_true", help="Run Stages 1-2B: preprocessing + wavelet filtering and lifetime calculation")
+    
+    # Individual stages (for advanced users)
+    parser.add_argument("--preprocess", action="store_true", help="[DEPRECATED] Use --preprocessing instead")
+    parser.add_argument("--filter", action="store_true", help="Run only Stage 2B: wavelet filtering and lifetime calculation")
     parser.add_argument("--segment", action="store_true", help="Run GMM segmentation stage")
     parser.add_argument("--phasor", action="store_true", help="Run phasor transformation stage")
     
@@ -376,22 +382,24 @@ def parse_arguments():
     
     # If no specific stages are selected, and not running in test mode
     # ask the user what to do
-    if not (args.all or args.preprocess or args.filter or args.segment or args.phasor or args.test):
+    if not (args.all or args.preprocessing or args.processing or 
+            args.preprocess or args.filter or args.segment or args.phasor or args.test):
         # Not running any specific stage and not in test mode
         print("No pipeline stages specified. Options:")
-        print("1. Run all stages")
-        print("2. Run preprocessing through intensity image generation (Stages 1 and 2A)")
-        print("3. Run wavelet filtering only")
-        print("4. Run GMM segmentation only")
-        print("5. Run phasor transformation only")
-        print("6. Exit")
+        print("1. Preprocessing (.bin to .tif conversion + phasor transformation)")
+        print("2. Processing (preprocessing + wavelet filtering and lifetime calculation)")
+        print("3. Filter only (wavelet filtering)")
+        print("4. Segment (GMM segmentation)")
+        print("5. Phasor (phasor transformation only)")
+        print("6. All stages")
+        print("7. Exit")
         
-        choice = input("Enter your choice (1-6): ")
+        choice = input("Select an option (1-7): ")
         
         if choice == "1":
-            args.all = True
+            args.preprocessing = True
         elif choice == "2":
-            args.preprocess = True
+            args.processing = True
         elif choice == "3":
             args.filter = True
         elif choice == "4":
@@ -399,6 +407,8 @@ def parse_arguments():
         elif choice == "5":
             args.phasor = True
         elif choice == "6":
+            args.all = True
+        elif choice == "7":
             print("Exiting.")
             sys.exit(0)
         else:
@@ -484,7 +494,7 @@ def main():
     print("===================================")
 
     # --- Stage 1: Preprocessing ---
-    if args.preprocess or args.all:
+    if args.preprocess or args.preprocessing or args.processing or args.all:
         print("\n--- Running Stage 1: Preprocessing ---")
         if run_preprocessing:
             try:
@@ -510,7 +520,7 @@ def main():
             print("!!! Cannot run Stage 1: run_preprocessing function not available.", file=sys.stderr)
             
     # --- Stage 2A: Optional Filename Simplification ---
-    if args.preprocess or args.all:
+    if args.preprocess or args.preprocessing or args.processing or args.all:
         try:
             intensity_stage_start = time.time()
             
@@ -540,7 +550,7 @@ def main():
             traceback.print_exc()
 
     # --- Stage 2B: Wavelet Filtering & NPZ Generation ---
-    if args.filter or args.all:
+    if args.filter or args.processing or args.all:
         print("\n--- Running Stage 2B: Wavelet Filtering & NPZ Generation ---")
         if run_wavelet_filtering:
             try:
