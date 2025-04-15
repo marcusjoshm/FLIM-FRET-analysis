@@ -17,7 +17,8 @@ This repository contains tools for automating Fluorescence Lifetime Imaging Micr
 
 - `run_pipeline.py`: The main pipeline orchestrator for end-to-end workflow
 - `TCSPC_preprocessing_AUTOcal_v2_0.py`: Handles the preprocessing stage (ImageJ + FLUTE)
-- `ComplexWaveletFilter_v1_6.py`: Performs wavelet filtering and creates NPZ datasets
+- `ComplexWaveletFilter_v2_0.py`: Performs advanced wavelet filtering with DTCWT and creates NPZ datasets
+- `simplify_filenames.py`: Optional tool to convert complex filenames to simpler format
 - `GMMSegmentation_v2_6.py`: Performs GMM-based segmentation and analysis
 - `phasor_transform.py`: Performs phasor transformation without GUI dependencies
 - `flim_fft_automated.py`: The main script that processes FLIM data using FFT
@@ -79,7 +80,7 @@ This will install the following dependencies:
 - numpy, pandas, scipy, matplotlib (data handling and visualization)
 - scikit-image, tifffile, pillow (image processing)
 - scikit-learn (machine learning for GMM segmentation)
-- dtcwt (wavelet transforms)
+- dtcwt (dual-tree complex wavelet transform for noise reduction)
 - other utility packages
 
 ### Step 4: Configure the Pipeline
@@ -259,6 +260,53 @@ The script intelligently matches calibration values to input files using several
    - Specifically handles cases where calibration refers to `.bin` files in a different path than the `.tif` input files
    - Example: Can match `/Volumes/NX-01-A/FLIM_workflow_test_data/Dish_1_Post-Rapa/R1/R_1_s1.bin` calibration to `/Volumes/NX-01-A/FLIM_workflow_test_data_analysis/output/Dish_1_Post-Rapa/R1/R_1_s1.tif` input file
 
+## Advanced Complex Wavelet Filtering
+
+The pipeline incorporates an advanced noise reduction technique using the Dual-Tree Complex Wavelet Transform (DTCWT) to denoise FLIM-FRET data. This approach produces significantly improved lifetime measurements while preserving important structural details.
+
+### Key Features of Wavelet Filtering
+
+- **Anscombe Transform**: Stabilizes variance for better signal processing
+- **Dual-Tree Complex Wavelet Transform**: Multi-resolution decomposition with directional selectivity
+- **Local Noise Variance Estimation**: Adapts to varying noise levels across the image
+- **Adaptive Coefficient Modification**: Uses sophisticated phi_prime function to preserve edges
+- **Both Filtered and Unfiltered Results**: Enables comparison between denoised and original data
+
+### NPZ File Structure
+
+The NPZ files created by the wavelet filtering stage contain the following data arrays:
+
+- `G`: Wavelet-filtered G coordinates (real part of phasor)
+- `S`: Wavelet-filtered S coordinates (imaginary part of phasor)
+- `A`: Intensity values
+- `T`: Lifetime calculated from filtered G/S coordinates
+- `GU`: Unfiltered G coordinates
+- `SU`: Unfiltered S coordinates
+- `TU`: Lifetime calculation from unfiltered G/S
+
+### Controlling Wavelet Filtering
+
+You can customize the wavelet filtering behavior in the `config.json` file:
+
+```json
+{
+  "wavelet_params": {
+    "filter_level": 9,
+    "reference_g": 0.30227996721890404,
+    "reference_s": 0.4592458920992018
+  },
+  "microscope_params": {
+    "frequency": 78.0,
+    "harmonic": 1
+  }
+}
+```
+
+- `filter_level`: Controls the depth of wavelet decomposition (higher values = more aggressive filtering)
+- `reference_g` and `reference_s`: Reference fluorophore coordinates (typically from a fluorescent standard)
+- `frequency`: Laser frequency in MHz
+- `harmonic`: Harmonic used in the FLIM acquisition
+
 ## Pipeline Structure
 
 The pipeline creates the following directory structure:
@@ -268,7 +316,7 @@ The pipeline creates the following directory structure:
   - `G_unfiltered/`: G (real) phasor coordinates
   - `S_unfiltered/`: S (imaginary) phasor coordinates
   - `Intensity/`: Intensity maps
-- `npz_datasets/`: Contains processed NPZ datasets for analysis
+- `npz_datasets/`: Contains processed NPZ datasets from wavelet filtering
 - `segmented/`: Contains segmentation masks and outputs
 - `plots/`: Contains visualization plots
 - `lifetime_images/`: Contains extracted lifetime maps
@@ -276,7 +324,9 @@ The pipeline creates the following directory structure:
 
 ## Output Files
 
-The script creates the following files for each processed input file:
+### Preprocessing Output
+
+The preprocessing stage creates the following files for each processed input file:
 
 - `*_g.tiff`: G (real) phasor coordinates
 - `*_s.tiff`: S (imaginary) phasor coordinates
@@ -285,6 +335,16 @@ The script creates the following files for each processed input file:
 - `*_taup.tiff`: Phase lifetime map
 - `*_taum.tiff`: Modulation lifetime map
 - `*_phasor.png`: Phasor plot visualization
+
+### Wavelet Filtering Output
+
+The wavelet filtering stage processes the G, S, and intensity files and creates NPZ files that contain:
+
+- Filtered G and S coordinates for improved signal-to-noise ratio
+- Unfiltered G and S coordinates for comparison
+- Calculated lifetime values from both filtered and unfiltered data
+- Intensity values from the input images
+- Metadata about processing parameters
 
 ## Requirements
 
