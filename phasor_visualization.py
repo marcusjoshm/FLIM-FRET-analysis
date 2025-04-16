@@ -87,12 +87,13 @@ def prompt_file_selection(npz_files):
         print("Invalid input format. Please try again.")
         return prompt_file_selection(npz_files)
 
-def load_npz_data(selected_files):
+def load_npz_data(selected_files, individual_threshold=None):
     """
     Load and combine data from selected NPZ files
     
     Args:
         selected_files (list): List of selected NPZ file paths
+        individual_threshold (float): Percentile threshold to apply to each dataset individually before combining
         
     Returns:
         dict: Combined data with G, S, GU, SU, and A arrays
@@ -106,6 +107,9 @@ def load_npz_data(selected_files):
         'A': []    # Intensity values
     }
     
+    total_pixels = 0
+    kept_pixels = 0
+    
     for file_path in selected_files:
         try:
             data = np.load(file_path)
@@ -118,14 +122,38 @@ def load_npz_data(selected_files):
                 print(f"Warning: File {os.path.basename(file_path)} is missing keys: {', '.join(missing_keys)}")
                 print("This file will be skipped.")
                 continue
+            
+            # Apply individual thresholding if requested
+            if individual_threshold is not None:
+                # Extract data for this file
+                file_data = {}
+                for key in required_keys:
+                    file_data[key] = data[key].ravel()
                 
-            # Append data to combined arrays
-            for key in combined_data:
-                # Convert to 1D array before appending
-                arr = data[key].ravel()
-                combined_data[key].append(arr)
+                # Calculate threshold for this specific file
+                intensity = file_data['A']
+                file_threshold = np.percentile(intensity, individual_threshold)
                 
-            print(f"Loaded data from {os.path.basename(file_path)}")
+                # Create mask for this file
+                mask = intensity >= file_threshold
+                total_pixels += len(mask)
+                kept_pixels += np.sum(mask)
+                
+                # Apply mask to all arrays for this file
+                for key in combined_data:
+                    combined_data[key].append(file_data[key][mask])
+                
+                print(f"Loaded and thresholded data from {os.path.basename(file_path)}")
+                print(f"  - Applied individual threshold of {file_threshold:.2f} (removed bottom {individual_threshold}%)")
+                print(f"  - Kept {np.sum(mask)} of {len(mask)} pixels ({(np.sum(mask)/len(mask))*100:.1f}%)")
+            else:
+                # Standard loading without thresholding
+                for key in combined_data:
+                    # Convert to 1D array before appending
+                    arr = data[key].ravel()
+                    combined_data[key].append(arr)
+                
+                print(f"Loaded data from {os.path.basename(file_path)}")
             
         except Exception as e:
             print(f"Error loading {os.path.basename(file_path)}: {str(e)}")
@@ -137,20 +165,52 @@ def load_npz_data(selected_files):
         else:
             print(f"Warning: No valid data for '{key}' found in selected files.")
             combined_data[key] = np.array([])
+    
+    # Print summary if individual thresholding was applied
+    if individual_threshold is not None and total_pixels > 0:
+        percent_kept = (kept_pixels / total_pixels) * 100
+        print(f"\nIndividual thresholding summary:")
+        print(f"  - Original pixels: {total_pixels}")
+        print(f"  - Pixels retained: {kept_pixels} ({percent_kept:.1f}%)")
             
     return combined_data
 
-def apply_intensity_threshold(data, threshold=0):
+def calculate_auto_threshold(data, percentile=90):
+    """
+    Calculate a threshold value that removes the bottom X percentile of intensity values
+    
+    Args:
+        data (dict): Combined data dictionary
+        percentile (float): Percentile value (0-100) to use for thresholding
+        
+    Returns:
+        float: Calculated threshold value
+    """
+    if 'A' not in data or len(data['A']) == 0:
+        return 0
+        
+    # Calculate the percentile value of the combined intensity data
+    threshold = np.percentile(data['A'], percentile)
+    return threshold
+
+def apply_intensity_threshold(data, threshold=0, auto_percentile=None):
     """
     Apply intensity threshold to filter low-signal pixels
     
     Args:
         data (dict): Combined data dictionary
-        threshold (float): Intensity threshold value
+        threshold (float): Intensity threshold value (used if auto_percentile is None)
+        auto_percentile (float): Percentile value for auto-thresholding (overrides threshold if set)
         
     Returns:
         dict: Filtered data with intensities >= threshold
     """
+    # Use auto-thresholding if specified
+    if auto_percentile is not None:
+        threshold = calculate_auto_threshold(data, auto_percentile)
+        print(f"Auto-threshold calculated at {threshold:.2f} (removing bottom {auto_percentile}% of intensity values)")
+    
+    # If no thresholding is applied, return original data
     if threshold <= 0:
         return data
         
@@ -168,7 +228,7 @@ def apply_intensity_threshold(data, threshold=0):
     # Print statistics
     if len(mask) > 0:
         percent_kept = (np.sum(mask) / len(mask)) * 100
-        print(f"Applied intensity threshold of {threshold}:")
+        print(f"Applied intensity threshold of {threshold:.2f}:")
         print(f"  - Original pixels: {len(mask)}")
         print(f"  - Pixels retained: {np.sum(mask)} ({percent_kept:.1f}%)")
     else:
@@ -353,43 +413,114 @@ def run_phasor_visualization(output_base_dir, select_files=True):
             selected_files = npz_files
             print(f"Using all {len(selected_files)} NPZ files for visualization.")
         
-        # Load and combine data from selected files
-        data = load_npz_data(selected_files)
+        # For individual thresholding, we need to apply thresholds before combining
+        if individual_percentile is not None:
+            # Load NPZ data with individual thresholding
+            data = load_npz_data(selected_files, individual_percentile)
+            # No further thresholding needed
+            filtered_data = data
+        else:
+            # Load and combine data from selected files without thresholding
+            data = load_npz_data(selected_files)
         
         # Check if any data was loaded
         if not data['G'].size or not data['GU'].size:
             print("No valid data loaded from selected files.")
             continue
             
-        # Prompt for intensity threshold
-        while True:
-            threshold_input = input("\nEnter intensity threshold (0 for no threshold, 'q' to quit): ").strip().lower()
-            
-            if threshold_input == 'q':
-                return False
-                
-            try:
-                threshold = float(threshold_input)
-                if threshold < 0:
-                    print("Threshold must be non-negative. Please try again.")
-                    continue
-                break
-            except ValueError:
-                print("Invalid input. Please enter a number.")
+        # Prompt for intensity threshold method
+        print("\nThresholding options:")
+        print("  [1] No threshold (use all data)")
+        print("  [2] Manual threshold (enter a specific value)")
+        print("  [3] Auto-threshold on combined data (remove bottom 90% of intensity values)")
+        print("  [4] Custom auto-threshold on combined data (specify percentile to remove)")
+        print("  [5] Individual dataset auto-threshold (remove bottom 90% from each dataset)")
+        print("  [6] Custom individual dataset auto-threshold (specify percentile to remove from each dataset)")
+        print("  [q] Quit visualization")
         
-        # Apply intensity threshold
-        filtered_data = apply_intensity_threshold(data, threshold)
+        threshold_choice = input("Select an option: ").strip().lower()
+        
+        if threshold_choice == 'q':
+            return False
+        
+        threshold = 0
+        auto_percentile = None
+        individual_percentile = None
+        threshold_desc = "0 (No threshold)"
+        
+        if threshold_choice == '1':
+            # No threshold, keep all data
+            threshold = 0
+            threshold_desc = "0 (No threshold)"
+            
+        elif threshold_choice == '2':
+            # Manual threshold
+            while True:
+                threshold_input = input("Enter intensity threshold value: ").strip()
+                try:
+                    threshold = float(threshold_input)
+                    if threshold < 0:
+                        print("Threshold must be non-negative. Please try again.")
+                        continue
+                    threshold_desc = str(threshold)
+                    break
+                except ValueError:
+                    print("Invalid input. Please enter a number.")
+                    
+        elif threshold_choice == '3':
+            # Auto-threshold with default 90%
+            auto_percentile = 90
+            threshold_desc = f"Auto ({auto_percentile}%)"
+            
+        elif threshold_choice == '4':
+            # Custom auto-threshold on combined data
+            while True:
+                percentile_input = input("Enter percentile threshold (1-99): ").strip()
+                try:
+                    percentile = float(percentile_input)
+                    if percentile < 1 or percentile > 99:
+                        print("Percentile must be between 1 and 99. Please try again.")
+                        continue
+                    auto_percentile = percentile
+                    threshold_desc = f"Auto combined ({auto_percentile}%)"
+                    break
+                except ValueError:
+                    print("Invalid input. Please enter a number.")
+        elif threshold_choice == '5':
+            # Individual dataset auto-threshold (90%)
+            individual_percentile = 90
+            threshold_desc = f"Individual auto ({individual_percentile}%)"
+        elif threshold_choice == '6':
+            # Custom individual dataset auto-threshold
+            while True:
+                percentile_input = input("Enter percentile threshold for individual datasets (1-99): ").strip()
+                try:
+                    percentile = float(percentile_input)
+                    if percentile < 1 or percentile > 99:
+                        print("Percentile must be between 1 and 99. Please try again.")
+                        continue
+                    individual_percentile = percentile
+                    threshold_desc = f"Individual auto ({individual_percentile}%)"
+                    break
+                except ValueError:
+                    print("Invalid input. Please enter a number.")
+        else:
+            print("Invalid choice. Using no threshold.")
+        
+        # Apply intensity threshold (either manual or auto) if not using individual thresholding
+        if individual_percentile is None:
+            filtered_data = apply_intensity_threshold(data, threshold, auto_percentile)
         
         # Create plots
         filtered_fig = generate_phasor_plot(
             filtered_data['G'], filtered_data['S'], filtered_data['A'],
-            f"Wavelet Filtered Phasor Plot (Threshold: {threshold})",
+            f"Wavelet Filtered Phasor Plot (Threshold: {threshold_desc})",
             contour=True
         )
         
         unfiltered_fig = generate_phasor_plot(
             filtered_data['GU'], filtered_data['SU'], filtered_data['A'],
-            f"Unfiltered Phasor Plot (Threshold: {threshold})",
+            f"Unfiltered Phasor Plot (Threshold: {threshold_desc})",
             contour=True
         )
         
