@@ -1,6 +1,6 @@
 # FLIM-FRET Analysis Automation
 
-This repository contains tools for automating Fluorescence Lifetime Imaging Microscopy (FLIM) and Förster Resonance Energy Transfer (FRET) analysis without requiring a GUI. It provides an end-to-end workflow from raw .bin files to complete FLIM-FRET analysis.
+This repository contains a workflow for automating Fluorescence Lifetime Imaging Microscopy (FLIM) Förster Resonance Energy Transfer (FRET) analysis without requiring the FLUTE GUI for phasor calibration and transformation. It also provides a faster and more streamlined approach to complex-wavelet filtering, phasor segmentation, and plotting.
 
 ## Key Features
 
