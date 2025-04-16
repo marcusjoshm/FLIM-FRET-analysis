@@ -386,6 +386,11 @@ def run_phasor_visualization(output_base_dir, select_files=True):
     """
     print("\n=== Stage 3: Phasor Visualization ===")
     
+    # Initialize variables that will be used throughout the function
+    threshold = 0
+    auto_percentile = None
+    individual_percentile = None
+    
     # Define directories
     npz_dir = os.path.join(output_base_dir, "npz_datasets")
     
