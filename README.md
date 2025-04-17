@@ -2,6 +2,43 @@
 
 This repository contains tools for automating Fluorescence Lifetime Imaging Microscopy (FLIM) and Förster Resonance Energy Transfer (FRET) analysis without requiring a GUI. It provides an end-to-end workflow from raw .bin files to complete FLIM-FRET analysis.
 
+
+
+
+## --LF-preprocessed Workflow
+
+For Noah and Leyla, if you would like to process raw .bin files from LASX without having to use FLUTE, here is a workflow that will work seemlessly with your FFF python scripts. All you need to do is set up your input directory following the instructions below and run the script from ther Terminal app.
+
+### Setting up the Input Directory
+
+- All `.bin` files must be in folders in the input directory. You can have separate folders for each experimental condition.
+- There should be a `FITC.bin` file in the input directory, not in a folder.
+- There should be a `calibration.csv` file in the input directory with the phi and modulation values entered for every `.bin` file.
+
+## Creating the Calibration File
+
+Enter the file absolute file path, phi, and modulation values for every file that needs to be preprocessed. You can find the absolute file path by dragging a file from a finder window into an open terminal, then copy and paste it into the spreadsheet. Use the same phi and modulation values for every file from the same tile-scan. Convert the phi angles from degrees to radians (must be negative).
+
+## Running the Script
+
+Open a new terminal and enter:
+```bash
+cd ~/FLIM-FRET-analysis
+source venv/bin/activate
+```
+
+To run the script enter the following in the terminal:
+```bash
+python run_pipeline.py --input-dir {/path/to/input/dir} --output-base-dir {/path/to/output/dir} --LF-preprocessing
+```
+
+Change `{/path/to/input/dir}` to the actual path of your input directory that contains the raw data `.bin` files, `FITC.bin` file, and `calibration.csv` file. Change `{/path/to/output/dir}` to a location you want the output to go. It doesn't have to exist, the script will create the directory and save the output files to that location.
+
+When the script finishes running, your preprocessed files will be in a folder called "preprocessed" in your output folder. You can then use those files with your current FFF python scripts. Simply copy preprocessed from your output directory to `~/FLIM_processing_dir/`
+
+
+
+
 ## Key Features
 
 - Complete end-to-end workflow from raw .bin files to processed analysis
@@ -128,6 +165,7 @@ python run_pipeline.py --test
 - **ImageJ/FLUTE Path Errors**: Check that your `config.json` has the correct paths
 - **Missing Dependencies**: If you encounter errors about missing packages, try installing them individually with `pip install package_name`
 - **Permission Issues**: Make sure ImageJ/Fiji and macro files have execution permissions on Unix systems (`chmod +x /path/to/file`)
+
 
 ## Data Preparation Guide
 

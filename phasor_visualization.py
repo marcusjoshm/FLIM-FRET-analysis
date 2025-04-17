@@ -418,22 +418,7 @@ def run_phasor_visualization(output_base_dir, select_files=True):
             selected_files = npz_files
             print(f"Using all {len(selected_files)} NPZ files for visualization.")
         
-        # For individual thresholding, we need to apply thresholds before combining
-        if individual_percentile is not None:
-            # Load NPZ data with individual thresholding
-            data = load_npz_data(selected_files, individual_percentile)
-            # No further thresholding needed
-            filtered_data = data
-        else:
-            # Load and combine data from selected files without thresholding
-            data = load_npz_data(selected_files)
-        
-        # Check if any data was loaded
-        if not data['G'].size or not data['GU'].size:
-            print("No valid data loaded from selected files.")
-            continue
-            
-        # Prompt for intensity threshold method
+        # Prompt for intensity threshold method before loading data
         print("\nThresholding options:")
         print("  [1] No threshold (use all data)")
         print("  [2] Manual threshold (enter a specific value)")
@@ -511,6 +496,23 @@ def run_phasor_visualization(output_base_dir, select_files=True):
                     print("Invalid input. Please enter a number.")
         else:
             print("Invalid choice. Using no threshold.")
+            
+        # Now that we've determined the thresholding approach, load the data accordingly
+        if individual_percentile is not None:
+            # Load NPZ data with individual thresholding
+            data = load_npz_data(selected_files, individual_percentile)
+            # No further thresholding needed
+            filtered_data = data
+        else:
+            # Load and combine data from selected files without thresholding
+            data = load_npz_data(selected_files)
+        
+        # Check if any data was loaded
+        if not data['G'].size or not data['GU'].size:
+            print("No valid data loaded from selected files.")
+            continue
+            
+        # We've already chosen the thresholding method before loading data
         
         # Apply intensity threshold (either manual or auto) if not using individual thresholding
         if individual_percentile is None:
