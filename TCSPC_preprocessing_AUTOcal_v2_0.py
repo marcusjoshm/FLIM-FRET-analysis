@@ -140,6 +140,8 @@ def manually_copy_files_to_preprocessed(output_dir, preprocessed_dir):
         output_dir (str): Source directory containing _g.tiff, _s.tiff, and _intensity.tiff files
         preprocessed_dir (str): Target directory for copied files
     """
+    from run_pipeline import get_relative_path  # Import the universal path utility
+    
     print("Manually copying files from output to preprocessed directory...")
     
     # Walk through the output directory
@@ -156,8 +158,8 @@ def manually_copy_files_to_preprocessed(output_dir, preprocessed_dir):
         if not g_files and not s_files and not intensity_files:
             continue
             
-        # Get relative path from output_dir
-        rel_path = os.path.relpath(root, output_dir)
+        # Get the relative path using our universal utility
+        rel_path = get_relative_path(root, output_dir)
         print(f"Processing directory: {rel_path}")
         
         # Create target directory structure
@@ -421,17 +423,14 @@ def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibrati
             print("Please check the 'macro_files' paths in config.json")
             return False
     
-    # === Run ImageJ Macros for TIF conversion ===
-    print("Running ImageJ Macro 1 for FITC.bin...")
-    macro1_success = run_imagej(imagej_path, macro_files[0], input_dir, output_dir)
-    if not macro1_success:
-        print("Warning: ImageJ Macro 1 (FITC.bin) failed. Continuing anyway...")
+    # === Run BIN to TIF conversion using Python ===
+    from run_pipeline import process_bin_files
 
-    print("Running ImageJ Macro 2 for all .bin files...")
-    macro2_success = run_imagej(imagej_path, macro_files[1], input_dir, output_dir)
-    if not macro2_success:
-        print("Warning: ImageJ Macro 2 (All BIN files) failed. Continuing anyway...")
-    
+    print("Converting .bin files to .tif files using Python...")
+    success = process_bin_files(input_dir, output_dir, preprocessed_dir, imagej_path, macro_files)
+    if not success:
+        print("Warning: Python-based .bin to .tif conversion failed. Continuing anyway...")
+        
     # Check if any .tif files were created in the output directory
     tif_files_exist = False
     for root, dirs, files in os.walk(output_dir):

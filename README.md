@@ -11,9 +11,10 @@ For Noah and Leyla, if you would like to process raw .bin files from LASX withou
 
 ### Setting up the Input Directory
 
-- All `.bin` files must be in folders in the input directory. You can have separate folders for each experimental condition.
-- There should be a `FITC.bin` file in the input directory, not in a folder.
+- `.bin` files can be placed anywhere within the input directory structure. The directory structure will be preserved in the output.
+- You can organize your `.bin` files in any way that makes sense for your experiment (e.g., by condition, sample, etc.).
 - There should be a `calibration.csv` file in the input directory with the phi and modulation values entered for every `.bin` file.
+- **Note:** The `FITC.bin` file is no longer required (as of April 2025 update).
 
 ## Creating the Calibration File
 
