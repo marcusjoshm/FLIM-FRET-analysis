@@ -399,53 +399,53 @@ print("--------------------------------------------------")
 
 try:
     # Stage 1: Preprocessing
-    from TCSPC_preprocessing_AUTOcal_v2_0 import run_preprocessing
+    from scripts.TCSPC_preprocessing_AUTOcal_v2_0 import run_preprocessing
 except ImportError as e:
     # Use current filename in error message
-    print(f"Error: Could not import run_preprocessing from TCSPC_preprocessing_AUTOcal_v2_0.py: {e}") 
-    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    print(f"Error: Could not import run_preprocessing from scripts/TCSPC_preprocessing_AUTOcal_v2_0.py: {e}") 
+    print("Ensure the script is in the scripts directory or accessible via PYTHONPATH.")
     run_preprocessing = None # Placeholder
     
 try:
     # Stage 1B: Filename simplification (optional)
-    from simplify_filenames import simplify_filenames
+    from scripts.simplify_filenames import simplify_filenames
 except ImportError as e:
     # Use current filename in error message
-    print(f"Error: Could not import simplify_filenames from simplify_filenames.py: {e}")
-    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    print(f"Error: Could not import simplify_filenames from scripts/simplify_filenames.py: {e}")
+    print("Ensure the script is in the scripts directory or accessible via PYTHONPATH.")
     simplify_filenames = None # Placeholder
 
 try:
     # Stage 2: Wavelet Filtering & NPZ Generation
     # First try the advanced v2.0 implementation
-    from ComplexWaveletFilter_v2_0 import main as run_wavelet_filtering
+    from scripts.ComplexWaveletFilter_v2_0 import main as run_wavelet_filtering
     print("Using advanced Complex Wavelet Filter v2.0 implementation")
 except ImportError as e:
-    print(f"Warning: Could not import from ComplexWaveletFilter_v2_0.py: {e}")
+    print(f"Warning: Could not import from scripts/ComplexWaveletFilter_v2_0.py: {e}")
     print("Falling back to v1.6 implementation...")
     try:
-        from ComplexWaveletFilter_v1_6 import main as run_wavelet_filtering
+        from scripts.ComplexWaveletFilter_v1_6 import main as run_wavelet_filtering
         print("Using Complex Wavelet Filter v1.6 implementation")
     except ImportError as e:
         print(f"Error: Could not import main (as run_wavelet_filtering) from either wavelet filter version: {e}") 
-        print("Ensure at least one wavelet filter implementation is in the same directory.")
+        print("Ensure at least one wavelet filter implementation is in the scripts directory.")
         run_wavelet_filtering = None # Placeholder
     
 try:
     # Stage 3: Phasor Visualization
-    from phasor_visualization import run_phasor_visualization
+    from scripts.phasor_visualization import run_phasor_visualization
 except ImportError as e:
-    print(f"Error: Could not import run_phasor_visualization from phasor_visualization.py: {e}")
-    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    print(f"Error: Could not import run_phasor_visualization from scripts/phasor_visualization.py: {e}")
+    print("Ensure the script is in the scripts directory or accessible via PYTHONPATH.")
     run_phasor_visualization = None # Placeholder
     
 try:
     # Intensity Image Generation for Wavelet Filtering
-    from generate_intensity_images import process_raw_flim_files as generate_intensity_images
+    from scripts.generate_intensity_images import process_raw_flim_files as generate_intensity_images
 except ImportError as e:
     # Use current filename in error message
-    print(f"Error: Could not import process_raw_flim_files (as generate_intensity_images) from generate_intensity_images.py: {e}") 
-    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    print(f"Error: Could not import process_raw_flim_files (as generate_intensity_images) from scripts/generate_intensity_images.py: {e}") 
+    print("Ensure the script is in the scripts directory or accessible via PYTHONPATH.")
     generate_intensity_images = None # Placeholder
     
 # Additional imports needed for file operations
@@ -454,20 +454,20 @@ import traceback
     
 try:
     # Stage 3: GMM Segmentation, Plotting, Lifetime Saving
-    from GMMSegmentation_v2_6 import main as run_gmm_segmentation
+    from scripts.GMMSegmentation_v2_6 import main as run_gmm_segmentation
 except ImportError as e:
     # Use current filename in error message
-    print(f"Error: Could not import main (as run_gmm_segmentation) from GMMSegmentation_v2_6.py: {e}") 
-    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    print(f"Error: Could not import main (as run_gmm_segmentation) from scripts/GMMSegmentation_v2_6.py: {e}") 
+    print("Ensure the script is in the scripts directory or accessible via PYTHONPATH.")
     run_gmm_segmentation = None # Placeholder
     
 try:
     # Stage 4: Phasor Transformation
-    from phasor_transform import process_flim_file as run_phasor_transform
+    from scripts.phasor_transform import process_flim_file as run_phasor_transform
 except ImportError as e:
     # Use current filename in error message
-    print(f"Error: Could not import process_flim_file (as run_phasor_transform) from phasor_transform.py: {e}") 
-    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    print(f"Error: Could not import process_flim_file (as run_phasor_transform) from scripts/phasor_transform.py: {e}") 
+    print("Ensure the script is in the scripts directory or accessible via PYTHONPATH.")
     run_phasor_transform = None # Placeholder
     
 # --- New Test Function ---
