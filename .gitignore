@@ -49,6 +49,9 @@ Thumbs.db
 *.csv
 *.dat
 *.out
+
+# Backup directories
+backup_*/
 *.pid
 *.xlsx
 *.pkl
