@@ -15,11 +15,243 @@ import os
 import sys
 import json
 import subprocess
+import traceback
+import logging
+import datetime
+from contextlib import contextmanager
+from typing import Dict, List, Optional, Any, Tuple
 
 # Print sys.path right before imports
 print("--- sys.path before imports in run_pipeline.py ---")
 print(sys.path)
 print("--------------------------------------------------")
+
+# --- Error Tracking and Logging System ---
+class PipelineLogger:
+    """
+    Comprehensive logging system for the FLIM-FRET analysis pipeline.
+    Tracks errors, performance metrics, and provides detailed reporting.
+    """
+    
+    def __init__(self, output_base_dir: str):
+        self.output_base_dir = output_base_dir
+        self.log_dir = os.path.join(output_base_dir, 'logs')
+        os.makedirs(self.log_dir, exist_ok=True)
+        
+        # Initialize logging
+        self.setup_logging()
+        
+        # Error tracking
+        self.errors = []
+        self.warnings = []
+        self.stage_performance = {}
+        self.file_processing_stats = {}
+        
+        # Performance tracking
+        self.start_time = time.time()
+        self.stage_timings = {}
+        
+    def setup_logging(self):
+        """Setup comprehensive logging with multiple handlers."""
+        # Create timestamp for log files
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # Main pipeline log
+        self.pipeline_log_path = os.path.join(self.log_dir, f'pipeline_{timestamp}.log')
+        
+        # Error log (errors only)
+        self.error_log_path = os.path.join(self.log_dir, f'errors_{timestamp}.log')
+        
+        # Performance log
+        self.performance_log_path = os.path.join(self.log_dir, f'performance_{timestamp}.log')
+        
+        # Setup main logger
+        self.logger = logging.getLogger('FLIM_FRET_Pipeline')
+        self.logger.setLevel(logging.DEBUG)
+        self.logger.handlers = []  # Clear existing handlers
+        
+        # Console handler (INFO level)
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(logging.INFO)
+        console_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        console_handler.setFormatter(console_formatter)
+        self.logger.addHandler(console_handler)
+        
+        # File handler (DEBUG level)
+        file_handler = logging.FileHandler(self.pipeline_log_path)
+        file_handler.setLevel(logging.DEBUG)
+        file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(file_formatter)
+        self.logger.addHandler(file_handler)
+        
+        # Error handler (ERROR level only)
+        error_handler = logging.FileHandler(self.error_log_path)
+        error_handler.setLevel(logging.ERROR)
+        error_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s\n%(pathname)s:%(lineno)d\n')
+        error_handler.setFormatter(error_formatter)
+        self.logger.addHandler(error_handler)
+        
+        # Performance handler
+        self.performance_logger = logging.getLogger('FLIM_FRET_Performance')
+        self.performance_logger.setLevel(logging.INFO)
+        self.performance_logger.handlers = []
+        
+        perf_handler = logging.FileHandler(self.performance_log_path)
+        perf_handler.setLevel(logging.INFO)
+        perf_formatter = logging.Formatter('%(asctime)s - %(message)s')
+        perf_handler.setFormatter(perf_formatter)
+        self.performance_logger.addHandler(perf_handler)
+        
+    def log_stage_start(self, stage_name: str, stage_description: str = ""):
+        """Log the start of a pipeline stage."""
+        self.stage_timings[stage_name] = {'start': time.time()}
+        self.logger.info(f"=== STAGE START: {stage_name} ===")
+        if stage_description:
+            self.logger.info(f"Description: {stage_description}")
+        self.performance_logger.info(f"STAGE_START: {stage_name}")
+        
+    def log_stage_end(self, stage_name: str, success: bool, additional_info: str = ""):
+        """Log the end of a pipeline stage with performance metrics."""
+        if stage_name in self.stage_timings:
+            end_time = time.time()
+            duration = end_time - self.stage_timings[stage_name]['start']
+            self.stage_timings[stage_name]['end'] = end_time
+            self.stage_timings[stage_name]['duration'] = duration
+            self.stage_timings[stage_name]['success'] = success
+            
+            status = "SUCCESS" if success else "FAILED"
+            self.logger.info(f"=== STAGE END: {stage_name} - {status} ({duration:.2f}s) ===")
+            if additional_info:
+                self.logger.info(f"Additional info: {additional_info}")
+            
+            self.performance_logger.info(f"STAGE_END: {stage_name} - {status} - {duration:.2f}s")
+            
+    def log_error(self, error: Exception, context: str = "", stage: str = "", file_path: str = ""):
+        """Log an error with full context and traceback."""
+        error_info = {
+            'timestamp': datetime.datetime.now().isoformat(),
+            'error_type': type(error).__name__,
+            'error_message': str(error),
+            'context': context,
+            'stage': stage,
+            'file_path': file_path,
+            'traceback': traceback.format_exc()
+        }
+        
+        self.errors.append(error_info)
+        
+        # Log to error log
+        self.logger.error(f"ERROR in {stage}: {context}")
+        self.logger.error(f"Error type: {error_info['error_type']}")
+        self.logger.error(f"Error message: {error_info['error_message']}")
+        if file_path:
+            self.logger.error(f"File: {file_path}")
+        self.logger.error(f"Traceback:\n{error_info['traceback']}")
+        
+    def log_warning(self, message: str, context: str = "", stage: str = ""):
+        """Log a warning."""
+        warning_info = {
+            'timestamp': datetime.datetime.now().isoformat(),
+            'message': message,
+            'context': context,
+            'stage': stage
+        }
+        
+        self.warnings.append(warning_info)
+        self.logger.warning(f"WARNING in {stage}: {context} - {message}")
+        
+    def log_file_processing(self, file_path: str, success: bool, processing_time: float, stage: str = ""):
+        """Log file processing statistics."""
+        if stage not in self.file_processing_stats:
+            self.file_processing_stats[stage] = {'success': 0, 'failed': 0, 'total_time': 0}
+        
+        if success:
+            self.file_processing_stats[stage]['success'] += 1
+        else:
+            self.file_processing_stats[stage]['failed'] += 1
+            
+        self.file_processing_stats[stage]['total_time'] += processing_time
+        
+    @contextmanager
+    def error_context(self, context: str, stage: str = "", file_path: str = ""):
+        """Context manager for error handling with automatic logging."""
+        try:
+            yield
+        except Exception as e:
+            self.log_error(e, context, stage, file_path)
+            raise
+    
+    def generate_error_report(self) -> str:
+        """Generate a comprehensive error report."""
+        report_lines = []
+        report_lines.append("=" * 80)
+        report_lines.append("FLIM-FRET ANALYSIS PIPELINE - ERROR REPORT")
+        report_lines.append("=" * 80)
+        report_lines.append(f"Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        report_lines.append(f"Total runtime: {time.time() - self.start_time:.2f} seconds")
+        report_lines.append("")
+        
+        # Summary
+        report_lines.append("SUMMARY:")
+        report_lines.append(f"  Total errors: {len(self.errors)}")
+        report_lines.append(f"  Total warnings: {len(self.warnings)}")
+        report_lines.append("")
+        
+        # Stage performance
+        report_lines.append("STAGE PERFORMANCE:")
+        for stage_name, timing in self.stage_timings.items():
+            status = "SUCCESS" if timing.get('success', False) else "FAILED"
+            duration = timing.get('duration', 0)
+            report_lines.append(f"  {stage_name}: {status} ({duration:.2f}s)")
+        report_lines.append("")
+        
+        # File processing statistics
+        if self.file_processing_stats:
+            report_lines.append("FILE PROCESSING STATISTICS:")
+            for stage, stats in self.file_processing_stats.items():
+                total = stats['success'] + stats['failed']
+                success_rate = (stats['success'] / total * 100) if total > 0 else 0
+                avg_time = stats['total_time'] / total if total > 0 else 0
+                report_lines.append(f"  {stage}: {stats['success']}/{total} files ({success_rate:.1f}% success, avg {avg_time:.2f}s)")
+            report_lines.append("")
+        
+        # Detailed errors
+        if self.errors:
+            report_lines.append("DETAILED ERRORS:")
+            for i, error in enumerate(self.errors, 1):
+                report_lines.append(f"  Error {i}:")
+                report_lines.append(f"    Time: {error['timestamp']}")
+                report_lines.append(f"    Stage: {error['stage']}")
+                report_lines.append(f"    Context: {error['context']}")
+                report_lines.append(f"    Type: {error['error_type']}")
+                report_lines.append(f"    Message: {error['error_message']}")
+                if error['file_path']:
+                    report_lines.append(f"    File: {error['file_path']}")
+                report_lines.append("")
+        
+        # Warnings
+        if self.warnings:
+            report_lines.append("WARNINGS:")
+            for i, warning in enumerate(self.warnings, 1):
+                report_lines.append(f"  Warning {i}:")
+                report_lines.append(f"    Time: {warning['timestamp']}")
+                report_lines.append(f"    Stage: {warning['stage']}")
+                report_lines.append(f"    Context: {warning['context']}")
+                report_lines.append(f"    Message: {warning['message']}")
+                report_lines.append("")
+        
+        return "\n".join(report_lines)
+    
+    def save_error_report(self):
+        """Save the error report to a file."""
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        report_path = os.path.join(self.log_dir, f'error_report_{timestamp}.txt')
+        
+        with open(report_path, 'w') as f:
+            f.write(self.generate_error_report())
+        
+        self.logger.info(f"Error report saved to: {report_path}")
+        return report_path
 
 # --- Import necessary functions from other scripts ---
 
@@ -46,19 +278,12 @@ except ImportError as e:
 
 try:
     # Stage 2: Wavelet Filtering & NPZ Generation
-    # First try the advanced v2.0 implementation
     from src.python.modules.ComplexWaveletFilter_v2_0 import main as run_wavelet_filtering
-    print("Using advanced Complex Wavelet Filter v2.0 implementation")
+    print("Using Complex Wavelet Filter v2.0 implementation")
 except ImportError as e:
-    print(f"Warning: Could not import from ComplexWaveletFilter_v2_0.py: {e}")
-    print("Falling back to v1.6 implementation...")
-    try:
-        from src.python.modules.ComplexWaveletFilter_v1_6 import main as run_wavelet_filtering
-        print("Using Complex Wavelet Filter v1.6 implementation")
-    except ImportError as e:
-        print(f"Error: Could not import main (as run_wavelet_filtering) from either wavelet filter version: {e}") 
-        print("Ensure at least one wavelet filter implementation is in the same directory.")
-        run_wavelet_filtering = None # Placeholder
+    print(f"Error: Could not import main (as run_wavelet_filtering) from ComplexWaveletFilter_v2_0.py: {e}") 
+    print("Ensure the ComplexWaveletFilter_v2_0.py module is available.")
+    run_wavelet_filtering = None # Placeholder
     
 try:
     # Stage 3: Phasor Visualization
@@ -79,8 +304,7 @@ except ImportError as e:
     
 # Additional imports needed for file operations
 import shutil
-import traceback
-    
+
 try:
     # Stage 3: GMM Segmentation, Plotting, Lifetime Saving
     from src.python.modules.GMMSegmentation_v2_6 import main as run_gmm_segmentation
@@ -100,7 +324,7 @@ except ImportError as e:
     run_phasor_transform = None # Placeholder
     
 # --- New Test Function ---
-def test_flute_integration(config):
+def test_flute_integration(config, logger=None):
     """
     Tests the FLUTE integration to ensure that all components are working correctly.
     
@@ -121,11 +345,17 @@ def test_flute_integration(config):
     flute_python_path = config.get("flute_python_path")
     
     if not flute_path or not os.path.exists(flute_path):
-        print(f"❌ Error: flute_path not found or invalid: {flute_path}")
+        error_msg = f"flute_path not found or invalid: {flute_path}"
+        print(f"❌ Error: {error_msg}")
+        if logger:
+            logger.log_error(Exception(error_msg), "FLUTE path validation", "Test")
         return False
     
     if not flute_python_path or not os.path.exists(flute_python_path):
-        print(f"❌ Error: flute_python_path not found or invalid: {flute_python_path}")
+        error_msg = f"flute_python_path not found or invalid: {flute_python_path}"
+        print(f"❌ Error: {error_msg}")
+        if logger:
+            logger.log_error(Exception(error_msg), "FLUTE Python path validation", "Test")
         return False
     
     print(f"✓ FLUTE path: {flute_path}")
@@ -448,10 +678,19 @@ def main():
     if config is None:
          print("Failed to load config.json. Cannot proceed.", file=sys.stderr)
          sys.exit(1)
+    
+    # Initialize the pipeline logger
+    logger = PipelineLogger(args.output_base_dir)
+    logger.logger.info("FLIM-FRET Analysis Pipeline Starting")
+    logger.logger.info(f"Input directory: {args.input_dir}")
+    logger.logger.info(f"Output base directory: {args.output_base_dir}")
          
     # Handle test mode
     if args.test:
-        success = test_flute_integration(config)
+        logger.log_stage_start("FLUTE Integration Test", "Testing FLUTE environment and dependencies")
+        success = test_flute_integration(config, logger)
+        logger.log_stage_end("FLUTE Integration Test", success)
+        logger.save_error_report()
         sys.exit(0 if success else 1)
     
     # Define specific output subdirectories based on the output_base_dir argument
@@ -476,16 +715,17 @@ def main():
          os.makedirs(lifetime_dir, exist_ok=True)
          os.makedirs(phasor_dir, exist_ok=True)
          
-         print(f"Created output directories:")
-         print(f" - {output_dir}")
-         print(f" - {preprocessed_dir}")
-         print(f" - {npz_dir}")
-         print(f" - {segmented_dir}")
-         print(f" - {plots_dir}")
-         print(f" - {lifetime_dir}")
-         print(f" - {phasor_dir}")
+         logger.logger.info("Created output directories:")
+         logger.logger.info(f" - {output_dir}")
+         logger.logger.info(f" - {preprocessed_dir}")
+         logger.logger.info(f" - {npz_dir}")
+         logger.logger.info(f" - {segmented_dir}")
+         logger.logger.info(f" - {plots_dir}")
+         logger.logger.info(f" - {lifetime_dir}")
+         logger.logger.info(f" - {phasor_dir}")
     except OSError as e:
-         print(f"Error creating output directories: {e}", file=sys.stderr)
+         logger.log_error(e, "Creating output directories", "Setup")
+         logger.logger.error(f"Error creating output directories: {e}")
          sys.exit(1)
     
     # Look for calibration file in input directory first, fall back to project directory
@@ -494,36 +734,24 @@ def main():
     
     if os.path.exists(input_calibration_path):
         calibration_file_path = input_calibration_path
-        print(f"Using calibration file from input directory: {calibration_file_path}")
+        logger.logger.info(f"Using calibration file from input directory: {calibration_file_path}")
     else:
         calibration_file_path = project_calibration_path
-        print(f"Calibration file not found in input directory, using project directory: {calibration_file_path}")
+        logger.logger.info(f"Calibration file not found in input directory, using project directory: {calibration_file_path}")
     
     start_pipeline_time = time.time()
-    print("\n===================================")
-    print(" FLIM-FRET Analysis Pipeline Start ")
-    print(f" Input Dir: {args.input_dir}")
-    print(f" Output Base: {args.output_base_dir}")
-    print(f" Calibration: {calibration_file_path}")
-    print("===================================")
-
-    # Update log file paths to use the new logs directory
-    log_dir = os.path.join(args.output_base_dir, 'logs')
-    os.makedirs(log_dir, exist_ok=True)
-
-    # Example of how to use the log directory
-    log_file_path = os.path.join(log_dir, 'pipeline.log')
-
-    # Redirect standard output and error to log file
-    sys.stdout = open(log_file_path, 'w')
-    sys.stderr = sys.stdout
+    logger.logger.info("===================================")
+    logger.logger.info(" FLIM-FRET Analysis Pipeline Start ")
+    logger.logger.info(f" Input Dir: {args.input_dir}")
+    logger.logger.info(f" Output Base: {args.output_base_dir}")
+    logger.logger.info(f" Calibration: {calibration_file_path}")
+    logger.logger.info("===================================")
 
     # --- Stage 1: Preprocessing ---
     if args.preprocess or args.preprocessing or args.processing or args.LF_preprocessing or args.all:
-        print("\n--- Running Stage 1: Preprocessing ---")
+        logger.log_stage_start("Stage 1: Preprocessing", "Convert .bin files to .tif and perform phasor transformation")
         if run_preprocessing:
             try:
-                stage_start = time.time()
                 success = run_preprocessing(
                     config,
                     args.input_dir,       
@@ -532,55 +760,41 @@ def main():
                     calibration_file_path, # Pass fixed calibration path
                     args.input_dir        
                 )
-                stage_end = time.time()
-                if success:
-                    print(f"--- Stage 1 Finished ({stage_end - stage_start:.2f} seconds) ---")
-                else:
-                    print(f"!!! Stage 1 Failed (check errors above) ({stage_end - stage_start:.2f} seconds) !!!")
-                    # Decide if pipeline should stop on failure
-                    # sys.exit(1) 
+                logger.log_stage_end("Stage 1: Preprocessing", success)
             except Exception as e:
-                print(f"!!! Uncaught Error during Stage 1: Preprocessing: {e}", file=sys.stderr)
+                logger.log_error(e, "Running preprocessing", "Stage 1: Preprocessing")
+                logger.log_stage_end("Stage 1: Preprocessing", False, f"Error: {str(e)}")
         else:
-            print("!!! Cannot run Stage 1: run_preprocessing function not available.", file=sys.stderr)
+            error_msg = "run_preprocessing function not available"
+            logger.log_error(Exception(error_msg), "Import check", "Stage 1: Preprocessing")
+            logger.log_stage_end("Stage 1: Preprocessing", False, error_msg)
             
     # --- Stage 2A: Optional Filename Simplification ---
     if args.preprocess or args.preprocessing or args.processing or args.LF_preprocessing or args.all:
-        try:
-            intensity_stage_start = time.time()
-            
-            # --- Stage 2A: Simplify filenames (if requested or LF workflow) ---
-            if (args.simplify_filenames or args.LF_preprocessing) and simplify_filenames:
-                print("\n--- Running Stage 2A: Simplifying Filenames ---")
-                try:
-                    simplify_start = time.time()
-                    simple_success, simple_errors = simplify_filenames(preprocessed_dir, dry_run=False)
-                    simplify_end = time.time()
-                    
-                    if simple_success > 0:
-                        print(f"Successfully simplified {simple_success} filenames (with {simple_errors} errors)")
-                        print(f"Filename simplification completed in {simplify_end - simplify_start:.2f} seconds")
-                    else:
-                        print(f"Warning: No files were successfully simplified. Check for errors above.")
-                except Exception as e:
-                    print(f"Error during filename simplification: {e}")
-                    print("Continuing pipeline without filename simplification...")
-            elif args.simplify_filenames and not simplify_filenames:
-                print("Cannot simplify filenames: simplify_filenames function not available.")
+        if (args.simplify_filenames or args.LF_preprocessing) and simplify_filenames:
+            logger.log_stage_start("Stage 2A: Filename Simplification", "Simplify filenames for LF workflow")
+            try:
+                simple_success, simple_errors = simplify_filenames(preprocessed_dir, dry_run=False)
                 
-            intensity_stage_end = time.time()
-                
-        except Exception as e:
-            print(f"!!! Uncaught Error during Stage 2A: {e}", file=sys.stderr)
-            traceback.print_exc()
+                if simple_success > 0:
+                    logger.logger.info(f"Successfully simplified {simple_success} filenames (with {simple_errors} errors)")
+                    logger.log_stage_end("Stage 2A: Filename Simplification", True, f"Simplified {simple_success} files")
+                else:
+                    logger.log_warning("No files were successfully simplified", "Filename simplification", "Stage 2A: Filename Simplification")
+                    logger.log_stage_end("Stage 2A: Filename Simplification", False, "No files simplified")
+            except Exception as e:
+                logger.log_error(e, "Filename simplification", "Stage 2A: Filename Simplification")
+                logger.log_stage_end("Stage 2A: Filename Simplification", False, f"Error: {str(e)}")
+        elif args.simplify_filenames and not simplify_filenames:
+            error_msg = "simplify_filenames function not available"
+            logger.log_error(Exception(error_msg), "Import check", "Stage 2A: Filename Simplification")
+            logger.log_stage_end("Stage 2A: Filename Simplification", False, error_msg)
 
     # --- Stage 2B: Wavelet Filtering & NPZ Generation ---
     if args.filter or args.processing or args.all:
-        print("\n--- Running Stage 2B: Wavelet Filtering & NPZ Generation ---")
+        logger.log_stage_start("Stage 2B: Wavelet Filtering", "Apply complex wavelet filtering and generate NPZ files")
         if run_wavelet_filtering:
             try:
-                stage_start = time.time()
-                
                 # Add required microscope parameters if missing in config
                 if "microscope_params" not in config:
                     config["microscope_params"] = {}
@@ -595,24 +809,20 @@ def main():
                     preprocessed_dir,  # Use the preprocessed directory directly
                     npz_dir
                 )
-                stage_end = time.time()
-                if success:
-                    print(f"--- Stage 2B Finished ({stage_end - stage_start:.2f} seconds) ---")
-                else:
-                    print(f"!!! Stage 2B Failed (check errors above) ({stage_end - stage_start:.2f} seconds) !!!")
+                logger.log_stage_end("Stage 2B: Wavelet Filtering", success)
             except Exception as e:
-                print(f"!!! Uncaught Error during Stage 2B: Wavelet Filtering: {e}", file=sys.stderr)
-                traceback.print_exc()  # Print the full error traceback for debugging
+                logger.log_error(e, "Running wavelet filtering", "Stage 2B: Wavelet Filtering")
+                logger.log_stage_end("Stage 2B: Wavelet Filtering", False, f"Error: {str(e)}")
         else:
-            print("!!! Cannot run Stage 2B: run_wavelet_filtering function not available.", file=sys.stderr)
+            error_msg = "run_wavelet_filtering function not available"
+            logger.log_error(Exception(error_msg), "Import check", "Stage 2B: Wavelet Filtering")
+            logger.log_stage_end("Stage 2B: Wavelet Filtering", False, error_msg)
 
     # --- Stage 3: Interactive Phasor Visualization ---
     if args.visualize or args.all:
-        print("\n--- Running Stage 3: Interactive Phasor Visualization ---")
+        logger.log_stage_start("Stage 3: Phasor Visualization", "Interactive phasor visualization and plot generation")
         if run_phasor_visualization:
             try:
-                stage_start = time.time()
-                
                 # Temporarily restore original stdout/stderr for interactive mode
                 original_stdout = sys.stdout
                 original_stderr = sys.stderr
@@ -621,8 +831,7 @@ def main():
                 sys.stdout = sys.__stdout__
                 sys.stderr = sys.__stderr__
                 
-                print("\n--- Running Stage 3: Interactive Phasor Visualization ---")
-                print("(Terminal I/O restored for interactive mode)")
+                logger.logger.info("Terminal I/O restored for interactive mode")
                 
                 # Run interactive phasor visualization
                 success = run_phasor_visualization(args.output_base_dir)
@@ -631,26 +840,23 @@ def main():
                 sys.stdout = original_stdout
                 sys.stderr = original_stderr
                 
-                stage_end = time.time()
-                if success:
-                    print(f"--- Stage 3 Finished ({stage_end - stage_start:.2f} seconds) ---")
-                else:
-                    print(f"!!! Stage 3 Exited (user may have aborted) ({stage_end - stage_start:.2f} seconds) !!!")
+                logger.log_stage_end("Stage 3: Phasor Visualization", success, "User may have aborted" if not success else "")
             except Exception as e:
                 # Make sure to restore logging even if there's an error
                 sys.stdout = original_stdout
                 sys.stderr = original_stderr
-                print(f"!!! Uncaught Error during Stage 3: Phasor Visualization: {e}", file=sys.stderr)
-                traceback.print_exc()
+                logger.log_error(e, "Running phasor visualization", "Stage 3: Phasor Visualization")
+                logger.log_stage_end("Stage 3: Phasor Visualization", False, f"Error: {str(e)}")
         else:
-            print("!!! Cannot run Stage 3: run_phasor_visualization function not available.", file=sys.stderr)
+            error_msg = "run_phasor_visualization function not available"
+            logger.log_error(Exception(error_msg), "Import check", "Stage 3: Phasor Visualization")
+            logger.log_stage_end("Stage 3: Phasor Visualization", False, error_msg)
 
     # --- Stage 4: GMM Segmentation, Plotting, Lifetime Saving ---
     if args.segment or args.all:
-        print("\n--- Running Stage 4: GMM Segmentation, Plotting, Lifetime Saving ---")
+        logger.log_stage_start("Stage 4: GMM Segmentation", "GMM segmentation, plotting, and lifetime saving")
         if run_gmm_segmentation:
             try:
-                stage_start = time.time()
                 # Pass required arguments
                 success = run_gmm_segmentation(
                     config, 
@@ -659,23 +865,20 @@ def main():
                     plots_dir, 
                     lifetime_dir
                 )
-                stage_end = time.time()
-                if success:
-                    print(f"--- Stage 4 Finished ({stage_end - stage_start:.2f} seconds) ---")
-                else:
-                    print(f"!!! Stage 4 Failed (check errors above) ({stage_end - stage_start:.2f} seconds) !!!")
+                logger.log_stage_end("Stage 4: GMM Segmentation", success)
             except Exception as e:
-                print(f"!!! Uncaught Error during Stage 4: GMM Segmentation: {e}", file=sys.stderr)
+                logger.log_error(e, "Running GMM segmentation", "Stage 4: GMM Segmentation")
+                logger.log_stage_end("Stage 4: GMM Segmentation", False, f"Error: {str(e)}")
         else:
-            print("!!! Cannot run Stage 4: run_gmm_segmentation function not available.", file=sys.stderr)
+            error_msg = "run_gmm_segmentation function not available"
+            logger.log_error(Exception(error_msg), "Import check", "Stage 4: GMM Segmentation")
+            logger.log_stage_end("Stage 4: GMM Segmentation", False, error_msg)
             
     # --- Stage 5: Phasor Transformation ---
     if args.phasor or args.all:
-        print("\n--- Running Stage 5: Phasor Transformation ---")
+        logger.log_stage_start("Stage 5: Phasor Transformation", "Phasor transformation of preprocessed files")
         if run_phasor_transform:
             try:
-                stage_start = time.time()
-                
                 # Create a function to run the phasor transformation on the preprocessed files
                 def process_preprocessed_files(input_dir, output_dir, calibration_file):
                     success = True
@@ -692,9 +895,9 @@ def main():
                             calibration_values = {}
                             for _, row in df.iterrows():
                                 calibration_values[row['file_path']] = (row['phi_cal'], row['m_cal'])
-                            print(f"Loaded {len(calibration_values)} calibration values from {calibration_file}")
+                            logger.logger.info(f"Loaded {len(calibration_values)} calibration values from {calibration_file}")
                         except Exception as e:
-                            print(f"Error loading calibration values: {e}")
+                            logger.log_error(e, "Loading calibration values", "Stage 5: Phasor Transformation")
                     
                     # Process only original FLIM TIFF files in the input directory
                     # Skip files that have already been processed (like _g.tiff, _s.tiff, _intensity.tiff)
@@ -729,7 +932,7 @@ def main():
                                     os.makedirs(output_subdir, exist_ok=True)
                                     
                                     # Process the file
-                                    print(f"Processing {input_file} (phi_cal={phi_cal}, m_cal={m_cal})")
+                                    logger.logger.info(f"Processing {input_file} (phi_cal={phi_cal}, m_cal={m_cal})")
                                     file_success = run_phasor_transform(
                                         input_file=input_file,
                                         output_dir=output_subdir,
@@ -749,11 +952,11 @@ def main():
                                         error_count += 1
                                         success = False
                                 except Exception as e:
-                                    print(f"Error processing {input_file}: {e}")
+                                    logger.log_error(e, f"Processing file {input_file}", "Stage 5: Phasor Transformation", input_file)
                                     error_count += 1
                                     success = False
                     
-                    print(f"Phasor transformation complete: {processed_count} files processed, {error_count} errors")
+                    logger.logger.info(f"Phasor transformation complete: {processed_count} files processed, {error_count} errors")
                     return success
                 
                 # Run the phasor transformation on preprocessed files
@@ -763,24 +966,29 @@ def main():
                     calibration_file=calibration_file_path
                 )
                 
-                stage_end = time.time()
-                if success:
-                    print(f"--- Stage 5 Finished ({stage_end - stage_start:.2f} seconds) ---")
-                else:
-                    print(f"!!! Stage 5 Completed with some errors ({stage_end - stage_start:.2f} seconds) !!!")
+                logger.log_stage_end("Stage 5: Phasor Transformation", success, f"Completed with some errors" if not success else "")
             except Exception as e:
-                print(f"!!! Uncaught Error during Stage 5: Phasor Transformation: {e}", file=sys.stderr)
+                logger.log_error(e, "Running phasor transformation", "Stage 5: Phasor Transformation")
+                logger.log_stage_end("Stage 5: Phasor Transformation", False, f"Error: {str(e)}")
         else:
-            print("!!! Cannot run Stage 5: run_phasor_transform function not available.", file=sys.stderr)
+            error_msg = "run_phasor_transform function not available"
+            logger.log_error(Exception(error_msg), "Import check", "Stage 5: Phasor Transformation")
+            logger.log_stage_end("Stage 5: Phasor Transformation", False, error_msg)
             
     end_pipeline_time = time.time()
-    print("\n=================================")
-    print(" FLIM-FRET Analysis Pipeline End ")
-    print(f" Total Time: {end_pipeline_time - start_pipeline_time:.2f} seconds")
-    print("=================================")
+    total_time = end_pipeline_time - start_pipeline_time
+    
+    logger.logger.info("=================================")
+    logger.logger.info(" FLIM-FRET Analysis Pipeline End ")
+    logger.logger.info(f" Total Time: {total_time:.2f} seconds")
+    logger.logger.info("=================================")
+    
+    # Generate and save error report
+    logger.save_error_report()
+    
+    # Log final summary
+    logger.logger.info("Pipeline completed. Check error report for detailed analysis.")
 
 if __name__ == "__main__":
     # Remove config check here, paths are checked in parse_arguments
-    main()
-    # Close the log file after all operations are complete
-    sys.stdout.close() 
+    main() 

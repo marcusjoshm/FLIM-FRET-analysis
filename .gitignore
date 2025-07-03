@@ -61,3 +61,7 @@ backup_*/
 
 # Archive directory
 archive/
+
+# Test output directories
+test_error_output/
+tests/test_error_output/
