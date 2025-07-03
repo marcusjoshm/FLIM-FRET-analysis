@@ -3,7 +3,7 @@
 """
 TCSPC Preprocessing Script (with auto calibration)
 - Runs ImageJ macros to convert BIN files to TIF
-- Processes TIF files using FLUTE with calibration
+- Processes TIF files using custom phasor transformation
 - Organizes files into directories for wavelet filtering
 """
 
@@ -60,7 +60,7 @@ def run_imagej(imagej_path, macro_file, *args):
 def create_empty_tiffs_from_bins(calibration_file, input_dir, output_dir, raw_data_root):
     """
     Create empty .tif files in the output directory structure when ImageJ fails.
-    This allows FLUTE to find the files it needs to process.
+    This allows the phasor transformation to find the files it needs to process.
     
     Args:
         calibration_file (str): Path to the CSV file with bin file paths
@@ -196,7 +196,7 @@ def manually_copy_files_to_preprocessed(output_dir, preprocessed_dir):
     print(f"Copied {g_count} G files, {s_count} S files, and {intensity_count} intensity files to preprocessed directory.")
     return g_count > 0 and s_count > 0
 
-def process_tiffs_with_flute(calibration_file, base_output_dir, raw_data_root, microscope_params, flute_path):
+def process_tiffs_with_phasor_transform(calibration_file, base_output_dir, raw_data_root, microscope_params):
     """
     Processes specific TIFF files to generate phasor coordinates (G, S, intensity).
     Maps the full .bin file path from CSV to the expected .tif path in base_output_dir.
@@ -207,7 +207,6 @@ def process_tiffs_with_flute(calibration_file, base_output_dir, raw_data_root, m
         base_output_dir (str): The main output directory where corresponding TIFF files exist.
         raw_data_root (str): The root directory of the raw input data.
         microscope_params (dict): Dictionary containing 'bin_width_ns', 'freq_mhz', 'harmonic'.
-        flute_path (str): Path to the FLUTE main script (not used in this implementation).
     """
     
     # --- Import our custom phasor transform module ---
@@ -393,7 +392,7 @@ def process_tiffs_with_flute(calibration_file, base_output_dir, raw_data_root, m
 
 def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibration_file, raw_data_root):
     """
-    Runs the full TCSPC preprocessing pipeline (ImageJ + FLUTE).
+    Runs the full TCSPC preprocessing pipeline (ImageJ + phasor transformation).
     
     Returns:
         bool: True if successful, False if failed
@@ -402,7 +401,6 @@ def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibrati
     # Extract required config params
     try:
         imagej_path = config["imagej_path"]
-        flute_path = config["flute_path"]
         macro_files = config["macro_files"]
         microscope_params = config["microscope_params"]
     except KeyError as e:
@@ -448,18 +446,17 @@ def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibrati
         print("Warning: No .tif files were created by ImageJ macros.")
         print("Proceeding directly to FLUTE processing...")
     
-    # === Run FLUTE processing ===
-    print("Starting FLUTE processing...")
-    flute_success = process_tiffs_with_flute(
+    # === Run phasor transformation processing ===
+    print("Starting phasor transformation processing...")
+    phasor_success = process_tiffs_with_phasor_transform(
         calibration_file, 
         output_dir, 
         raw_data_root, 
-        microscope_params,
-        flute_path
+        microscope_params
     )
     
-    if not flute_success:
-        print("Error: FLUTE processing failed. Cannot continue pipeline.")
+    if not phasor_success:
+        print("Error: Phasor transformation processing failed. Cannot continue pipeline.")
         return False
     
     # === Organize output files using Python script ===
