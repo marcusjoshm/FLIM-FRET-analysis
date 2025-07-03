@@ -1,0 +1,31 @@
+{
+    "imagej_path": "/Applications/Fiji.app/Contents/MacOS/ImageJ-macosx",
+    "flute_path": "/path/to/FLUTE/main.py",
+    "flute_python_path": "/path/to/venv/bin/python3",
+    "macro_files": [
+        "src/scripts/imagej/FLIM_processing_macro_1.ijm",
+        "src/scripts/imagej/FLIM_processing_macro_2.ijm"
+    ],
+    "microscope_params": {
+        "bin_width_ns": 0.097,
+        "freq_mhz": 78.0,
+        "harmonic": 1
+    },
+    "wavelet_filter_params": {
+        "Gc": 0.30227996721890404,
+        "Sc": 0.4592458920992018,
+        "flevel": 9
+    },
+    "gmm_segmentation_params": {
+        "intensity_threshold": 0.0,
+        "threshold_type": "relative",
+        "n_components": 2,
+        "covariance_type": "full",
+        "max_iter": 100,
+        "random_state": 0,
+        "reference_center_G": 0.30227996721890404,
+        "reference_center_S": 0.4592458920992018,
+        "use_unfiltered_data": false,
+        "combine_datasets": false
+    }
+} 

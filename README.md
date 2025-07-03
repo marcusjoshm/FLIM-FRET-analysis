@@ -130,26 +130,26 @@ This will install the following dependencies:
 
 ### Step 4: Configure the Pipeline
 
-Create a `config.json` file in the root directory with the following structure:
+Run the automated setup script to configure the pipeline:
 
-```json
-{
-  "imagej_path": "/path/to/ImageJ/or/Fiji",
-  "flute_path": "/path/to/FLUTE/executable",
-  "flute_python_path": "/path/to/FLUTE/python/interpreter",
-  "macro_files": [
-    "/path/to/FLIM_processing_macro_1.ijm",
-    "/path/to/FLIM_processing_macro_2.ijm"
-  ],
-  "microscope_params": {
-    "bin_width": 0.097,
-    "frequency": 78,
-    "harmonic": 1
-  }
-}
+```bash
+python setup.py
 ```
 
-Replace the paths with the actual paths on your system.
+This script will:
+- ✅ Check your Python version and required packages
+- 🔍 Automatically detect ImageJ/Fiji and FLUTE installations
+- 📝 Guide you through configuration parameters
+- 🧪 Test the ImageJ connection
+- 💾 Generate a `config.json` file with your settings
+
+Alternatively, you can manually create a `config.json` file using the template:
+
+```bash
+cp config/config.template.json config/config.json
+```
+
+Then edit `config/config.json` with your specific paths and parameters.
 
 ### Step 5: Verify Installation
 
