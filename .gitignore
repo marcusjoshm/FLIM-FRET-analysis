@@ -65,3 +65,7 @@ archive/
 # Test output directories
 test_error_output/
 tests/test_error_output/
+
+# Configuration files (user-specific)
+config/config.json
+config/gmm_config.json
