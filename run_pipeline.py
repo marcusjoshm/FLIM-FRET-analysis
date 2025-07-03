@@ -28,7 +28,7 @@ print("--------------------------------------------------")
 
 try:
     # Stage 1: Preprocessing
-    from TCSPC_preprocessing_AUTOcal_v2_0 import run_preprocessing
+    from src.python.modules.TCSPC_preprocessing_AUTOcal_v2_0 import run_preprocessing
 except ImportError as e:
     # Use current filename in error message
     print(f"Error: Could not import run_preprocessing from TCSPC_preprocessing_AUTOcal_v2_0.py: {e}") 
@@ -37,7 +37,7 @@ except ImportError as e:
     
 try:
     # Stage 1B: Filename simplification (optional)
-    from simplify_filenames import simplify_filenames
+    from src.python.modules.simplify_filenames import simplify_filenames
 except ImportError as e:
     # Use current filename in error message
     print(f"Error: Could not import simplify_filenames from simplify_filenames.py: {e}")
@@ -47,13 +47,13 @@ except ImportError as e:
 try:
     # Stage 2: Wavelet Filtering & NPZ Generation
     # First try the advanced v2.0 implementation
-    from ComplexWaveletFilter_v2_0 import main as run_wavelet_filtering
+    from src.python.modules.ComplexWaveletFilter_v2_0 import main as run_wavelet_filtering
     print("Using advanced Complex Wavelet Filter v2.0 implementation")
 except ImportError as e:
     print(f"Warning: Could not import from ComplexWaveletFilter_v2_0.py: {e}")
     print("Falling back to v1.6 implementation...")
     try:
-        from ComplexWaveletFilter_v1_6 import main as run_wavelet_filtering
+        from src.python.modules.ComplexWaveletFilter_v1_6 import main as run_wavelet_filtering
         print("Using Complex Wavelet Filter v1.6 implementation")
     except ImportError as e:
         print(f"Error: Could not import main (as run_wavelet_filtering) from either wavelet filter version: {e}") 
@@ -62,7 +62,7 @@ except ImportError as e:
     
 try:
     # Stage 3: Phasor Visualization
-    from phasor_visualization import run_phasor_visualization
+    from src.python.modules.phasor_visualization import run_phasor_visualization
 except ImportError as e:
     print(f"Error: Could not import run_phasor_visualization from phasor_visualization.py: {e}")
     print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
@@ -70,7 +70,7 @@ except ImportError as e:
     
 try:
     # Intensity Image Generation for Wavelet Filtering
-    from generate_intensity_images import process_raw_flim_files as generate_intensity_images
+    from src.python.modules.generate_intensity_images import process_raw_flim_files as generate_intensity_images
 except ImportError as e:
     # Use current filename in error message
     print(f"Error: Could not import process_raw_flim_files (as generate_intensity_images) from generate_intensity_images.py: {e}") 
@@ -83,7 +83,7 @@ import traceback
     
 try:
     # Stage 3: GMM Segmentation, Plotting, Lifetime Saving
-    from GMMSegmentation_v2_6 import main as run_gmm_segmentation
+    from src.python.modules.GMMSegmentation_v2_6 import main as run_gmm_segmentation
 except ImportError as e:
     # Use current filename in error message
     print(f"Error: Could not import main (as run_gmm_segmentation) from GMMSegmentation_v2_6.py: {e}") 
@@ -92,7 +92,7 @@ except ImportError as e:
     
 try:
     # Stage 4: Phasor Transformation
-    from phasor_transform import process_flim_file as run_phasor_transform
+    from src.python.modules.phasor_transform import process_flim_file as run_phasor_transform
 except ImportError as e:
     # Use current filename in error message
     print(f"Error: Could not import process_flim_file (as run_phasor_transform) from phasor_transform.py: {e}") 
@@ -432,7 +432,7 @@ def parse_arguments():
     return args
 
 # --- Helper to load config (less prone to failure if keys change) ---
-def load_pipeline_config(config_path="config.json"):
+def load_pipeline_config(config_path="config/config.json"):
      try:
          with open(config_path, "r") as f:
              return json.load(f)
@@ -490,7 +490,7 @@ def main():
     
     # Look for calibration file in input directory first, fall back to project directory
     input_calibration_path = os.path.join(args.input_dir, "calibration.csv")
-    project_calibration_path = "calibration.csv"
+    project_calibration_path = "data/calibration.csv"
     
     if os.path.exists(input_calibration_path):
         calibration_file_path = input_calibration_path
@@ -506,6 +506,17 @@ def main():
     print(f" Output Base: {args.output_base_dir}")
     print(f" Calibration: {calibration_file_path}")
     print("===================================")
+
+    # Update log file paths to use the new logs directory
+    log_dir = os.path.join(args.output_base_dir, 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+
+    # Example of how to use the log directory
+    log_file_path = os.path.join(log_dir, 'pipeline.log')
+
+    # Redirect standard output and error to log file
+    sys.stdout = open(log_file_path, 'w')
+    sys.stderr = sys.stdout
 
     # --- Stage 1: Preprocessing ---
     if args.preprocess or args.preprocessing or args.processing or args.LF_preprocessing or args.all:
@@ -602,8 +613,23 @@ def main():
             try:
                 stage_start = time.time()
                 
+                # Temporarily restore original stdout/stderr for interactive mode
+                original_stdout = sys.stdout
+                original_stderr = sys.stderr
+                
+                # Restore terminal I/O for interactive visualization
+                sys.stdout = sys.__stdout__
+                sys.stderr = sys.__stderr__
+                
+                print("\n--- Running Stage 3: Interactive Phasor Visualization ---")
+                print("(Terminal I/O restored for interactive mode)")
+                
                 # Run interactive phasor visualization
                 success = run_phasor_visualization(args.output_base_dir)
+                
+                # Restore log file redirection
+                sys.stdout = original_stdout
+                sys.stderr = original_stderr
                 
                 stage_end = time.time()
                 if success:
@@ -611,6 +637,9 @@ def main():
                 else:
                     print(f"!!! Stage 3 Exited (user may have aborted) ({stage_end - stage_start:.2f} seconds) !!!")
             except Exception as e:
+                # Make sure to restore logging even if there's an error
+                sys.stdout = original_stdout
+                sys.stderr = original_stderr
                 print(f"!!! Uncaught Error during Stage 3: Phasor Visualization: {e}", file=sys.stderr)
                 traceback.print_exc()
         else:
@@ -752,4 +781,6 @@ def main():
 
 if __name__ == "__main__":
     # Remove config check here, paths are checked in parse_arguments
-    main() 
+    main()
+    # Close the log file after all operations are complete
+    sys.stdout.close() 

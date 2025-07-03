@@ -212,6 +212,11 @@ def process_tiffs_with_flute(calibration_file, base_output_dir, raw_data_root, m
     
     # --- Import our custom phasor transform module ---
     try:
+        # Add the modules directory to the path if not already there
+        modules_dir = os.path.dirname(os.path.abspath(__file__))
+        if modules_dir not in sys.path:
+            sys.path.insert(0, modules_dir)
+        
         import phasor_transform
         print("Successfully imported phasor_transform module")
     except ImportError as e:
@@ -463,6 +468,11 @@ def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibrati
     
     try:
         # Use the new organize_output_files.py script to organize files
+        # Add the modules directory to the path if not already there
+        modules_dir = os.path.dirname(os.path.abspath(__file__))
+        if modules_dir not in sys.path:
+            sys.path.insert(0, modules_dir)
+            
         import organize_output_files
         print("Successfully imported organize_output_files module")
         

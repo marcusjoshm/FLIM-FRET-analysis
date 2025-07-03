@@ -55,3 +55,9 @@ Thumbs.db
 
 # Allow specific data files that should be tracked
 !calibration.csv
+
+# Backup directories
+backup_*/
+
+# Archive directory
+archive/
