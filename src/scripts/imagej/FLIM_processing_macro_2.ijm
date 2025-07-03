@@ -48,6 +48,26 @@ function makeDirectoryRecursive(dir) {
     return File.makeDirectory(dir);
 }
 
+// Function to get relative path from input directory
+function getRelativePath(fullPath, basePath) {
+    // Normalize both paths
+    fullPath = normalizePath(fullPath);
+    basePath = normalizePath(basePath);
+    
+    // Check if the full path starts with the base path
+    if (startsWith(fullPath, basePath)) {
+        // Remove the base path and any leading separator
+        relativePath = substring(fullPath, lengthOf(basePath));
+        if (startsWith(relativePath, File.separator)) {
+            relativePath = substring(relativePath, 1);
+        }
+        return relativePath;
+    }
+    
+    // If not a subpath, return the full path
+    return fullPath;
+}
+
 // Recursively process .bin files except FITC.bin which is handled by macro 1
 function scanDirectory(dir) {
     // Normalize directory path
@@ -72,11 +92,8 @@ function processBinFile(dir, filename) {
     binFilePath = normalizePath(dir + File.separator + filename);
     print("Processing BIN file: " + binFilePath);
     
-    // Create relative output path
-    relativePath = replace(dir, input_dir, "");
-    if (startsWith(relativePath, File.separator)) {
-        relativePath = substring(relativePath, 1);
-    }
+    // Get relative path from input directory
+    relativePath = getRelativePath(dir, input_dir);
     
     // Create output directory mirroring the input directory structure
     targetDir = output_dir;

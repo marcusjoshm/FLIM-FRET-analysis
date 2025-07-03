@@ -769,13 +769,27 @@ def main():
         logger.log_stage_start("Stage 1: Preprocessing", "Convert .bin files to .tif and perform phasor transformation")
         if run_preprocessing:
             try:
+                # Find the actual data directory (the subdirectory containing BIN files)
+                data_dir = args.input
+                if os.path.exists(args.input):
+                    # Look for subdirectories containing BIN files
+                    for item in os.listdir(args.input):
+                        item_path = os.path.join(args.input, item)
+                        if os.path.isdir(item_path):
+                            # Check if this subdirectory contains BIN files
+                            bin_files = [f for f in os.listdir(item_path) if f.endswith('.bin')]
+                            if bin_files:
+                                data_dir = item_path
+                                logger.logger.info(f"Found BIN files in subdirectory: {data_dir}")
+                                break
+                
                 success = run_preprocessing(
                     config,
-                    args.input,       
+                    data_dir,        # Use the actual data directory containing BIN files
                     output_dir,           
                     preprocessed_dir,     
                     calibration_file_path, # Pass fixed calibration path
-                    args.input        
+                    args.input        # Keep raw_data_root as the full path for path mapping
                 )
                 logger.log_stage_end("Stage 1: Preprocessing", success)
             except Exception as e:

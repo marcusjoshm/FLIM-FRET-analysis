@@ -419,7 +419,7 @@ def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibrati
         print("You may need to update the 'imagej_path' in config.json")
         return False
     
-    # Check if macros exist
+    # Check if macros exist (only macros 1 and 2 are used)
     for i, macro_file in enumerate(macro_files):
         if not os.path.exists(macro_file):
             print(f"Error: Macro file {i+1} not found at {macro_file}")
