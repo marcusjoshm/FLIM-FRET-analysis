@@ -595,8 +595,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="FLIM-FRET Analysis Pipeline")
     
     # Required arguments
-    parser.add_argument("--input-dir", required=True, help="Input directory containing raw FLIM-FRET .bin files")
-    parser.add_argument("--output-base-dir", required=True, help="Base output directory for all pipeline stages")
+    parser.add_argument("--input", required=True, help="Input directory containing raw FLIM-FRET .bin files")
+    parser.add_argument("--output", required=True, help="Base output directory for all pipeline stages")
     
     # Pipeline stage control
     parser.add_argument("--all", action="store_true", help="Run all pipeline stages")
@@ -628,8 +628,8 @@ def parse_arguments():
     
     # Validate input directory
     if not args.test:
-        if not os.path.isdir(args.input_dir):
-            parser.error(f"Input directory '{args.input_dir}' does not exist or is not a directory")
+        if not os.path.isdir(args.input):
+            parser.error(f"Input directory '{args.input}' does not exist or is not a directory")
     
     # If no specific stages are selected, and not running in test mode
     # ask the user what to do
@@ -697,10 +697,10 @@ def main():
          sys.exit(1)
     
     # Initialize the pipeline logger
-    logger = PipelineLogger(args.output_base_dir)
+    logger = PipelineLogger(args.output)
     logger.logger.info("FLIM-FRET Analysis Pipeline Starting")
-    logger.logger.info(f"Input directory: {args.input_dir}")
-    logger.logger.info(f"Output base directory: {args.output_base_dir}")
+    logger.logger.info(f"Input directory: {args.input}")
+    logger.logger.info(f"Output base directory: {args.output}")
          
     # Handle test mode
     if args.test:
@@ -710,18 +710,18 @@ def main():
         logger.save_error_report()
         sys.exit(0 if success else 1)
     
-    # Define specific output subdirectories based on the output_base_dir argument
-    output_dir = os.path.join(args.output_base_dir, 'output')
-    preprocessed_dir = os.path.join(args.output_base_dir, 'preprocessed')
-    npz_dir = os.path.join(args.output_base_dir, 'npz_datasets')
-    segmented_dir = os.path.join(args.output_base_dir, 'segmented')
-    plots_dir = os.path.join(args.output_base_dir, 'plots')
-    lifetime_dir = os.path.join(args.output_base_dir, 'lifetime_images')
-    phasor_dir = os.path.join(args.output_base_dir, 'phasor_output')
+    # Define specific output subdirectories based on the output argument
+    output_dir = os.path.join(args.output, 'output')
+    preprocessed_dir = os.path.join(args.output, 'preprocessed')
+    npz_dir = os.path.join(args.output, 'npz_datasets')
+    segmented_dir = os.path.join(args.output, 'segmented')
+    plots_dir = os.path.join(args.output, 'plots')
+    lifetime_dir = os.path.join(args.output, 'lifetime_images')
+    phasor_dir = os.path.join(args.output, 'phasor_output')
     
     # Create base output directory if it doesn't exist
     try:
-         os.makedirs(args.output_base_dir, exist_ok=True)
+         os.makedirs(args.output, exist_ok=True)
          
          # Create all required output subdirectories
          os.makedirs(output_dir, exist_ok=True)
@@ -746,7 +746,7 @@ def main():
          sys.exit(1)
     
     # Look for calibration file in input directory first, fall back to project directory
-    input_calibration_path = os.path.join(args.input_dir, "calibration.csv")
+    input_calibration_path = os.path.join(args.input, "calibration.csv")
     project_calibration_path = "data/calibration.csv"
     
     if os.path.exists(input_calibration_path):
@@ -759,8 +759,8 @@ def main():
     start_pipeline_time = time.time()
     logger.logger.info("===================================")
     logger.logger.info(" FLIM-FRET Analysis Pipeline Start ")
-    logger.logger.info(f" Input Dir: {args.input_dir}")
-    logger.logger.info(f" Output Base: {args.output_base_dir}")
+    logger.logger.info(f" Input Dir: {args.input}")
+    logger.logger.info(f" Output Base: {args.output}")
     logger.logger.info(f" Calibration: {calibration_file_path}")
     logger.logger.info("===================================")
 
@@ -771,11 +771,11 @@ def main():
             try:
                 success = run_preprocessing(
                     config,
-                    args.input_dir,       
+                    args.input,       
                     output_dir,           
                     preprocessed_dir,     
                     calibration_file_path, # Pass fixed calibration path
-                    args.input_dir        
+                    args.input        
                 )
                 logger.log_stage_end("Stage 1: Preprocessing", success)
             except Exception as e:
@@ -851,7 +851,7 @@ def main():
                 logger.logger.info("Terminal I/O restored for interactive mode")
                 
                 # Run interactive phasor visualization
-                success = run_phasor_visualization(args.output_base_dir)
+                success = run_phasor_visualization(args.output)
                 
                 # Restore log file redirection
                 sys.stdout = original_stdout
