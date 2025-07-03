@@ -322,6 +322,15 @@ except ImportError as e:
     print(f"Error: Could not import process_flim_file (as run_phasor_transform) from phasor_transform.py: {e}") 
     print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
     run_phasor_transform = None # Placeholder
+
+try:
+    # Stage 4B: Manual Segmentation
+    from src.python.modules.ManualSegmentation import main as run_manual_segmentation
+except ImportError as e:
+    # Use current filename in error message
+    print(f"Error: Could not import main (as run_manual_segmentation) from ManualSegmentation.py: {e}") 
+    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    run_manual_segmentation = None # Placeholder
     
 # --- New Test Function ---
 def test_flute_integration(config, logger=None):
@@ -602,10 +611,14 @@ def parse_arguments():
     parser.add_argument("--filter", action="store_true", help="Run only Stage 2B: wavelet filtering and lifetime calculation")
     parser.add_argument("--visualize", action="store_true", help="Run Stage 3: Interactive phasor visualization and plot generation")
     parser.add_argument("--segment", action="store_true", help="Run GMM segmentation stage")
+    parser.add_argument("--manual-segment", action="store_true", help="Run manual segmentation stage")
     parser.add_argument("--phasor", action="store_true", help="Run phasor transformation stage")
     
     # Testing mode
     parser.add_argument("--test", action="store_true", help="Run in test mode to verify the environment")
+    
+    # Interactive mode
+    parser.add_argument("--interactive", action="store_true", help="Run in interactive mode for user input (affects GMM segmentation)")
     
     # File naming options
     parser.add_argument("--simplify-filenames", action="store_true", help="Simplify filenames in preprocessed directory (e.g., R_1_s2_g.tiff -> 2.tiff)")
@@ -621,7 +634,7 @@ def parse_arguments():
     # If no specific stages are selected, and not running in test mode
     # ask the user what to do
     if not (args.all or args.preprocessing or args.processing or args.LF_preprocessing or
-            args.preprocess or args.filter or args.visualize or args.segment or args.phasor or args.test):
+            args.preprocess or args.filter or args.visualize or args.segment or args.manual_segment or args.phasor or args.test):
         # Not running any specific stage and not in test mode
         print("No pipeline stages specified. Options:")
         print("1. Preprocessing (.bin to .tif conversion + phasor transformation)")
@@ -629,12 +642,13 @@ def parse_arguments():
         print("3. LF preprocessing (preprocessing with simplified filenames)")
         print("4. Filter only (wavelet filtering)")
         print("5. Visualize (interactive phasor plots)")
-        print("6. Segment (GMM segmentation)")
-        print("7. Phasor (phasor transformation only)")
-        print("8. All stages")
-        print("9. Exit")
+        print("6. Segment (GMM segmentation with interactive parameter selection)")
+        print("7. Manual Segment (interactive manual ellipse-based segmentation)")
+        print("8. Phasor (phasor transformation only)")
+        print("9. All stages")
+        print("10. Exit")
         
-        choice = input("Select an option (1-9): ")
+        choice = input("Select an option (1-10): ")
         
         if choice == "1":
             args.preprocessing = True
@@ -648,11 +662,14 @@ def parse_arguments():
             args.visualize = True
         elif choice == "6":
             args.segment = True
+            args.interactive = True  # Automatically enable interactive mode for GMM segmentation
         elif choice == "7":
-            args.phasor = True
+            args.manual_segment = True
         elif choice == "8":
-            args.all = True
+            args.phasor = True
         elif choice == "9":
+            args.all = True
+        elif choice == "10":
             print("Exiting.")
             sys.exit(0)
         else:
@@ -857,22 +874,128 @@ def main():
         logger.log_stage_start("Stage 4: GMM Segmentation", "GMM segmentation, plotting, and lifetime saving")
         if run_gmm_segmentation:
             try:
+                # Prompt user for interactive or config-based segmentation
+                print("\nGMM Segmentation Parameter Selection:")
+                print("  [1] Manually select GMM parameters (interactive)")
+                print("  [2] Use parameters from config/gmm_config.json")
+                while True:
+                    user_choice = input("Select option (1 or 2, default: 1): ").strip()
+                    if user_choice == "" or user_choice == "1":
+                        use_interactive = True
+                        print("→ Running GMM segmentation in interactive mode.")
+                        break
+                    elif user_choice == "2":
+                        use_interactive = False
+                        print("→ Running GMM segmentation using config/gmm_config.json.")
+                        break
+                    else:
+                        print("Please enter 1 or 2.")
+
+                # If interactive mode, restore terminal I/O
+                if use_interactive:
+                    logger.logger.info("Interactive mode enabled - user will be prompted for GMM parameters")
+                    original_stdout = sys.stdout
+                    original_stderr = sys.stderr
+                    sys.stdout = sys.__stdout__
+                    sys.stderr = sys.__stderr__
+                    logger.logger.info("Terminal I/O restored for interactive GMM mode")
+
                 # Pass required arguments
-                success = run_gmm_segmentation(
-                    config, 
-                    npz_dir, 
-                    segmented_dir, 
-                    plots_dir, 
-                    lifetime_dir
-                )
+                if use_interactive:
+                    success = run_gmm_segmentation(
+                        config, 
+                        npz_dir, 
+                        segmented_dir, 
+                        plots_dir, 
+                        lifetime_dir,
+                        True  # interactive mode
+                    )
+                else:
+                    # Load config from gmm_config.json
+                    gmm_config_path = os.path.join("config", "gmm_config.json")
+                    if not os.path.exists(gmm_config_path):
+                        logger.log_error(Exception("gmm_config.json not found"), "Config file check", "Stage 4: GMM Segmentation")
+                        print("Error: config/gmm_config.json not found.")
+                        success = False
+                    else:
+                        # Load config file using GMM module's config loader
+                        from src.python.modules.GMMSegmentation_v2_6 import load_gmm_config
+                        gmm_params = load_gmm_config(gmm_config_path)
+                        if not gmm_params:
+                            logger.log_error(Exception("Failed to load GMM config parameters"), "Config loading", "Stage 4: GMM Segmentation")
+                            print("Error: Failed to load GMM config parameters.")
+                            success = False
+                        else:
+                            # Create config structure expected by GMM module
+                            gmm_config = {'gmm_segmentation_params': gmm_params}
+                            print(f"Loaded GMM parameters: {list(gmm_params.keys())}")
+                            print(f"combine_datasets value: {gmm_params.get('combine_datasets', 'NOT FOUND')}")
+                            success = run_gmm_segmentation(
+                                gmm_config, 
+                                npz_dir, 
+                                segmented_dir, 
+                                plots_dir, 
+                                lifetime_dir,
+                                False  # not interactive
+                            )
+
+                # Restore log file redirection if interactive mode was used
+                if use_interactive:
+                    sys.stdout = original_stdout
+                    sys.stderr = original_stderr
+                    logger.logger.info("Terminal I/O restored to logging mode")
+                
                 logger.log_stage_end("Stage 4: GMM Segmentation", success)
             except Exception as e:
+                if 'use_interactive' in locals() and use_interactive:
+                    sys.stdout = original_stdout
+                    sys.stderr = original_stderr
                 logger.log_error(e, "Running GMM segmentation", "Stage 4: GMM Segmentation")
                 logger.log_stage_end("Stage 4: GMM Segmentation", False, f"Error: {str(e)}")
         else:
             error_msg = "run_gmm_segmentation function not available"
             logger.log_error(Exception(error_msg), "Import check", "Stage 4: GMM Segmentation")
             logger.log_stage_end("Stage 4: GMM Segmentation", False, error_msg)
+            
+    # --- Stage 4B: Manual Segmentation ---
+    if args.manual_segment or args.all:
+        logger.log_stage_start("Stage 4B: Manual Segmentation", "Interactive manual ellipse-based segmentation")
+        if run_manual_segmentation:
+            try:
+                # Manual segmentation is always interactive, so restore terminal I/O
+                logger.logger.info("Manual segmentation is interactive - restoring terminal I/O")
+                original_stdout = sys.stdout
+                original_stderr = sys.stderr
+                sys.stdout = sys.__stdout__
+                sys.stderr = sys.__stderr__
+                logger.logger.info("Terminal I/O restored for manual segmentation mode")
+
+                # Run manual segmentation
+                success = run_manual_segmentation(
+                    config, 
+                    npz_dir, 
+                    segmented_dir, 
+                    plots_dir, 
+                    lifetime_dir,
+                    True  # interactive mode
+                )
+
+                # Restore log file redirection
+                sys.stdout = original_stdout
+                sys.stderr = original_stderr
+                logger.logger.info("Terminal I/O restored to logging mode")
+                
+                logger.log_stage_end("Stage 4B: Manual Segmentation", success)
+            except Exception as e:
+                # Make sure to restore logging even if there's an error
+                sys.stdout = original_stdout
+                sys.stderr = original_stderr
+                logger.log_error(e, "Running manual segmentation", "Stage 4B: Manual Segmentation")
+                logger.log_stage_end("Stage 4B: Manual Segmentation", False, f"Error: {str(e)}")
+        else:
+            error_msg = "run_manual_segmentation function not available"
+            logger.log_error(Exception(error_msg), "Import check", "Stage 4B: Manual Segmentation")
+            logger.log_stage_end("Stage 4B: Manual Segmentation", False, error_msg)
             
     # --- Stage 5: Phasor Transformation ---
     if args.phasor or args.all:

@@ -394,7 +394,7 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
             ellipse.set_angle(angle)
             
             # Update center marker
-            center_point.set_data(center_x, center_y)
+            center_point.set_data([center_x], [center_y])
             
             # Redraw the figure
             fig.canvas.draw_idle()
@@ -474,8 +474,8 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
             )
             ax.add_artist(ellipse)
             
-            # Add center marker
-            center_point, = ax.plot(s_center_x.val, s_center_y.val, 'bo', markersize=5)
+            # Add center marker (update existing one instead of creating new)
+            center_point.set_data([s_center_x.val], [s_center_y.val])
             
             # Redraw the figure
             fig.canvas.draw_idle()
