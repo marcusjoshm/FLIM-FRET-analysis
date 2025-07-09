@@ -60,6 +60,8 @@ When the script finishes running, your preprocessed files will be in a folder ca
   - Produces both filtered and unfiltered lifetime calculations
 - `simplify_filenames.py`: Optional tool to convert complex filenames to simpler format
 - `GMMSegmentation_v2_6.py`: Performs GMM-based segmentation and analysis
+- `ManualSegmentation.py`: Interactive manual ellipse-based segmentation
+- `generate_lifetime_images.py`: Extracts lifetime data from NPZ files and saves as TIFF images
 - `phasor_transform.py`: Performs phasor transformation without GUI dependencies
 - `flim_fft_automated.py`: The main script that processes FLIM data using FFT
 - `organize_output_files.py`: Organizes processed files into the required directory structure
@@ -259,6 +261,12 @@ python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /pat
 
 # OPTION 4: Run only wavelet filtering (Stage 2B) - For already preprocessed data
 python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --filter
+
+# OPTION 5: Generate lifetime images from NPZ files (Stage 4C) - Extract lifetime data as TIFF images
+python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --lifetime-images
+
+# OPTION 6: Calculate average lifetime from segmented data (Stage 4D) - Calculate average lifetime from segmented NPZ files
+python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --average-lifetime
 ```
 
 ### Additional Options
@@ -372,8 +380,11 @@ The pipeline creates the following directory structure:
   - `Intensity/`: Intensity maps
 - `npz_datasets/`: Contains processed NPZ datasets from wavelet filtering
 - `segmented/`: Contains segmentation masks and outputs
+- `segmented_npz_datasets/`: Contains NPZ files with original data plus segmentation masks
 - `plots/`: Contains visualization plots
 - `lifetime_images/`: Contains extracted lifetime maps
+- `average_lifetime_results/`: Contains CSV files with average lifetime statistics
+
 - `phasor_output/`: Contains results from the phasor transformation
 
 ## Output Files
@@ -399,6 +410,88 @@ The wavelet filtering stage processes the G, S, and intensity files and creates 
 - Calculated lifetime values from both filtered and unfiltered data
 - Intensity values from the input images
 - Metadata about processing parameters
+
+### Lifetime Image Generation
+
+The lifetime image generation stage extracts lifetime data from NPZ files and saves them as TIFF images for visualization and further analysis. This stage can process both individual NPZ files and entire directories.
+
+#### Features
+
+- **Multiple Lifetime Data Types**: Supports various lifetime data keys including `lifetime`, `tau_p`, `tau_m`, and `lifetime_map`
+- **Automatic Data Handling**: Converts object arrays to float, handles NaN/infinite values, and reshapes data appropriately
+- **TIFF Output Only**: Saves lifetime data as TIFF images without preview plots
+- **Directory Structure Preservation**: Maintains the original directory structure when processing multiple files
+- **Robust Error Handling**: Continues processing even if individual files fail
+
+#### Output Structure
+
+The lifetime image generation saves TIFF files directly to the `lifetime_images` directory:
+
+```
+lifetime_images/
+├── file1_TU.tiff               # Lifetime image as TIFF
+├── subdirectory/
+│   ├── file2_TU.tiff          # Lifetime image as TIFF
+└── ...
+```
+
+#### Usage
+
+```bash
+# Generate lifetime images from NPZ files
+python run_pipeline.py --input /path/to/input --output /path/to/output --lifetime-images
+
+# Run as standalone script
+python src/python/modules/generate_lifetime_images.py /path/to/npz/files /path/to/output/directory
+
+# Generate with preview plots (standalone only)
+python src/python/modules/generate_lifetime_images.py /path/to/npz/files /path/to/output/directory
+```
+
+### Average Lifetime Calculation
+
+The average lifetime calculation stage extracts TU (unfiltered lifetime) data from segmented NPZ files, applies the segmentation mask, and calculates average lifetime statistics for each segmented region.
+
+#### Features
+
+- **Masked Lifetime Calculation**: Multiplies TU data by the full_mask to get only selected region lifetime values
+- **Comprehensive Statistics**: Calculates mean, standard deviation, min, max, and pixel counts
+- **Data Validation**: Filters out NaN and infinite values for accurate statistics
+- **CSV Output**: Saves results to a structured CSV file with all statistics and metadata
+- **Summary Statistics**: Provides overall statistics across all processed files
+
+#### Output Structure
+
+The average lifetime calculation creates:
+
+```
+average_lifetime_results/
+└── average_lifetime_results.csv  # CSV file with all statistics
+```
+
+The CSV file contains columns:
+- `filename`: Base filename of the segmented NPZ file
+- `average_lifetime_ns`: Mean lifetime in nanoseconds
+- `std_lifetime_ns`: Standard deviation of lifetime
+- `min_lifetime_ns`: Minimum lifetime value
+- `max_lifetime_ns`: Maximum lifetime value
+- `pixel_count`: Number of pixels in masked region
+- `valid_pixel_count`: Number of valid lifetime pixels
+- `total_pixels`: Total pixels in the dataset
+- `pixels_selected`: Metadata from segmentation
+- `pixels_thresholded`: Metadata from segmentation
+- `mask_type`: Type of mask used
+- `source_file`: Path to original segmented NPZ file
+
+#### Usage
+
+```bash
+# Calculate average lifetime from segmented data
+python run_pipeline.py --input /path/to/input --output /path/to/output --average-lifetime
+
+# Run as standalone script
+python src/python/modules/calculate_average_lifetime.py /path/to/segmented_npz_datasets /path/to/output/directory
+```
 
 ## Requirements
 

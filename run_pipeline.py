@@ -331,6 +331,51 @@ except ImportError as e:
     print(f"Error: Could not import main (as run_manual_segmentation) from ManualSegmentation.py: {e}") 
     print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
     run_manual_segmentation = None # Placeholder
+
+try:
+    # Stage 4C: Lifetime Image Generation
+    from src.python.modules.generate_lifetime_images import main as run_lifetime_generation
+except ImportError as e:
+    # Use current filename in error message
+    print(f"Error: Could not import main (as run_lifetime_generation) from generate_lifetime_images.py: {e}") 
+    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    run_lifetime_generation = None # Placeholder
+
+try:
+    # Stage 4D: Average Lifetime Calculation
+    from src.python.modules.calculate_average_lifetime import main as run_average_lifetime
+except ImportError as e:
+    # Use current filename in error message
+    print(f"Error: Could not import main (as run_average_lifetime) from calculate_average_lifetime.py: {e}") 
+    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    run_average_lifetime = None # Placeholder
+
+try:
+    # Stage 5A: Apply Mask
+    from src.python.modules.apply_mask import main as run_apply_mask
+except ImportError as e:
+    # Use current filename in error message
+    print(f"Error: Could not import main (as run_apply_mask) from apply_mask.py: {e}") 
+    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    run_apply_mask = None # Placeholder
+
+try:
+    # Stage 5B: Visualize Segmented Data
+    from src.python.modules.visualize_segmented_data import main as run_visualize_segmented
+except ImportError as e:
+    # Use current filename in error message
+    print(f"Error: Could not import main (as run_visualize_segmented) from visualize_segmented_data.py: {e}") 
+    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    run_visualize_segmented = None # Placeholder
+
+try:
+    # Stage 5C: Manual Segment From Mask
+    from src.python.modules.ManualSegmentFromMask import main as run_manual_segment_from_mask
+except ImportError as e:
+    # Use current filename in error message
+    print(f"Error: Could not import main (as run_manual_segment_from_mask) from ManualSegmentFromMask.py: {e}") 
+    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    run_manual_segment_from_mask = None # Placeholder
     
 # --- New Test Function ---
 def test_flute_integration(config, logger=None):
@@ -612,7 +657,12 @@ def parse_arguments():
     parser.add_argument("--visualize", action="store_true", help="Run Stage 3: Interactive phasor visualization and plot generation")
     parser.add_argument("--segment", action="store_true", help="Run GMM segmentation stage")
     parser.add_argument("--manual-segment", action="store_true", help="Run manual segmentation stage")
+    parser.add_argument("--lifetime-images", action="store_true", help="Run lifetime image generation from NPZ files")
+    parser.add_argument("--average-lifetime", action="store_true", help="Calculate average lifetime from segmented data")
     parser.add_argument("--phasor", action="store_true", help="Run phasor transformation stage")
+    parser.add_argument("--apply-mask", action="store_true", help="Apply binary masks to NPZ data and create masked NPZ files")
+    parser.add_argument("--visualize-segmented", action="store_true", help="Visualize segmented data from masked NPZ files")
+    parser.add_argument("--manual-segment-from-mask", action="store_true", help="Manual segmentation from masked NPZ files (G*mask, S*mask)")
     
     # Testing mode
     parser.add_argument("--test", action="store_true", help="Run in test mode to verify the environment")
@@ -634,7 +684,7 @@ def parse_arguments():
     # If no specific stages are selected, and not running in test mode
     # ask the user what to do
     if not (args.all or args.preprocessing or args.processing or args.LF_preprocessing or
-            args.preprocess or args.filter or args.visualize or args.segment or args.manual_segment or args.phasor or args.test):
+            args.preprocess or args.filter or args.visualize or args.segment or args.manual_segment or args.lifetime_images or args.average_lifetime or args.phasor or args.apply_mask or args.visualize_segmented or args.manual_segment_from_mask or args.test):
         # Not running any specific stage and not in test mode
         print("No pipeline stages specified. Options:")
         print("1. Preprocessing (.bin to .tif conversion + phasor transformation)")
@@ -644,11 +694,16 @@ def parse_arguments():
         print("5. Visualize (interactive phasor plots)")
         print("6. Segment (GMM segmentation with interactive parameter selection)")
         print("7. Manual Segment (interactive manual ellipse-based segmentation)")
-        print("8. Phasor (phasor transformation only)")
-        print("9. All stages")
-        print("10. Exit")
+        print("8. Lifetime Images (generate lifetime images from NPZ files)")
+        print("9. Average Lifetime (calculate average lifetime from segmented data)")
+        print("10. Phasor (phasor transformation only)")
+        print("11. Apply Mask (apply binary masks to NPZ data)")
+        print("12. Visualize Segmented (visualize segmented data from masked NPZ files)")
+        print("13. Manual Segment From Mask (manual segmentation from masked NPZ files)")
+        print("14. All stages")
+        print("15. Exit")
         
-        choice = input("Select an option (1-10): ")
+        choice = input("Select an option (1-15): ")
         
         if choice == "1":
             args.preprocessing = True
@@ -666,10 +721,20 @@ def parse_arguments():
         elif choice == "7":
             args.manual_segment = True
         elif choice == "8":
-            args.phasor = True
+            args.lifetime_images = True
         elif choice == "9":
-            args.all = True
+            args.average_lifetime = True
         elif choice == "10":
+            args.phasor = True
+        elif choice == "11":
+            args.apply_mask = True
+        elif choice == "12":
+            args.visualize_segmented = True
+        elif choice == "13":
+            args.manual_segment_from_mask = True
+        elif choice == "14":
+            args.all = True
+        elif choice == "15":
             print("Exiting.")
             sys.exit(0)
         else:
@@ -715,9 +780,11 @@ def main():
     preprocessed_dir = os.path.join(args.output, 'preprocessed')
     npz_dir = os.path.join(args.output, 'npz_datasets')
     segmented_dir = os.path.join(args.output, 'segmented')
+    segmented_npz_dir = os.path.join(args.output, 'segmented_npz_datasets')
     plots_dir = os.path.join(args.output, 'plots')
     lifetime_dir = os.path.join(args.output, 'lifetime_images')
     phasor_dir = os.path.join(args.output, 'phasor_output')
+    external_mask_npz_dir = os.path.join(args.output, 'external_mask_npz_datasets')
     
     # Create base output directory if it doesn't exist
     try:
@@ -728,18 +795,22 @@ def main():
          os.makedirs(preprocessed_dir, exist_ok=True)
          os.makedirs(npz_dir, exist_ok=True)
          os.makedirs(segmented_dir, exist_ok=True)
+         os.makedirs(segmented_npz_dir, exist_ok=True)
          os.makedirs(plots_dir, exist_ok=True)
          os.makedirs(lifetime_dir, exist_ok=True)
          os.makedirs(phasor_dir, exist_ok=True)
+         os.makedirs(external_mask_npz_dir, exist_ok=True)
          
          logger.logger.info("Created output directories:")
          logger.logger.info(f" - {output_dir}")
          logger.logger.info(f" - {preprocessed_dir}")
          logger.logger.info(f" - {npz_dir}")
          logger.logger.info(f" - {segmented_dir}")
+         logger.logger.info(f" - {segmented_npz_dir}")
          logger.logger.info(f" - {plots_dir}")
          logger.logger.info(f" - {lifetime_dir}")
          logger.logger.info(f" - {phasor_dir}")
+         logger.logger.info(f" - {external_mask_npz_dir}")
     except OSError as e:
          logger.log_error(e, "Creating output directories", "Setup")
          logger.logger.error(f"Error creating output directories: {e}")
@@ -976,6 +1047,47 @@ def main():
         logger.log_stage_start("Stage 4B: Manual Segmentation", "Interactive manual ellipse-based segmentation")
         if run_manual_segmentation:
             try:
+                # Prompt user for NPZ directory choice
+                print("\nManual Segmentation - NPZ Directory Selection:")
+                print("  [1] Use original NPZ files (npz_datasets)")
+                print("  [2] Use external mask NPZ files (external_mask_npz_datasets)")
+                
+                # Check if directories exist and show file counts
+                original_count = 0
+                external_count = 0
+                
+                if os.path.exists(npz_dir):
+                    original_count = len([f for f in os.listdir(npz_dir) if f.endswith('.npz')])
+                    print(f"      → {original_count} NPZ files found in npz_datasets")
+                else:
+                    print("      → npz_datasets directory not found")
+                
+                if os.path.exists(external_mask_npz_dir):
+                    external_count = len([f for f in os.listdir(external_mask_npz_dir) if f.endswith('.npz')])
+                    print(f"      → {external_count} NPZ files found in external_mask_npz_datasets")
+                else:
+                    print("      → external_mask_npz_datasets directory not found")
+                
+                # Get user choice
+                while True:
+                    user_choice = input("Select option (1 or 2, default: 1): ").strip()
+                    if user_choice == "" or user_choice == "1":
+                        selected_npz_dir = npz_dir
+                        dir_name = "npz_datasets"
+                        print(f"→ Using {dir_name} directory for manual segmentation.")
+                        break
+                    elif user_choice == "2":
+                        selected_npz_dir = external_mask_npz_dir
+                        dir_name = "external_mask_npz_datasets"
+                        print(f"→ Using {dir_name} directory for manual segmentation.")
+                        break
+                    else:
+                        print("Please enter 1 or 2.")
+                
+                # Log the choice
+                logger.logger.info(f"User selected NPZ directory: {dir_name}")
+                logger.logger.info(f"NPZ directory path: {selected_npz_dir}")
+                
                 # Manual segmentation is always interactive, so restore terminal I/O
                 logger.logger.info("Manual segmentation is interactive - restoring terminal I/O")
                 original_stdout = sys.stdout
@@ -984,10 +1096,10 @@ def main():
                 sys.stderr = sys.__stderr__
                 logger.logger.info("Terminal I/O restored for manual segmentation mode")
 
-                # Run manual segmentation
+                # Run manual segmentation with selected directory
                 success = run_manual_segmentation(
                     config, 
-                    npz_dir, 
+                    selected_npz_dir, 
                     segmented_dir, 
                     plots_dir, 
                     lifetime_dir,
@@ -1010,6 +1122,98 @@ def main():
             error_msg = "run_manual_segmentation function not available"
             logger.log_error(Exception(error_msg), "Import check", "Stage 4B: Manual Segmentation")
             logger.log_stage_end("Stage 4B: Manual Segmentation", False, error_msg)
+            
+    # --- Stage 4C: Lifetime Image Generation ---
+    if args.lifetime_images or args.all:
+        logger.log_stage_start("Stage 4C: Lifetime Image Generation", "Generate lifetime images from NPZ files")
+        if run_lifetime_generation:
+            try:
+                # Use existing lifetime_images directory
+                lifetime_images_dir = os.path.join(args.output, 'lifetime_images')
+                os.makedirs(lifetime_images_dir, exist_ok=True)
+                
+                # Run lifetime image generation (no preview plots)
+                success = run_lifetime_generation(
+                    config=config,
+                    npz_dir=npz_dir,
+                    output_dir=lifetime_images_dir,
+                    create_preview=False
+                )
+                
+                logger.log_stage_end("Stage 4C: Lifetime Image Generation", success)
+            except Exception as e:
+                logger.log_error(e, "Running lifetime image generation", "Stage 4C: Lifetime Image Generation")
+                logger.log_stage_end("Stage 4C: Lifetime Image Generation", False, f"Error: {str(e)}")
+        else:
+            error_msg = "run_lifetime_generation function not available"
+            logger.log_error(Exception(error_msg), "Import check", "Stage 4C: Lifetime Image Generation")
+            logger.log_stage_end("Stage 4C: Lifetime Image Generation", False, error_msg)
+            
+    # --- Stage 4D: Average Lifetime Calculation ---
+    if args.average_lifetime or args.all:
+        logger.log_stage_start("Stage 4D: Average Lifetime Calculation", "Calculate average lifetime from segmented data")
+        if run_average_lifetime:
+            try:
+                # Create results directory
+                results_dir = os.path.join(args.output, 'average_lifetime_results')
+                os.makedirs(results_dir, exist_ok=True)
+                
+                # Prompt user for NPZ directory choice
+                print("\nAverage Lifetime Calculation - NPZ Directory Selection:")
+                print("  [1] Use segmented NPZ files (segmented_npz_datasets)")
+                print("  [2] Use external mask NPZ files (external_mask_npz_datasets)")
+                
+                # Check if directories exist and show file counts
+                segmented_count = 0
+                external_count = 0
+                
+                if os.path.exists(segmented_npz_dir):
+                    segmented_count = len([f for f in os.listdir(segmented_npz_dir) if f.endswith('.npz')])
+                    print(f"      → {segmented_count} NPZ files found in segmented_npz_datasets")
+                else:
+                    print("      → segmented_npz_datasets directory not found")
+                
+                if os.path.exists(external_mask_npz_dir):
+                    external_count = len([f for f in os.listdir(external_mask_npz_dir) if f.endswith('.npz')])
+                    print(f"      → {external_count} NPZ files found in external_mask_npz_datasets")
+                else:
+                    print("      → external_mask_npz_datasets directory not found")
+                
+                # Get user choice
+                while True:
+                    user_choice = input("Select option (1 or 2, default: 1): ").strip()
+                    if user_choice == "" or user_choice == "1":
+                        selected_npz_dir = segmented_npz_dir
+                        dir_name = "segmented_npz_datasets"
+                        print(f"→ Using {dir_name} directory for average lifetime calculation.")
+                        break
+                    elif user_choice == "2":
+                        selected_npz_dir = external_mask_npz_dir
+                        dir_name = "external_mask_npz_datasets"
+                        print(f"→ Using {dir_name} directory for average lifetime calculation.")
+                        break
+                    else:
+                        print("Please enter 1 or 2.")
+                
+                # Log the choice
+                logger.logger.info(f"User selected NPZ directory: {dir_name}")
+                logger.logger.info(f"NPZ directory path: {selected_npz_dir}")
+                
+                # Run average lifetime calculation with selected directory
+                success = run_average_lifetime(
+                    config=config,
+                    segmented_npz_dir=selected_npz_dir,
+                    output_dir=results_dir
+                )
+                
+                logger.log_stage_end("Stage 4D: Average Lifetime Calculation", success)
+            except Exception as e:
+                logger.log_error(e, "Running average lifetime calculation", "Stage 4D: Average Lifetime Calculation")
+                logger.log_stage_end("Stage 4D: Average Lifetime Calculation", False, f"Error: {str(e)}")
+        else:
+            error_msg = "run_average_lifetime function not available"
+            logger.log_error(Exception(error_msg), "Import check", "Stage 4D: Average Lifetime Calculation")
+            logger.log_stage_end("Stage 4D: Average Lifetime Calculation", False, error_msg)
             
     # --- Stage 5: Phasor Transformation ---
     if args.phasor or args.all:
@@ -1111,6 +1315,146 @@ def main():
             error_msg = "run_phasor_transform function not available"
             logger.log_error(Exception(error_msg), "Import check", "Stage 5: Phasor Transformation")
             logger.log_stage_end("Stage 5: Phasor Transformation", False, error_msg)
+            
+    # --- Stage 5A: Apply Mask ---
+    if args.apply_mask or args.all:
+        logger.log_stage_start("Stage 5A: Apply Mask", "Apply binary masks to NPZ data and create masked NPZ files")
+        if run_apply_mask:
+            try:
+                # Run apply mask
+                success = run_apply_mask(
+                    config=config,
+                    segmented_dir=segmented_dir,
+                    npz_dir=npz_dir,
+                    output_dir=external_mask_npz_dir
+                )
+                
+                logger.log_stage_end("Stage 5A: Apply Mask", success)
+            except Exception as e:
+                logger.log_error(e, "Running apply mask", "Stage 5A: Apply Mask")
+                logger.log_stage_end("Stage 5A: Apply Mask", False, f"Error: {str(e)}")
+        else:
+            error_msg = "run_apply_mask function not available"
+            logger.log_error(Exception(error_msg), "Import check", "Stage 5A: Apply Mask")
+            logger.log_stage_end("Stage 5A: Apply Mask", False, error_msg)
+            
+    # --- Stage 5B: Visualize Segmented Data ---
+    if args.visualize_segmented or args.all:
+        logger.log_stage_start("Stage 5B: Visualize Segmented Data", "Visualize segmented data from masked NPZ files")
+        if run_visualize_segmented:
+            try:
+                # Visualize segmented data is always interactive, so restore terminal I/O
+                logger.logger.info("Segmented data visualization is interactive - restoring terminal I/O")
+                original_stdout = sys.stdout
+                original_stderr = sys.stderr
+                sys.stdout = sys.__stdout__
+                sys.stderr = sys.__stderr__
+                logger.logger.info("Terminal I/O restored for segmented visualization mode")
+
+                # Run visualize segmented data
+                success = run_visualize_segmented(
+                    config=config,
+                    external_mask_npz_dir=external_mask_npz_dir,
+                    output_dir=args.output
+                )
+
+                # Restore log file redirection
+                sys.stdout = original_stdout
+                sys.stderr = original_stderr
+                logger.logger.info("Terminal I/O restored to logging mode")
+                
+                logger.log_stage_end("Stage 5B: Visualize Segmented Data", success)
+            except Exception as e:
+                # Make sure to restore logging even if there's an error
+                sys.stdout = original_stdout
+                sys.stderr = original_stderr
+                logger.log_error(e, "Running visualize segmented data", "Stage 5B: Visualize Segmented Data")
+                logger.log_stage_end("Stage 5B: Visualize Segmented Data", False, f"Error: {str(e)}")
+        else:
+            error_msg = "run_visualize_segmented function not available"
+            logger.log_error(Exception(error_msg), "Import check", "Stage 5B: Visualize Segmented Data")
+            logger.log_stage_end("Stage 5B: Visualize Segmented Data", False, error_msg)
+            
+    # --- Stage 5C: Manual Segment From Mask ---
+    if args.manual_segment_from_mask or args.all:
+        logger.log_stage_start("Stage 5C: Manual Segment From Mask", "Interactive manual segmentation from masked NPZ files")
+        if run_manual_segment_from_mask:
+            try:
+                # Prompt user for NPZ directory choice
+                print("\nManual Segment From Mask - NPZ Directory Selection:")
+                print("  [1] Use external mask NPZ files (external_mask_npz_datasets)")
+                print("  [2] Use segmented NPZ files (segmented_npz_datasets)")
+                
+                # Check if directories exist and show file counts
+                external_count = 0
+                segmented_count = 0
+                
+                if os.path.exists(external_mask_npz_dir):
+                    external_count = len([f for f in os.listdir(external_mask_npz_dir) if f.endswith('.npz')])
+                    print(f"      → {external_count} NPZ files found in external_mask_npz_datasets")
+                else:
+                    print("      → external_mask_npz_datasets directory not found")
+                
+                if os.path.exists(segmented_npz_dir):
+                    segmented_count = len([f for f in os.listdir(segmented_npz_dir) if f.endswith('.npz')])
+                    print(f"      → {segmented_count} NPZ files found in segmented_npz_datasets")
+                else:
+                    print("      → segmented_npz_datasets directory not found")
+                
+                # Get user choice
+                while True:
+                    user_choice = input("Select option (1 or 2, default: 1): ").strip()
+                    if user_choice == "" or user_choice == "1":
+                        selected_npz_dir = external_mask_npz_dir
+                        dir_name = "external_mask_npz_datasets"
+                        print(f"→ Using {dir_name} directory for manual segmentation from mask.")
+                        break
+                    elif user_choice == "2":
+                        selected_npz_dir = segmented_npz_dir
+                        dir_name = "segmented_npz_datasets"
+                        print(f"→ Using {dir_name} directory for manual segmentation from mask.")
+                        break
+                    else:
+                        print("Please enter 1 or 2.")
+                
+                # Log the choice
+                logger.logger.info(f"User selected NPZ directory: {dir_name}")
+                logger.logger.info(f"NPZ directory path: {selected_npz_dir}")
+                
+                # Manual segment from mask is always interactive, so restore terminal I/O
+                logger.logger.info("Manual segment from mask is interactive - restoring terminal I/O")
+                original_stdout = sys.stdout
+                original_stderr = sys.stderr
+                sys.stdout = sys.__stdout__
+                sys.stderr = sys.__stderr__
+                logger.logger.info("Terminal I/O restored for manual segment from mask mode")
+
+                # Run manual segment from mask with selected directory
+                success = run_manual_segment_from_mask(
+                    config, 
+                    selected_npz_dir, 
+                    segmented_dir, 
+                    plots_dir, 
+                    lifetime_dir,
+                    True  # interactive mode
+                )
+
+                # Restore log file redirection
+                sys.stdout = original_stdout
+                sys.stderr = original_stderr
+                logger.logger.info("Terminal I/O restored to logging mode")
+                
+                logger.log_stage_end("Stage 5C: Manual Segment From Mask", success)
+            except Exception as e:
+                # Make sure to restore logging even if there's an error
+                sys.stdout = original_stdout
+                sys.stderr = original_stderr
+                logger.log_error(e, "Running manual segment from mask", "Stage 5C: Manual Segment From Mask")
+                logger.log_stage_end("Stage 5C: Manual Segment From Mask", False, f"Error: {str(e)}")
+        else:
+            error_msg = "run_manual_segment_from_mask function not available"
+            logger.log_error(Exception(error_msg), "Import check", "Stage 5C: Manual Segment From Mask")
+            logger.log_stage_end("Stage 5C: Manual Segment From Mask", False, error_msg)
             
     end_pipeline_time = time.time()
     total_time = end_pipeline_time - start_pipeline_time

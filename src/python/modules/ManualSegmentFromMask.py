@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Manual Segmentation Module for FLIM-FRET Analysis
-=================================================
+Manual Segment From Mask Module for FLIM-FRET Analysis
+======================================================
 
 This module provides tools for manual segmentation of phasor data using 
 an interactive matplotlib interface with adjustable ellipse parameters.
+Unlike the standard ManualSegmentation.py, this module works with NPZ files
+that contain full_mask data and multiplies G and S values by the mask
+before plotting, allowing segmentation only within the masked regions.
 
-Created by Joshua Marcus
+Based on ManualSegmentation.py by Joshua Marcus
 """
 
 import os
@@ -100,7 +103,7 @@ def select_npz_files(npz_files):
         
         # Create tkinter window
         root = tk.Tk()
-        root.title("Select NPZ Files for Manual Segmentation")
+        root.title("Select NPZ Files for Manual Segmentation From Mask")
         root.geometry("800x600")
         
         # Create frame for instructions
@@ -108,10 +111,10 @@ def select_npz_files(npz_files):
         instruction_frame.pack(fill="x")
         
         ttk.Label(instruction_frame, 
-                  text="Select files to include in combined manual segmentation", 
+                  text="Select files to include in combined manual segmentation from mask", 
                   font=("Arial", 12, "bold")).pack()
         ttk.Label(instruction_frame, 
-                  text="All selected datasets will be combined into a single graph for segmentation", 
+                  text="Only masked regions (G*mask, S*mask) will be shown for segmentation", 
                   font=("Arial", 10)).pack()
         
         # Create frame for file list
@@ -182,7 +185,7 @@ def select_npz_files(npz_files):
     except ImportError:
         # Fallback to command line interface if tkinter is not available
         print("\ntkinter module not available. Using command line interface for file selection.")
-        print(f"Found {len(npz_files)} NPZ files. Select files to include in manual segmentation:")
+        print(f"Found {len(npz_files)} NPZ files. Select files to include in manual segmentation from mask:")
         
         # Show list of files with indices
         for i, path in enumerate(npz_files):
@@ -221,12 +224,12 @@ def select_npz_files(npz_files):
                     except ValueError:
                         print(f"Warning: Invalid input '{part}', skipping")
         
-        print(f"\nSelected {len(selected)} files for manual segmentation")
+        print(f"\nSelected {len(selected)} files for manual segmentation from mask")
         return selected
 
 def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, lifetime_dir=None):
     """
-    Process multiple NPZ files for combined manual segmentation.
+    Process multiple NPZ files for combined manual segmentation from mask.
     
     Args:
         npz_files: List of NPZ file paths
@@ -238,7 +241,7 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
     Returns:
         bool: Success status
     """
-    print(f"\n=== Manual Segmentation for {len(npz_files)} Combined Files ===")
+    print(f"\n=== Manual Segmentation From Mask for {len(npz_files)} Combined Files ===")
     
     # Load and combine data from all files
     print("Loading NPZ files...")
@@ -259,34 +262,50 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
         intensity = data.get('A', data.get('intensity', None))
         lifetime = data.get('lifetime', None)
         
+        # *** KEY MODIFICATION: Apply full_mask to G and S data ***
+        full_mask = data.get('full_mask', None)
+        if full_mask is None:
+            print(f"Warning: No full_mask found in {npz_path}")
+            print(f"Available keys: {list(data.keys())}")
+            continue
+            
+        print(f"  {os.path.basename(npz_path)}: mask has {np.sum(full_mask)} selected pixels out of {full_mask.size} total")
+        
+        # Apply mask to G and S data
+        g_data_masked = g_data * full_mask
+        s_data_masked = s_data * full_mask
+        
         if g_data is None or s_data is None or intensity is None:
             print(f"Warning: Missing required data in {npz_path}")
             continue
             
-        # Flatten arrays
-        g_flat = g_data.flatten()
-        s_flat = s_data.flatten()
+        # Flatten arrays (using masked data for G and S)
+        g_flat = g_data_masked.flatten()
+        s_flat = s_data_masked.flatten()
         intensity_flat = intensity.flatten()
         
         # Store data for this file
         file_data_mapping[npz_path] = {
             'npz_data': data,
-            'g_data': g_data,
-            's_data': s_data,
+            'g_data': g_data,  # Original G data
+            's_data': s_data,  # Original S data
+            'g_data_masked': g_data_masked,  # Masked G data
+            's_data_masked': s_data_masked,  # Masked S data
             'intensity': intensity,
             'lifetime': lifetime,
-            'g_flat': g_flat,
-            's_flat': s_flat,
+            'full_mask': full_mask,
+            'g_flat': g_flat,  # Flattened masked G data
+            's_flat': s_flat,  # Flattened masked S data
             'intensity_flat': intensity_flat
         }
         
-        # Add to combined data
+        # Add to combined data (using masked data)
         all_g_data.append(g_flat)
         all_s_data.append(s_flat)
         all_intensity_data.append(intensity_flat)
     
     if not file_data_mapping:
-        print("Error: No valid NPZ files could be loaded.")
+        print("Error: No valid NPZ files with full_mask could be loaded.")
         return False
     
     # Combine all data
@@ -294,11 +313,17 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
     all_s = np.concatenate(all_s_data)
     all_intensity = np.concatenate(all_intensity_data)
     
-    print(f"Loaded {len(file_data_mapping)} files with {len(all_g)} total pixels")
+    # Remove zero values from masked data (since masked regions are set to 0)
+    non_zero_mask = (all_g != 0) | (all_s != 0)
+    all_g = all_g[non_zero_mask]
+    all_s = all_s[non_zero_mask]
+    all_intensity = all_intensity[non_zero_mask]
+    
+    print(f"Loaded {len(file_data_mapping)} files with {len(all_g)} non-zero masked pixels")
     
     # Apply thresholding before creating the plot (like in phasor_visualization.py)
     print("\nThresholding options:")
-    print("  [1] No threshold (use all data)")
+    print("  [1] No threshold (use all masked data)")
     print("  [2] Manual threshold (enter a specific value)")
     print("  [3] Auto-threshold on combined data (remove bottom 90% of intensity values)")
     print("  [4] Custom auto-threshold on combined data (specify percentile to remove)")
@@ -313,7 +338,7 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
             threshold = 0
             auto_percentile = None
             individual_percentile = None
-            threshold_desc = "No threshold"
+            threshold_desc = "No threshold (masked data only)"
             break
             
         elif threshold_choice == '2':
@@ -326,7 +351,7 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
                         continue
                     auto_percentile = None
                     individual_percentile = None
-                    threshold_desc = f"Manual threshold: {threshold}"
+                    threshold_desc = f"Manual threshold: {threshold} (masked data only)"
                     break
                 except ValueError:
                     print("Invalid input. Please enter a number.")
@@ -336,7 +361,7 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
             threshold = 0
             auto_percentile = 90
             individual_percentile = None
-            threshold_desc = f"Auto threshold ({auto_percentile}%)"
+            threshold_desc = f"Auto threshold ({auto_percentile}%, masked data only)"
             break
             
         elif threshold_choice == '4':
@@ -350,7 +375,7 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
                     threshold = 0
                     auto_percentile = percentile
                     individual_percentile = None
-                    threshold_desc = f"Auto threshold ({auto_percentile}%)"
+                    threshold_desc = f"Auto threshold ({auto_percentile}%, masked data only)"
                     break
                 except ValueError:
                     print("Invalid input. Please enter a number.")
@@ -360,7 +385,7 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
             threshold = 0
             auto_percentile = None
             individual_percentile = 90
-            threshold_desc = f"Individual auto threshold ({individual_percentile}%)"
+            threshold_desc = f"Individual auto threshold ({individual_percentile}%, masked data only)"
             break
             
         elif threshold_choice == '6':
@@ -374,14 +399,14 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
                     threshold = 0
                     auto_percentile = None
                     individual_percentile = percentile
-                    threshold_desc = f"Individual auto threshold ({individual_percentile}%)"
+                    threshold_desc = f"Individual auto threshold ({individual_percentile}%, masked data only)"
                     break
                 except ValueError:
                     print("Invalid input. Please enter a number.")
         else:
             print("Invalid choice. Please select 1-6.")
     
-    # Apply thresholding
+    # Apply thresholding to the already-masked data
     print(f"\nApplying {threshold_desc}...")
     
     if individual_percentile is not None:
@@ -391,34 +416,42 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
         filtered_intensity = []
         
         for npz_path, data in file_data_mapping.items():
-            intensity_flat = data['intensity_flat']
+            # Use masked data for thresholding
             g_flat = data['g_flat']
             s_flat = data['s_flat']
+            intensity_flat = data['intensity_flat']
             
-            # Calculate threshold for this specific file
-            file_threshold = np.percentile(intensity_flat, individual_percentile)
+            # Only consider non-zero masked pixels
+            non_zero_mask = (g_flat != 0) | (s_flat != 0)
+            g_non_zero = g_flat[non_zero_mask]
+            s_non_zero = s_flat[non_zero_mask]
+            intensity_non_zero = intensity_flat[non_zero_mask]
             
-            # Create mask for this file
-            mask = intensity_flat >= file_threshold
-            
-            if np.sum(mask) > 0:
-                filtered_g.append(g_flat[mask])
-                filtered_s.append(s_flat[mask])
-                filtered_intensity.append(intensity_flat[mask])
+            if len(intensity_non_zero) > 0:
+                # Calculate threshold for this specific file
+                file_threshold = np.percentile(intensity_non_zero, individual_percentile)
                 
-                print(f"  {os.path.basename(npz_path)}: kept {np.sum(mask)} of {len(mask)} pixels ({np.sum(mask)/len(mask)*100:.1f}%)")
+                # Create mask for this file
+                mask = intensity_non_zero >= file_threshold
+                
+                if np.sum(mask) > 0:
+                    filtered_g.append(g_non_zero[mask])
+                    filtered_s.append(s_non_zero[mask])
+                    filtered_intensity.append(intensity_non_zero[mask])
+                    
+                    print(f"  {os.path.basename(npz_path)}: kept {np.sum(mask)} of {len(mask)} masked pixels ({np.sum(mask)/len(mask)*100:.1f}%)")
         
         if filtered_g:
             all_g = np.concatenate(filtered_g)
             all_s = np.concatenate(filtered_s)
             all_intensity = np.concatenate(filtered_intensity)
-            print(f"  Total: kept {len(all_g)} of {sum(len(data['g_flat']) for data in file_data_mapping.values())} pixels")
+            print(f"  Total: kept {len(all_g)} pixels from masked regions")
         else:
-            print("Warning: No data points remain after individual thresholding")
+            print("Warning: No data points remain after individual thresholding on masked data")
             return False
             
     elif auto_percentile is not None:
-        # Apply auto-thresholding to combined data
+        # Apply auto-thresholding to combined masked data
         combined_threshold = np.percentile(all_intensity, auto_percentile)
         mask = all_intensity >= combined_threshold
         
@@ -426,19 +459,19 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
         all_s = all_s[mask]
         all_intensity = all_intensity[mask]
         
-        print(f"  Applied threshold of {combined_threshold:.2f}: kept {len(all_g)} of {len(mask)} pixels ({len(all_g)/len(mask)*100:.1f}%)")
+        print(f"  Applied threshold of {combined_threshold:.2f}: kept {len(all_g)} of {len(mask)} masked pixels ({len(all_g)/len(mask)*100:.1f}%)")
         
     elif threshold > 0:
-        # Apply manual threshold
+        # Apply manual threshold to masked data
         mask = all_intensity >= threshold
         all_g = all_g[mask]
         all_s = all_s[mask]
         all_intensity = all_intensity[mask]
         
-        print(f"  Applied threshold of {threshold}: kept {len(all_g)} of {len(mask)} pixels ({len(all_g)/len(mask)*100:.1f}%)")
+        print(f"  Applied threshold of {threshold}: kept {len(all_g)} of {len(mask)} masked pixels ({len(all_g)/len(mask)*100:.1f}%)")
     
-    # Create the interactive plot with thresholded data using high-quality formatting
-    print(f"\nCreating interactive plot with {len(all_g)} thresholded pixels...")
+    # Create the interactive plot with thresholded masked data using high-quality formatting
+    print(f"\nCreating interactive plot with {len(all_g)} thresholded masked pixels...")
     
     # Remove any NaN values
     mask = ~(np.isnan(all_g) | np.isnan(all_s) | np.isnan(all_intensity))
@@ -448,7 +481,7 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
     
     # Check for empty data
     if len(all_g) == 0 or len(all_s) == 0:
-        print("Warning: No valid data points after thresholding")
+        print("Warning: No valid data points after thresholding masked data")
         return False
     
     # Create a universal circle for reference
@@ -527,7 +560,7 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
     # Set title with timestamp
     import datetime
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    ax.set_title(f"Manual Segmentation - Combined Dataset ({len(npz_files)} files)\n{threshold_desc}\n({timestamp})")
+    ax.set_title(f"Manual Segmentation From Mask - Combined Dataset ({len(npz_files)} files)\n{threshold_desc}\n({timestamp})")
     
     # Initial ellipse parameters
     center_x, center_y = 0.5, 0.25
@@ -605,60 +638,79 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
         angle_rad = np.radians(angle)
         
         # Save current state of the plot
-        plot_filename = f"manual_segmentation_combined_{len(npz_files)}_files.png"
+        plot_filename = f"manual_segmentation_from_mask_combined_{len(npz_files)}_files.png"
         plot_path = os.path.join(plots_dir, plot_filename)
         plt.savefig(plot_path, dpi=150, bbox_inches='tight')
         print(f"\nSaved combined plot to: {plot_path}")
         
         # Process each file individually
-        print(f"\nApplying manual segmentation to {len(file_data_mapping)} files...")
+        print(f"\nApplying manual segmentation from mask to {len(file_data_mapping)} files...")
         
         # Metadata for all files
         common_metadata = {
-            'data_type': 'manually_segmented',
+            'data_type': 'manually_segmented_from_mask',
             'ellipse_center': [center_x, center_y],
             'ellipse_width': width,
             'ellipse_height': height,
             'ellipse_angle_degrees': angle,
             'threshold_desc': threshold_desc,
-            'ellipse_cond_center': [center_x, center_y]
+            'ellipse_cond_center': [center_x, center_y],
+            'based_on_mask': True
         }
         
         for npz_path, data in file_data_mapping.items():
             print(f"Processing: {os.path.basename(npz_path)}")
             
             npz_data = data['npz_data']
-            g_data = data['g_data']
-            s_data = data['s_data']
+            g_data = data['g_data']  # Original G data
+            s_data = data['s_data']  # Original S data
+            g_data_masked = data['g_data_masked']  # Masked G data
+            s_data_masked = data['s_data_masked']  # Masked S data
             intensity = data['intensity']
             lifetime = data['lifetime']
+            original_mask = data['full_mask']
             
             # Apply the same thresholding that was used for the plot
             if individual_percentile is not None:
                 # Apply individual thresholding
-                file_threshold = np.percentile(intensity.flatten(), individual_percentile)
-                mask = intensity >= file_threshold
+                g_flat = g_data_masked.flatten()
+                s_flat = s_data_masked.flatten()
+                intensity_flat = intensity.flatten()
+                
+                non_zero_mask = (g_flat != 0) | (s_flat != 0)
+                intensity_non_zero = intensity_flat[non_zero_mask]
+                
+                if len(intensity_non_zero) > 0:
+                    file_threshold = np.percentile(intensity_non_zero, individual_percentile)
+                    threshold_mask = intensity >= file_threshold
+                else:
+                    threshold_mask = np.ones_like(intensity, dtype=bool)
+                    
             elif auto_percentile is not None:
                 # Apply auto thresholding
                 combined_threshold = np.percentile(all_intensity, auto_percentile)
-                mask = intensity >= combined_threshold
+                threshold_mask = intensity >= combined_threshold
             elif threshold > 0:
                 # Apply manual threshold
-                mask = intensity >= threshold
+                threshold_mask = intensity >= threshold
             else:
                 # No threshold
-                mask = np.ones_like(intensity, dtype=bool)
+                threshold_mask = np.ones_like(intensity, dtype=bool)
             
+            # Create ellipse mask: only consider pixels within the original mask AND the threshold
             ellipse_mask = np.zeros_like(g_data, dtype=bool)
             
-            # Get coordinates of all pixels that passed intensity threshold
-            mask_indices = np.where(mask)
+            # Get coordinates of pixels that are in the original mask and pass threshold
+            valid_mask = (original_mask > 0) & threshold_mask
+            mask_indices = np.where(valid_mask)
+            
+            if len(mask_indices[0]) == 0:
+                print(f"  Warning: No valid pixels for {os.path.basename(npz_path)}")
+                continue
+            
+            # Use the original (unmasked) G and S values for ellipse calculation
             mask_g_values = g_data[mask_indices]
             mask_s_values = s_data[mask_indices]
-            
-            if len(mask_g_values) == 0:
-                print(f"  Warning: No pixels passed threshold for {os.path.basename(npz_path)}")
-                continue
             
             # Check which points are inside the ellipse
             inside_ellipse = are_points_inside_ellipse(
@@ -671,6 +723,7 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
             ellipse_mask[mask_indices[0][inside_ellipse], mask_indices[1][inside_ellipse]] = True
             
             # Create binary mask (0 = background, 1 = selected region)
+            # This includes the intersection of original mask, threshold, and ellipse
             full_mask = np.zeros_like(g_data, dtype=np.int32)
             full_mask[ellipse_mask] = 1  # Selected region = 1
             
@@ -688,7 +741,7 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
             
             # Save the data to a segmented NPZ file
             base_name = os.path.basename(npz_path)
-            seg_name = os.path.splitext(base_name)[0] + '_manually_segmented.npz'
+            seg_name = os.path.splitext(base_name)[0] + '_manually_segmented_from_mask.npz'
             seg_path = os.path.join(npz_output_dir, seg_name)
             
             # Combine all data for NPZ file
@@ -699,14 +752,16 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
             # Add segmentation data
             save_data['mask_component_0'] = ~ellipse_mask  # Background (not selected)
             save_data['mask_component_1'] = ellipse_mask   # Selected region
-            save_data['full_mask'] = full_mask
+            save_data['full_mask'] = full_mask  # New mask (intersection of original mask and ellipse)
+            save_data['original_mask'] = original_mask  # Store the original mask
             
             # Add metadata
             save_data['metadata'] = {
                 **common_metadata,
                 'source_file': npz_path,
                 'pixels_selected': np.sum(ellipse_mask),
-                'pixels_thresholded': np.sum(mask),
+                'pixels_in_original_mask': np.sum(original_mask),
+                'pixels_thresholded': np.sum(threshold_mask),
                 'total_pixels': g_data.size,
                 'mask_type': 'binary'
             }
@@ -716,14 +771,14 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
             print(f"  Saved segmented NPZ: {seg_path}")
             
             # Save mask as TIFF
-            mask_name = os.path.splitext(base_name)[0] + '_manually_segmented_mask.tiff'
+            mask_name = os.path.splitext(base_name)[0] + '_manually_segmented_from_mask.tiff'
             mask_path = os.path.join(mask_output_dir, mask_name)
             save_tiff(mask_path, full_mask)
             print(f"  Saved mask: {mask_path}")
             
             # Save lifetime image if available
             if lifetime_dir and lifetime is not None:
-                lifetime_name = os.path.splitext(base_name)[0] + '_manually_segmented_lifetime.tiff'
+                lifetime_name = os.path.splitext(base_name)[0] + '_manually_segmented_from_mask_lifetime.tiff'
                 lifetime_path = os.path.join(lifetime_output_dir, lifetime_name)
                 
                 # Apply mask to lifetime
@@ -734,7 +789,7 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
                 save_tiff(lifetime_path, masked_lifetime)
                 print(f"  Saved lifetime image: {lifetime_path}")
         
-        print(f"\nManual segmentation completed for {len(file_data_mapping)} files!")
+        print(f"\nManual segmentation from mask completed for {len(file_data_mapping)} files!")
         plt.close()
     
     # Create apply button
@@ -747,6 +802,7 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
     button_cancel = Button(ax_cancel, 'Cancel')
     
     def cancel_segmentation(event):
+        print("\nManual segmentation from mask cancelled by user.")
         plt.close()
     
     button_cancel.on_clicked(cancel_segmentation)
@@ -758,80 +814,111 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
 
 def main(config, npz_dir, segmented_dir, plots_dir, lifetime_dir=None, interactive=True):
     """
-    Main execution function for manual ellipse-based phasor segmentation.
+    Main function for manual segmentation from mask.
     
     Args:
         config: Configuration dictionary
-        npz_dir: Directory containing NPZ files
-        segmented_dir: Directory to save segmented masks
+        npz_dir: Directory containing NPZ files with full_mask data
+        segmented_dir: Directory to save segmented NPZ files
         plots_dir: Directory to save plots
         lifetime_dir: Directory to save lifetime images (optional)
-        interactive: Whether to prompt for user input (default: True)
+        interactive: Whether to run interactively (default: True)
         
     Returns:
-        True if successful, False otherwise
+        bool: Success status
     """
-    print(f"Starting Manual Segmentation, Plotting, and Lifetime Saving")
-    print(f"Input NPZ directory: {npz_dir}")
+    print("=== Manual Segmentation From Mask ===")
+    print(f"NPZ directory: {npz_dir}")
+    print(f"Output directory: {segmented_dir}")
+    print(f"Plots directory: {plots_dir}")
+    if lifetime_dir:
+        print(f"Lifetime directory: {lifetime_dir}")
     
-    # Create manual segmentation directory structure
-    manual_segmentation_dir = os.path.join(os.path.dirname(segmented_dir), "manual_segmentation")
-    manual_npz_dir = os.path.join(os.path.dirname(segmented_dir), "segmented_npz_datasets")  # Save to segmented_npz_datasets
-    manual_masks_dir = segmented_dir  # Use the existing segmented directory for masks
-    manual_plots_dir = os.path.join(manual_segmentation_dir, "plots")
+    # Create output directories
+    os.makedirs(segmented_dir, exist_ok=True)
+    os.makedirs(plots_dir, exist_ok=True)
+    
+    # Create a masks subdirectory
+    masks_dir = os.path.join(segmented_dir, 'masks')
+    os.makedirs(masks_dir, exist_ok=True)
     
     if lifetime_dir:
-        manual_lifetime_dir = os.path.join(manual_segmentation_dir, "lifetime_images")
-    else:
-        manual_lifetime_dir = None
+        os.makedirs(lifetime_dir, exist_ok=True)
     
-    print(f"Output Manual Segmentation Directory: {manual_segmentation_dir}")
-    print(f"Output Segmented NPZ Files: {manual_npz_dir}")
-    print(f"Output Binary Masks: {manual_masks_dir}")
-    print(f"Output Plots: {manual_plots_dir}")
-    if manual_lifetime_dir:
-        print(f"Output Lifetime Images: {manual_lifetime_dir}")
-    
-    if not os.path.isdir(npz_dir): 
-        print(f"Error: NPZ dir not found: {npz_dir}", file=sys.stderr)
-        return False
-        
-    # Create necessary output directories
-    os.makedirs(manual_segmentation_dir, exist_ok=True)
-    os.makedirs(manual_npz_dir, exist_ok=True)
-    os.makedirs(manual_masks_dir, exist_ok=True)  # This will create/use the existing segmented directory
-    os.makedirs(manual_plots_dir, exist_ok=True)
-    if manual_lifetime_dir:
-        os.makedirs(manual_lifetime_dir, exist_ok=True)
-        
-    # Find NPZ files
+    # Find all NPZ files
     npz_files = []
-    for root, _, files in os.walk(npz_dir):
+    for root, dirs, files in os.walk(npz_dir):
         for file in files:
-            if file.endswith('.npz') and not file.endswith('_segmented.npz'):
-                npz_path = os.path.join(root, file)
-                npz_files.append(npz_path)
-                
+            if file.endswith('.npz'):
+                npz_files.append(os.path.join(root, file))
+    
     if not npz_files:
         print(f"No NPZ files found in {npz_dir}")
         return False
-        
-    print(f"Found {len(npz_files)} NPZ files for possible manual segmentation")
     
-    # Let user select which files to use
-    selected_files = select_npz_files(npz_files)
+    npz_files.sort()
+    print(f"Found {len(npz_files)} NPZ files")
     
-    if not selected_files:
-        print("No files selected for manual segmentation")
+    # Check if files have full_mask data
+    valid_npz_files = []
+    for npz_path in npz_files:
+        try:
+            data = np.load(npz_path, allow_pickle=True)
+            if 'full_mask' in data:
+                valid_npz_files.append(npz_path)
+            else:
+                print(f"Warning: {os.path.basename(npz_path)} does not contain full_mask data")
+        except Exception as e:
+            print(f"Warning: Could not load {npz_path}: {e}")
+    
+    if not valid_npz_files:
+        print("No NPZ files with full_mask data found")
         return False
     
-    print(f"Selected {len(selected_files)} files for combined manual segmentation")
+    print(f"Found {len(valid_npz_files)} NPZ files with full_mask data")
     
-    # Process selected NPZ files as a combined dataset
-    success = process_combined_npz_files(selected_files, manual_npz_dir, manual_masks_dir, manual_plots_dir, manual_lifetime_dir)
+    if interactive:
+        # Allow user to select files
+        selected_files = select_npz_files(valid_npz_files)
+        if not selected_files:
+            print("No files selected. Exiting manual segmentation from mask.")
+            return False
+    else:
+        # Use all valid files
+        selected_files = valid_npz_files
+    
+    # Process the selected files
+    success = process_combined_npz_files(selected_files, segmented_dir, masks_dir, plots_dir, lifetime_dir)
+    
+    if success:
+        print(f"\n✅ Manual segmentation from mask completed successfully!")
+        print(f"   Output files saved to: {segmented_dir}")
+        print(f"   Plots saved to: {plots_dir}")
+        if lifetime_dir:
+            print(f"   Lifetime images saved to: {lifetime_dir}")
+    else:
+        print(f"\n❌ Manual segmentation from mask failed")
     
     return success
 
 if __name__ == "__main__":
-    print("This script is intended to be run via run_pipeline.py")
-    print("Please use: python run_pipeline.py --manual-segment -i <input_dir> -o <output_base_dir> [...]")
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Manual segmentation from mask for FLIM-FRET data")
+    parser.add_argument("npz_dir", help="Directory containing NPZ files with full_mask data")
+    parser.add_argument("segmented_dir", help="Directory to save segmented NPZ files")
+    parser.add_argument("plots_dir", help="Directory to save plots")
+    parser.add_argument("--lifetime_dir", help="Directory to save lifetime images (optional)")
+    
+    args = parser.parse_args()
+    
+    success = main(
+        config=None,
+        npz_dir=args.npz_dir,
+        segmented_dir=args.segmented_dir,
+        plots_dir=args.plots_dir,
+        lifetime_dir=args.lifetime_dir,
+        interactive=True
+    )
+    
+    sys.exit(0 if success else 1) 
