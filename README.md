@@ -11,9 +11,10 @@ For Noah and Leyla, if you would like to process raw .bin files from LASX withou
 
 ### Setting up the Input Directory
 
-- All `.bin` files must be in folders in the input directory. You can have separate folders for each experimental condition.
-- There should be a `FITC.bin` file in the input directory, not in a folder.
-- There should be a `calibration.csv` file in the input directory with the phi and modulation values entered for every `.bin` file.
+- **All `.bin` files must be in subdirectories** within the input directory - they cannot be placed directly in the root directory
+- You can organize these subdirectories however you want - by experimental condition, sample type, region, etc.
+- **`FITC.bin`** can be placed anywhere in the directory tree (root or subdirectories)
+- **`calibration.csv`** must be in the root input directory with the phi and modulation values entered for every `.bin` file
 
 ## Creating the Calibration File
 
@@ -179,17 +180,20 @@ To successfully run the FLIM-FRET analysis pipeline, your input data must be str
 2. **FITC.bin**: Calibration reference file that must be present in your input directory
 3. **calibration.csv**: Contains calibration values for each .bin file
 
-### Directory Structure
+### Directory Structure Requirements
 
-The pipeline supports two different directory structures for organizing your .bin files:
+**⚠️ IMPORTANT:** .bin files **CANNOT** be placed directly in the root of the input directory. They **MUST** be organized in at least one level of subdirectories within the input folder.
 
-#### 1. Hierarchical Structure (Recommended)
+The pipeline supports flexible directory structures for organizing your .bin files, as long as they follow this basic rule:
 
+#### ✅ Supported Directory Organizations
+
+**1. Hierarchical Structure (Recommended)**
 ```
 Input-Directory/
-├── FITC.bin
-├── calibration.csv
-└── Dish_1_Post-Rapa/
+├── FITC.bin                    # Can be in root or subdirectories
+├── calibration.csv             # Must be in root directory
+└── Dish_1_Post-Rapa/           # At least one subdirectory required
     ├── R1/
     │   ├── R_1_s1.bin
     │   ├── R_1_s2.bin
@@ -203,15 +207,12 @@ Input-Directory/
         └── ...
 ```
 
-In this structure, .bin files are organized into region folders (R1, R2, R3), which helps keep files organized when you have many samples.
-
-#### 2. Flat Structure
-
+**2. Flat Structure**
 ```
 Input-Directory/
-├── FITC.bin
-├── calibration.csv
-└── Dish_1_Post-Rapa/
+├── FITC.bin                    # Can be in root or subdirectories
+├── calibration.csv             # Must be in root directory
+└── Experiment_Data/            # At least one subdirectory required
     ├── R_1_s1.bin
     ├── R_1_s2.bin
     ├── R_1_s3.bin
@@ -220,7 +221,40 @@ Input-Directory/
     └── ...
 ```
 
-In this structure, all .bin files are in the same directory without region-specific folders.
+**3. Multiple Experiment Folders**
+```
+Input-Directory/
+├── FITC.bin
+├── calibration.csv
+├── Experiment_A/
+│   ├── sample1.bin
+│   └── sample2.bin
+├── Experiment_B/
+│   ├── sample3.bin
+│   └── sample4.bin
+└── Control_Group/
+    ├── control1.bin
+    └── control2.bin
+```
+
+#### ❌ Invalid Directory Structure
+
+```
+Input-Directory/
+├── FITC.bin
+├── calibration.csv
+├── R_1_s1.bin              # ❌ WRONG: .bin files cannot be in root
+├── R_1_s2.bin              # ❌ WRONG: .bin files cannot be in root
+└── R_1_s3.bin              # ❌ WRONG: .bin files cannot be in root
+```
+
+#### Key Rules
+
+1. **Subdirectory Requirement**: All .bin files (except FITC.bin) must be in at least one subdirectory
+2. **Flexible Organization**: You can organize subdirectories however you want - by experiment, by sample, by region, etc.
+3. **Multiple Levels**: You can have multiple levels of subdirectories (e.g., `Experiment/Region/Sample/`)
+4. **FITC.bin Placement**: FITC.bin can be placed anywhere in the directory tree (root or subdirectories)
+5. **Calibration File**: calibration.csv must be in the root input directory
 
 ### Calibration File Format
 
@@ -236,12 +270,13 @@ file_path,phi_cal,m_cal
 /Dish_1_Post-Rapa/R1/R_1_s2.bin,0.0135,0.98
 ```
 
-### Notes
+### Important Notes
 
-- The pipeline now supports placing the `calibration.csv` file in either the project directory or the input directory, with input directory taking precedence if both exist.
-- At least one level of subdirectory is required inside the input directory (e.g., "Dish_1_Post-Rapa").
-- File naming should follow a consistent pattern (e.g., R_1_s2.bin where 1 is the region number and 2 is the sample number).
-- When using the `--simplify-filenames` option, the script automatically detects your directory structure and handles naming accordingly.
+- **Directory Structure**: .bin files **MUST** be organized in subdirectories within the input folder - they cannot be placed directly in the root directory
+- **Calibration File**: The `calibration.csv` file can be placed in either the project directory or the input directory, with input directory taking precedence if both exist
+- **Flexible Organization**: You can organize your subdirectories however makes sense for your workflow - by experiment, condition, sample, region, etc.
+- **File Naming**: While there's no strict naming requirement, consistent patterns help (e.g., R_1_s2.bin where 1 is the region number and 2 is the sample number)
+- **Filename Simplification**: When using the `--simplify-filenames` option, the script automatically detects your directory structure and handles naming accordingly
 
 ## Usage
 
