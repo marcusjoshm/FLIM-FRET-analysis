@@ -41,7 +41,7 @@ Our analysis workflow requires file paths without spaces. Follow these steps to 
 
 2. Next, copy and paste this command:
    ```bash
-   ./remove_spaces.sh
+   ./replace_spaces.sh
    ```
 
 3. Drag the folder containing your .bin files from Finder into the Terminal window. The file path will appear automatically.
