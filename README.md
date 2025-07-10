@@ -59,7 +59,6 @@ Our analysis workflow requires file paths without spaces. Follow these steps to 
 ### Valid Directory Structure:
 ```
 Your-Input-Directory/
-├── FITC.bin                    # Can be in root or subdirectories
 ├── calibration.csv             # Must be in root directory
 └── Experiment_Data/            # At least one subdirectory required
     ├── sample1.bin
