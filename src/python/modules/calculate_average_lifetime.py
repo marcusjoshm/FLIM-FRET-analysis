@@ -163,20 +163,16 @@ def process_segmented_npz_directory(npz_dir, output_dir):
         print(f"Error: Segmented NPZ directory '{npz_dir}' does not exist")
         return 0, 0, []
     
-    # Find all segmented NPZ files (both manually segmented and masked files)
-    npz_files = glob.glob(os.path.join(npz_dir, "*_manually_segmented.npz"))
-    npz_files.extend(glob.glob(os.path.join(npz_dir, "**/*_manually_segmented.npz"), recursive=True))
-    
-    # Also look for masked NPZ files created by apply_mask.py
-    npz_files.extend(glob.glob(os.path.join(npz_dir, "*_masked.npz")))
-    npz_files.extend(glob.glob(os.path.join(npz_dir, "**/*_masked.npz"), recursive=True))
+    # Find all NPZ files in the directory
+    npz_files = glob.glob(os.path.join(npz_dir, "*.npz"))
+    npz_files.extend(glob.glob(os.path.join(npz_dir, "**/*.npz"), recursive=True))
     
     # Remove duplicates
     npz_files = list(set(npz_files))
     
     if not npz_files:
-        print(f"No segmented NPZ files found in {npz_dir}")
-        print(f"Looking for patterns: *_manually_segmented.npz, *_masked.npz")
+        print(f"No NPZ files found in {npz_dir}")
+        print(f"Looking for: *.npz")
         return 0, 0, []
     
     print(f"Found {len(npz_files)} segmented NPZ files to process")
