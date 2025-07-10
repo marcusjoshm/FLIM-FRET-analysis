@@ -1,4 +1,190 @@
-# FLIM-FRET Analysis Automation
+# FLIM-FRET Analysis Automation Protocol
+
+## Introduction
+This document provides step-by-step instructions for running our FLIM-FRET analysis workflow. Each section includes detailed explanations and commands you can copy and paste directly into your Terminal.
+
+**Note:** Terminal is Mac's command-line interface where you can type commands to interact with your computer.
+
+## Table of Contents
+1. [Getting Started](#getting-started)
+2. [Step 1: Remove Spaces from File Names](#step-1-remove-spaces-from-file-names)
+3. [Step 2: Set Up Input Directory Structure](#step-2-set-up-input-directory-structure)
+4. [Step 3: Create Calibration File](#step-3-create-calibration-file)
+5. [Step 4: Navigate and Activate Environment](#step-4-navigate-and-activate-environment)
+6. [Step 5: Run FLIM-FRET Analysis](#step-5-run-flim-fret-analysis)
+7. [Tips and Troubleshooting](#tips-and-troubleshooting)
+8. [Technical Documentation](#technical-documentation)
+
+## Getting Started
+
+### Export Data from Your Microscope
+This workflow is designed to work with .bin files exported from time-correlated single photon counting (TCSPC) FLIM microscopes. Make sure you have:
+- Raw .bin files from your FLIM acquisition
+- Knowledge of the phi and modulation calibration values for your data
+
+### Opening Terminal
+1. Press **Command + Space** to open Spotlight Search
+2. Type "Terminal"
+3. Click on the Terminal application
+
+When Terminal opens, you'll see a prompt that looks something like `(base) ➜  ~`
+
+## Step 1: Remove Spaces from File Names
+
+Our analysis workflow requires file paths without spaces. Follow these steps to convert spaces in your file names to underscores:
+
+1. Copy and paste the following command into Terminal:
+   ```bash
+   cd ~/bash_scripts/
+   ```
+   Press **Enter**.
+
+2. Next, copy and paste this command:
+   ```bash
+   ./remove_spaces.sh
+   ```
+
+3. Drag the folder containing your .bin files from Finder into the Terminal window. The file path will appear automatically.
+
+4. Press **Enter**.
+
+5. You will see a prompt asking for confirmation. Type `y` and press **Enter** to run the program.
+
+6. When the process completes successfully, you will see a success message indicating that spaces have been removed from all file names.
+
+## Step 2: Set Up Input Directory Structure
+
+**⚠️ IMPORTANT:** Your .bin files **CANNOT** be placed directly in the root of your input directory. They **MUST** be organized in at least one level of subdirectories.
+
+### Valid Directory Structure:
+```
+Your-Input-Directory/
+├── FITC.bin                    # Can be in root or subdirectories
+├── calibration.csv             # Must be in root directory
+└── Experiment_Data/            # At least one subdirectory required
+    ├── sample1.bin
+    ├── sample2.bin
+    └── sample3.bin
+```
+
+### Organization Options:
+- **By Experiment:** Create folders like `Control_Group/`, `Treatment_A/`, `Treatment_B/`
+- **By Sample:** Create folders like `Sample_1/`, `Sample_2/`, `Sample_3/`
+- **By Region:** Create folders like `Region_1/`, `Region_2/`, `Region_3/`
+
+Choose whatever organization makes sense for your experiment!
+
+## Step 3: Create Calibration File
+
+You need to create a `calibration.csv` file in the root of your input directory:
+
+1. Open a spreadsheet application (Excel, Numbers, or Google Sheets)
+
+2. Create a CSV file with three columns:
+   ```
+   file_path,phi_cal,m_cal
+   ```
+
+3. For each .bin file, add a row with:
+   - **file_path:** The absolute path to your .bin file
+   - **phi_cal:** Phase calibration value (in radians, usually negative)
+   - **m_cal:** Modulation calibration value (usually close to 1.0)
+
+4. **To get the absolute file path:** Drag a .bin file from Finder into a text editor or Terminal - the full path will appear
+
+### Example calibration.csv:
+```csv
+file_path,phi_cal,m_cal
+/Volumes/Data/My_Experiment/Experiment_Data/sample1.bin,-0.621860812,0.9995
+/Volumes/Data/My_Experiment/Experiment_Data/sample2.bin,-0.621860812,0.9995
+/Volumes/Data/My_Experiment/Experiment_Data/sample3.bin,-0.621860812,0.9995
+```
+
+5. Save the file as `calibration.csv` in the root of your input directory
+
+## Step 4: Navigate and Activate Environment
+
+1. In Terminal, navigate to the FLIM-FRET analysis directory:
+   ```bash
+   cd ~/FLIM-FRET-analysis
+   ```
+   Press **Enter**.
+
+2. Activate the Python virtual environment:
+   ```bash
+   source venv/bin/activate
+   ```
+   Press **Enter**.
+
+3. You should now see `(venv)` at the beginning of your command prompt, indicating the environment is activated:
+   ```
+   (venv) ➜  FLIM-FRET-analysis
+   ```
+
+## Step 5: Run FLIM-FRET Analysis
+
+Now you'll run the complete FLIM-FRET processing pipeline:
+
+1. Copy and paste the following into Terminal:
+   ```bash
+   python run_pipeline.py --input
+   ```
+
+2. After typing the above, press **Space**.
+
+3. Drag your input directory (the one containing your .bin files, FITC.bin, and calibration.csv) from Finder into the Terminal window. The absolute file path will appear.
+
+4. Press **Space** and type `--output` followed by another **Space**.
+
+5. Drag the **parent directory** where you want your analysis results to be saved into Terminal.
+
+6. At the end of the output path, add `_ANALYSIS` or another descriptive suffix (no spaces!).
+
+7. Finally, add ` --processing` at the end to run the complete processing pipeline.
+
+### Your final command should look like this:
+```bash
+python run_pipeline.py --input /Volumes/Data/My_Experiment --output /Volumes/Data/My_Experiment_ANALYSIS --processing
+```
+
+8. Press **Enter** to start the analysis.
+
+### What the Script Does:
+- **Stage 1:** Converts .bin files to .tif files using ImageJ
+- **Stage 2:** Performs phasor transformation to generate G, S, and intensity maps
+- **Stage 3:** Applies complex wavelet filtering for noise reduction
+- **Stage 4:** Creates NPZ datasets with both filtered and unfiltered lifetime data
+
+The analysis will create an output folder with the following structure:
+```
+Your_Output_Directory/
+├── output/                     # Raw converted files
+├── preprocessed/              # Organized G, S, intensity files
+├── npz_datasets/             # Final processed datasets
+└── logs/                     # Analysis logs and reports
+```
+
+## Tips and Troubleshooting
+
+### Common Issues:
+- **"File not found" errors:** Make sure all paths in calibration.csv are correct
+- **"Directory structure" errors:** Ensure .bin files are in subdirectories, not the root
+- **"Permission denied":** Make sure the remove_spaces.sh script is executable
+
+### Success Indicators:
+- You see processing messages for each file
+- No error messages in the terminal
+- Output directories are created with files inside
+
+### If Something Goes Wrong:
+1. Check the log files in the `logs/` directory of your output folder
+2. Verify your calibration.csv file format
+3. Make sure your directory structure follows the requirements
+4. Ensure all file paths are correct and accessible
+
+---
+
+# Technical Documentation
 
 This repository contains tools for automating Fluorescence Lifetime Imaging Microscopy (FLIM) and Förster Resonance Energy Transfer (FRET) analysis without requiring a GUI. It provides an end-to-end workflow from raw .bin files to complete FLIM-FRET analysis.
 
