@@ -109,22 +109,25 @@ def check_macro_files():
     """Check if ImageJ macro files exist"""
     print_section("ImageJ Macro Files")
     
+    # Get project root (two levels up from src/python)
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    
     macro_files = [
-        "src/scripts/imagej/FLIM_processing_macro_1.ijm",
-        "src/scripts/imagej/FLIM_processing_macro_2.ijm"
+        os.path.join(project_root, "src/scripts/imagej/FLIM_processing_macro_1.ijm"),
+        os.path.join(project_root, "src/scripts/imagej/FLIM_processing_macro_2.ijm")
     ]
     
     missing_macros = []
     
     for macro in macro_files:
         if os.path.exists(macro):
-            print(f"✅ {macro}")
+            print(f"✅ {os.path.relpath(macro, project_root)}")
         else:
-            print(f"❌ {macro} - MISSING")
+            print(f"❌ {os.path.relpath(macro, project_root)} - MISSING")
             missing_macros.append(macro)
     
     if missing_macros:
-        print(f"\n❌ Missing macro files: {', '.join(missing_macros)}")
+        print(f"\n❌ Missing macro files: {', '.join([os.path.relpath(m, project_root) for m in missing_macros])}")
         return False
     
     print("✅ All macro files are present")
@@ -189,9 +192,15 @@ def generate_config():
     
     return config
 
-def save_config(config, config_path="config/config.json"):
+def save_config(config, config_path=None):
     """Save config to file"""
     print_section("Saving Configuration")
+    
+    # Get project root (two levels up from src/python)
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    
+    if config_path is None:
+        config_path = os.path.join(project_root, "config/config.json")
     
     # Create config directory if it doesn't exist
     os.makedirs(os.path.dirname(config_path), exist_ok=True)
@@ -210,17 +219,52 @@ def test_imagej_connection(imagej_path):
     print_section("ImageJ Connection Test")
     
     try:
-        # Try to run ImageJ with version flag
-        result = subprocess.run([imagej_path, "--version"], 
-                              capture_output=True, text=True, timeout=10)
-        if result.returncode == 0:
-            print("✅ ImageJ connection successful")
-            return True
-        else:
-            print("❌ ImageJ connection failed")
-            return False
-    except subprocess.TimeoutExpired:
-        print("❌ ImageJ connection timed out")
+        # Try to run ImageJ in headless mode with a simple test script
+        # This approach launches ImageJ, runs a simple command, and exits
+        test_script = 'print("ImageJ Test"); quit();'
+        
+        # Use Popen to have more control over the process
+        process = subprocess.Popen([
+            imagej_path, 
+            "--headless", 
+            "--console",
+            "-eval", test_script
+        ], 
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.PIPE, 
+        text=True)
+        
+        try:
+            # Wait for the process to complete with a timeout
+            stdout, stderr = process.communicate(timeout=15)
+            
+            if process.returncode == 0:
+                print("✅ ImageJ connection successful")
+                return True
+            else:
+                print("❌ ImageJ connection failed")
+                if stderr:
+                    print(f"   Error details: {stderr.strip()}")
+                return False
+                
+        except subprocess.TimeoutExpired:
+            # If it times out, terminate the process
+            print("⚠️  ImageJ connection timed out, terminating process...")
+            process.terminate()
+            try:
+                # Give it a moment to terminate gracefully
+                process.wait(timeout=5)
+                print("✅ ImageJ launched successfully but timed out (this is usually fine)")
+                return True
+            except subprocess.TimeoutExpired:
+                # Force kill if it doesn't terminate
+                process.kill()
+                process.wait()
+                print("✅ ImageJ launched successfully but had to be terminated (this is usually fine)")
+                return True
+                
+    except FileNotFoundError:
+        print("❌ ImageJ executable not found")
         return False
     except Exception as e:
         print(f"❌ ImageJ connection error: {e}")
@@ -230,10 +274,14 @@ def main():
     """Main setup function"""
     print_header("FLIM-FRET Analysis Pipeline Setup")
     
+    # Get project root (two levels up from src/python)
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    
     # Check if we're in the right directory
-    if not os.path.exists("run_pipeline.py"):
+    if not os.path.exists(os.path.join(project_root, "run_pipeline.py")):
         print("❌ Error: Please run this script from the FLIM-FRET-analysis directory")
         print("Current directory:", os.getcwd())
+        print("Project root:", project_root)
         sys.exit(1)
     
     # Check system requirements

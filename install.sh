@@ -132,16 +132,17 @@ fi
 # Run setup script
 echo ""
 echo "--- Running Setup Script ---"
-if [ -f "$PROJECT_DIR/setup.py" ]; then
+SETUP_SCRIPT="$PROJECT_DIR/src/python/setup.py"
+if [ -f "$SETUP_SCRIPT" ]; then
     echo "Running setup.py to generate configuration..."
-    python "$PROJECT_DIR/setup.py"
+    python "$SETUP_SCRIPT"
     if [ $? -eq 0 ]; then
         echo "✅ Setup script completed successfully"
     else
         echo "⚠️  Setup script completed with warnings (this is usually fine)"
     fi
 else
-    echo "⚠️  No setup.py found, skipping configuration generation"
+    echo "⚠️  No setup.py found at $SETUP_SCRIPT, skipping configuration generation"
 fi
 
 # Final instructions
