@@ -99,9 +99,17 @@ function processBinFile(dir, filename) {
     targetDir = output_dir;
     if (relativePath != "") {
         targetDir = normalizePath(output_dir + File.separator + relativePath);
-        makeDirectoryRecursive(targetDir);
-        print("Created directory: " + targetDir);
+    } else {
+        // If relativePath is empty, preserve the basename of the input directory
+        inputBasename = File.getName(input_dir);
+        if (inputBasename != "") {
+            targetDir = normalizePath(output_dir + File.separator + inputBasename);
+        }
     }
+    
+    // Always create the target directory
+    makeDirectoryRecursive(targetDir);
+    print("Created directory: " + targetDir);
     
     print("Output directory: " + targetDir);
     
