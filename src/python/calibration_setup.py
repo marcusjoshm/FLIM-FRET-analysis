@@ -45,12 +45,12 @@ def save_to_csv(file_paths, output_file):
         with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.writer(csvfile)
             
-            # Write header
-            writer.writerow(['absolute_file_path'])
+            # Write header with phi and modulation columns
+            writer.writerow(['file_path', 'phi', 'modulation'])
             
-            # Write each file path as a row
+            # Write each file path as a row (phi and modulation columns will be empty)
             for file_path in file_paths:
-                writer.writerow([file_path])
+                writer.writerow([file_path, '', ''])
         
         print(f"Successfully saved {len(file_paths)} file paths to '{output_file}'")
         
@@ -67,7 +67,7 @@ def main():
     root_directory = args.input
     
     # Configuration - hardcoded output file
-    output_csv = "/Users/joshuamarcus/FLIM-FRET-analysis/data/bin_files_paths.csv"
+    output_csv = "/Users/joshuamarcus/FLIM-FRET-analysis/data/calibration.csv"
     
     print(f"Searching for .bin files in: {root_directory}")
     
