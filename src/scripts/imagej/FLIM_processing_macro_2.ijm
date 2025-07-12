@@ -4,6 +4,14 @@ args = split(macroArgs, ",");
 input_dir = args[0];
 output_dir = args[1];
 
+// Check if a file list is provided (third argument)
+file_list_path = "";
+use_file_list = false;
+if (args.length > 2 && args[2] != "") {
+    file_list_path = args[2];
+    use_file_list = true;
+}
+
 // Normalize input/output paths (remove trailing slashes)
 if (endsWith(input_dir, "/")) {
     input_dir = substring(input_dir, 0, lengthOf(input_dir) - 1);
@@ -16,6 +24,12 @@ if (endsWith(output_dir, "/")) {
 print("FLIM_processing_macro_2.ijm starting");
 print("Input directory: " + input_dir);
 print("Output directory: " + output_dir);
+if (use_file_list) {
+    print("File list: " + file_list_path);
+    print("Mode: Processing selected files only");
+} else {
+    print("Mode: Processing all .bin files recursively");
+}
 
 // Track progress
 processed = 0;
@@ -66,6 +80,40 @@ function getRelativePath(fullPath, basePath) {
     
     // If not a subpath, return the full path
     return fullPath;
+}
+
+// Process files from a file list
+function processFileList(fileListPath) {
+    print("Reading file list: " + fileListPath);
+    
+    // Read the file list
+    fileContent = File.openAsString(fileListPath);
+    lines = split(fileContent, "\n");
+    
+    print("Found " + lines.length + " files in list");
+    
+    for (i = 0; i < lines.length; i++) {
+        filePath = replace(lines[i], "\r", ""); // Remove carriage returns
+        filePath = replace(filePath, "\n", ""); // Remove newlines
+        
+        if (filePath != "" && File.exists(filePath)) {
+            // Extract directory and filename
+            fileDir = File.getParent(filePath);
+            fileName = File.getName(filePath);
+            
+            print("Processing file from list: " + filePath);
+            
+            // Process the file if it's a .bin file (excluding FITC.bin)
+            if (endsWith(fileName, ".bin") && !endsWith(fileName, "FITC.bin")) {
+                processBinFile(fileDir, fileName);
+            } else {
+                print("Skipping non-BIN file or FITC.bin: " + fileName);
+            }
+        } else if (filePath != "") {
+            print("Warning: File not found: " + filePath);
+            failures++;
+        }
+    }
 }
 
 // Recursively process .bin files except FITC.bin which is handled by macro 1
@@ -152,8 +200,20 @@ function processBinFile(dir, filename) {
 makeDirectoryRecursive(output_dir);
 print("Created output directory: " + output_dir);
 
-// Start the scan
-scanDirectory(input_dir);
+// Process files based on mode
+if (use_file_list) {
+    // Process only files in the list
+    if (File.exists(file_list_path)) {
+        processFileList(file_list_path);
+    } else {
+        print("Error: File list not found: " + file_list_path);
+        print("Falling back to directory scanning...");
+        scanDirectory(input_dir);
+    }
+} else {
+    // Process all files in directory
+    scanDirectory(input_dir);
+}
 
 print("FLIM_processing_macro_2.ijm finished.");
 print("Successfully processed: " + processed + " BIN files");

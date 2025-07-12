@@ -15,6 +15,220 @@ import sys
 import shutil
 import glob
 
+def prompt_file_selection(input_dir, file_extension='.bin'):
+    """
+    Prompt user to select specific files for processing from the input directory.
+    
+    Args:
+        input_dir (str): Directory to search for files
+        file_extension (str): File extension to search for (default: '.bin')
+    
+    Returns:
+        list: List of selected file paths, or None if cancelled
+    """
+    print(f"\n=== File Selection for Preprocessing ===")
+    print(f"Searching for {file_extension} files in: {input_dir}")
+    
+    # Find all files with the specified extension
+    found_files = []
+    for root, dirs, files in os.walk(input_dir):
+        for file in files:
+            if file.lower().endswith(file_extension.lower()):
+                full_path = os.path.join(root, file)
+                rel_path = os.path.relpath(full_path, input_dir)
+                found_files.append((full_path, rel_path))
+    
+    if not found_files:
+        print(f"No {file_extension} files found in {input_dir}")
+        return None
+    
+    # Sort files by relative path for consistent display
+    found_files.sort(key=lambda x: x[1])
+    
+    print(f"\nFound {len(found_files)} {file_extension} files:")
+    for i, (full_path, rel_path) in enumerate(found_files, 1):
+        file_size = os.path.getsize(full_path)
+        size_mb = file_size / (1024 * 1024)
+        print(f"  [{i:2d}] {rel_path} ({size_mb:.1f} MB)")
+    
+    print(f"\nSelection options:")
+    print(f"  - Enter specific numbers (e.g., 1,3,5 or 1-5)")
+    print(f"  - Enter 'all' to select all files")
+    print(f"  - Enter 'cancel' to cancel selection")
+    
+    while True:
+        try:
+            user_input = input(f"\nSelect files to process: ").strip()
+            
+            if user_input.lower() == 'cancel':
+                print("File selection cancelled.")
+                return None
+            
+            if user_input.lower() == 'all':
+                selected_files = [full_path for full_path, _ in found_files]
+                print(f"Selected all {len(selected_files)} files.")
+                return selected_files
+            
+            # Parse selection (numbers, ranges, and comma-separated values)
+            selected_indices = set()
+            
+            # Split by comma
+            parts = user_input.split(',')
+            for part in parts:
+                part = part.strip()
+                if '-' in part:
+                    # Handle range (e.g., "1-5")
+                    try:
+                        start, end = map(int, part.split('-'))
+                        for i in range(start, end + 1):
+                            if 1 <= i <= len(found_files):
+                                selected_indices.add(i)
+                    except ValueError:
+                        print(f"Invalid range format: {part}")
+                        continue
+                else:
+                    # Handle single number
+                    try:
+                        index = int(part)
+                        if 1 <= index <= len(found_files):
+                            selected_indices.add(index)
+                        else:
+                            print(f"Index {index} out of range (1-{len(found_files)})")
+                    except ValueError:
+                        print(f"Invalid number: {part}")
+                        continue
+            
+            if not selected_indices:
+                print("No valid files selected. Please try again.")
+                continue
+            
+            # Convert indices to file paths
+            selected_files = []
+            for index in sorted(selected_indices):
+                full_path, rel_path = found_files[index - 1]
+                selected_files.append(full_path)
+            
+            print(f"\nSelected {len(selected_files)} files:")
+            for i, file_path in enumerate(selected_files, 1):
+                rel_path = os.path.relpath(file_path, input_dir)
+                print(f"  [{i}] {rel_path}")
+            
+            # Confirm selection
+            confirm = input(f"\nProceed with these {len(selected_files)} files? (y/N): ").strip().lower()
+            if confirm in ['y', 'yes']:
+                return selected_files
+            else:
+                print("Selection cancelled. Please select again.")
+                continue
+                
+        except KeyboardInterrupt:
+            print("\nFile selection cancelled.")
+            return None
+        except Exception as e:
+            print(f"Error during file selection: {e}")
+            print("Please try again.")
+            continue
+
+def create_calibration_file_from_selection(selected_files, original_calibration_file, temp_calibration_file_path):
+    """
+    Create a calibration CSV file from selected files using values from the original calibration file.
+    
+    Args:
+        selected_files (list): List of selected file paths
+        original_calibration_file (str): Path to the original calibration CSV file
+        temp_calibration_file_path (str): Path where to save the filtered calibration file
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        # Read the original calibration file
+        try:
+            original_df = pd.read_csv(original_calibration_file, dtype={'file_path': str})
+        except Exception as e:
+            print(f"Error reading original calibration file {original_calibration_file}: {e}")
+            return False
+        
+        # Normalize paths for comparison
+        normalized_selected = [os.path.normpath(f) for f in selected_files]
+        
+        # Find matching entries in the original calibration file
+        filtered_data = []
+        found_files = set()
+        
+        for index, row in original_df.iterrows():
+            cal_file_path = str(row['file_path']).strip()
+            normalized_cal_path = os.path.normpath(cal_file_path)
+            
+            # Add .bin extension if not present for comparison
+            if not normalized_cal_path.endswith('.bin'):
+                normalized_cal_path += '.bin'
+            
+            # Check if this calibration entry matches any selected file
+            if normalized_cal_path in normalized_selected:
+                filtered_data.append(row.to_dict())
+                found_files.add(normalized_cal_path)
+        
+        # Check for selected files that don't have calibration entries
+        missing_files = set(normalized_selected) - found_files
+        
+        # Add entries for missing files with default values
+        default_phi = 0.0
+        default_m = 1.0
+        
+        # Try to determine default values from existing calibration data
+        if len(filtered_data) > 0:
+            # Use the most common values from the existing calibration as defaults
+            phi_values = []
+            m_values = []
+            for entry in filtered_data:
+                if 'phi_cal' in entry:
+                    phi_values.append(float(entry['phi_cal']))
+                elif 'phi' in entry:
+                    phi_values.append(float(entry['phi']))
+                
+                if 'm_cal' in entry:
+                    m_values.append(float(entry['m_cal']))
+                elif 'modulation' in entry:
+                    m_values.append(float(entry['modulation']))
+            
+            if phi_values:
+                default_phi = phi_values[0]  # Use first available value
+            if m_values:
+                default_m = m_values[0]  # Use first available value
+        
+        for missing_file in missing_files:
+            print(f"Warning: No calibration entry found for {missing_file}, using defaults (phi_cal={default_phi}, m_cal={default_m})")
+            filtered_data.append({
+                'file_path': missing_file,
+                'phi_cal': default_phi,
+                'm_cal': default_m
+            })
+        
+        if not filtered_data:
+            print("Error: No matching calibration data found for selected files")
+            return False
+        
+        # Create DataFrame and save to CSV
+        df = pd.DataFrame(filtered_data)
+        
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(temp_calibration_file_path), exist_ok=True)
+        
+        # Save to CSV
+        df.to_csv(temp_calibration_file_path, index=False)
+        
+        print(f"Created filtered calibration file: {temp_calibration_file_path}")
+        print(f"Contains {len(filtered_data)} files:")
+        print(f"  - {len(found_files)} files with original calibration values")
+        print(f"  - {len(missing_files)} files with default values")
+        
+        return True
+        
+    except Exception as e:
+        print(f"Error creating filtered calibration file: {e}")
+        return False
+
 def run_imagej(imagej_path, macro_file, *args):
     """
     Run ImageJ with the specified macro file and arguments.
@@ -390,9 +604,18 @@ def process_tiffs_with_phasor_transform(calibration_file, base_output_dir, raw_d
     
     return processed_count > 0
 
-def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibration_file, raw_data_root):
+def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibration_file, raw_data_root, interactive_file_selection=False):
     """
     Runs the full TCSPC preprocessing pipeline (ImageJ + phasor transformation).
+    
+    Args:
+        config (dict): Configuration dictionary
+        input_dir (str): Input directory containing .bin files
+        output_dir (str): Output directory for processed files
+        preprocessed_dir (str): Directory for organized preprocessed files
+        calibration_file (str): Path to calibration CSV file
+        raw_data_root (str): Root directory for raw data
+        interactive_file_selection (bool): If True, prompt user to select specific files
     
     Returns:
         bool: True if successful, False if failed
@@ -406,6 +629,31 @@ def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibrati
     except KeyError as e:
         print(f"Error: Missing required key in config data: {e}. Cannot run preprocessing.")
         return False # Indicate failure
+    
+    # Handle interactive file selection if requested
+    if interactive_file_selection:
+        print("\n=== Interactive File Selection Mode ===")
+        selected_files = prompt_file_selection(input_dir, '.bin')
+        
+        if selected_files is None:
+            print("File selection cancelled. Preprocessing aborted.")
+            return False
+        
+        # Create a temporary calibration file with selected files using original calibration values
+        temp_calibration_file = os.path.join(os.path.dirname(calibration_file), 'temp_calibration.csv')
+        
+        print("\n=== Using Original Calibration Values ===")
+        print(f"Reading calibration values from: {calibration_file}")
+        print("Creating filtered calibration file for selected files...")
+        
+        # Create calibration file from selected files using original calibration values
+        if not create_calibration_file_from_selection(selected_files, calibration_file, temp_calibration_file):
+            print("Error creating filtered calibration file. Preprocessing aborted.")
+            return False
+        
+        # Use the temporary calibration file
+        calibration_file = temp_calibration_file
+        print(f"Using temporary calibration file: {calibration_file}")
     
     # Ensure input, output and preprocessed directories exist
     os.makedirs(output_dir, exist_ok=True)
@@ -425,15 +673,58 @@ def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibrati
             return False
     
     # === Run ImageJ Macros for TIF conversion ===
-    print("Running ImageJ Macro 1 for FITC.bin...")
-    macro1_success = run_imagej(imagej_path, macro_files[0], input_dir, output_dir)
-    if not macro1_success:
-        print("Warning: ImageJ Macro 1 (FITC.bin) failed. Continuing anyway...")
+    if interactive_file_selection:
+        # Create a file list for ImageJ macro to process only selected files
+        print("Creating file list for ImageJ macro from selected files...")
+        
+        # Read the temporary calibration file to get selected file paths
+        try:
+            selected_df = pd.read_csv(calibration_file, dtype={'file_path': str})
+            selected_file_paths = [str(row['file_path']).strip() for _, row in selected_df.iterrows()]
+            
+            # Create a temporary file list for ImageJ
+            file_list_path = os.path.join(os.path.dirname(calibration_file), 'selected_files.txt')
+            with open(file_list_path, 'w') as f:
+                for file_path in selected_file_paths:
+                    # Ensure .bin extension
+                    if not file_path.endswith('.bin'):
+                        file_path += '.bin'
+                    f.write(file_path + '\n')
+            
+            print(f"Created file list: {file_list_path}")
+            print(f"Contains {len(selected_file_paths)} selected files")
+            
+            # Run ImageJ Macro 2 with file list
+            print("Running ImageJ Macro 2 with selected files...")
+            macro2_success = run_imagej(imagej_path, macro_files[1], input_dir, output_dir, file_list_path)
+            if not macro2_success:
+                print("Warning: ImageJ Macro 2 (selected files) failed. Continuing anyway...")
+            
+            # Clean up file list
+            try:
+                if os.path.exists(file_list_path):
+                    os.remove(file_list_path)
+                    print(f"Cleaned up file list: {file_list_path}")
+            except Exception as e:
+                print(f"Warning: Could not clean up file list: {e}")
+                
+        except Exception as e:
+            print(f"Error creating file list for ImageJ: {e}")
+            print("Falling back to processing all files...")
+            macro2_success = run_imagej(imagej_path, macro_files[1], input_dir, output_dir)
+        
+        # Note: Skip macro 1 (FITC.bin) for interactive selection since it's not typically part of user selection
+        macro1_success = True
+    else:
+        print("Running ImageJ Macro 1 for FITC.bin...")
+        macro1_success = run_imagej(imagej_path, macro_files[0], input_dir, output_dir)
+        if not macro1_success:
+            print("Warning: ImageJ Macro 1 (FITC.bin) failed. Continuing anyway...")
 
-    print("Running ImageJ Macro 2 for all .bin files...")
-    macro2_success = run_imagej(imagej_path, macro_files[1], input_dir, output_dir)
-    if not macro2_success:
-        print("Warning: ImageJ Macro 2 (All BIN files) failed. Continuing anyway...")
+        print("Running ImageJ Macro 2 for all .bin files...")
+        macro2_success = run_imagej(imagej_path, macro_files[1], input_dir, output_dir)
+        if not macro2_success:
+            print("Warning: ImageJ Macro 2 (All BIN files) failed. Continuing anyway...")
     
     # Check if any .tif files were created in the output directory
     tif_files_exist = False
@@ -444,10 +735,18 @@ def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibrati
     
     if not tif_files_exist:
         print("Warning: No .tif files were created by ImageJ macros.")
-        print("Proceeding directly to FLUTE processing...")
+        print("Proceeding directly to phasor processing...")
     
     # === Run phasor transformation processing ===
-    print("Starting phasor transformation processing...")
+    if interactive_file_selection:
+        print("Starting phasor transformation processing...")
+        print(f"Processing TIF files created from selected BIN files")
+        print(f"Using filtered calibration file: {calibration_file}")
+    else:
+        print("Starting phasor transformation processing...")
+        print(f"Processing all TIF files created by ImageJ macros")
+        print(f"Using calibration file: {calibration_file}")
+    
     phasor_success = process_tiffs_with_phasor_transform(
         calibration_file, 
         output_dir, 
@@ -528,9 +827,29 @@ def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibrati
     for root, dirs, files in os.walk(preprocessed_dir):
         if any(f.endswith('.tiff') for f in files):
             print("Preprocessing pipeline complete.")
+            
+            # Clean up temporary calibration file if it was created
+            if interactive_file_selection and 'temp_calibration_file' in locals():
+                try:
+                    if os.path.exists(temp_calibration_file):
+                        os.remove(temp_calibration_file)
+                        print(f"Cleaned up temporary calibration file: {temp_calibration_file}")
+                except Exception as e:
+                    print(f"Warning: Could not clean up temporary calibration file: {e}")
+            
             return True
     
     print("Error: No files found in preprocessed directory after pipeline.")
+    
+    # Clean up temporary calibration file if it was created (even on failure)
+    if interactive_file_selection and 'temp_calibration_file' in locals():
+        try:
+            if os.path.exists(temp_calibration_file):
+                os.remove(temp_calibration_file)
+                print(f"Cleaned up temporary calibration file: {temp_calibration_file}")
+        except Exception as e:
+            print(f"Warning: Could not clean up temporary calibration file: {e}")
+    
     return False
 
 # === Main script execution block (for running standalone) ===

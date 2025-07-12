@@ -333,6 +333,15 @@ except ImportError as e:
     run_manual_segmentation = None # Placeholder
 
 try:
+    # Stage 4B2: Manual Segmentation Unfiltered
+    from src.python.modules.ManualSegmentationUnfiltered import main as run_manual_segmentation_unfiltered
+except ImportError as e:
+    # Use current filename in error message
+    print(f"Error: Could not import main (as run_manual_segmentation_unfiltered) from ManualSegmentationUnfiltered.py: {e}") 
+    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    run_manual_segmentation_unfiltered = None # Placeholder
+
+try:
     # Stage 4C: Lifetime Image Generation
     from src.python.modules.generate_lifetime_images import main as run_lifetime_generation
 except ImportError as e:
@@ -657,6 +666,7 @@ def parse_arguments():
     parser.add_argument("--visualize", action="store_true", help="Run Stage 3: Interactive phasor visualization and plot generation")
     parser.add_argument("--segment", action="store_true", help="Run GMM segmentation stage")
     parser.add_argument("--manual-segment", action="store_true", help="Run manual segmentation stage")
+    parser.add_argument("--manual-segment-unfiltered", action="store_true", help="Run manual segmentation stage using unfiltered data (GU, SU)")
     parser.add_argument("--lifetime-images", action="store_true", help="Run lifetime image generation from NPZ files")
     parser.add_argument("--average-lifetime", action="store_true", help="Calculate average lifetime from segmented data")
     parser.add_argument("--phasor", action="store_true", help="Run phasor transformation stage")
@@ -684,7 +694,7 @@ def parse_arguments():
     # If no specific stages are selected, and not running in test mode
     # ask the user what to do
     if not (args.all or args.preprocessing or args.processing or args.LF_preprocessing or
-            args.preprocess or args.filter or args.visualize or args.segment or args.manual_segment or args.lifetime_images or args.average_lifetime or args.phasor or args.apply_mask or args.visualize_segmented or args.manual_segment_from_mask or args.test):
+            args.preprocess or args.filter or args.visualize or args.segment or args.manual_segment or args.manual_segment_unfiltered or args.lifetime_images or args.average_lifetime or args.phasor or args.apply_mask or args.visualize_segmented or args.manual_segment_from_mask or args.test):
         # Not running any specific stage and not in test mode
         print("No pipeline stages specified. Options:")
         print("1. Preprocessing (.bin to .tif conversion + phasor transformation)")
@@ -700,10 +710,11 @@ def parse_arguments():
         print("11. Apply Mask (apply binary masks to NPZ data)")
         print("12. Visualize Segmented (visualize segmented data from masked NPZ files)")
         print("13. Manual Segment From Mask (manual segmentation from masked NPZ files)")
-        print("14. All stages")
-        print("15. Exit")
+        print("14. Manual Segment Unfiltered (manual segmentation using unfiltered data)")
+        print("15. All stages")
+        print("16. Exit")
         
-        choice = input("Select an option (1-15): ")
+        choice = input("Select an option (1-16): ")
         
         if choice == "1":
             args.preprocessing = True
@@ -733,8 +744,10 @@ def parse_arguments():
         elif choice == "13":
             args.manual_segment_from_mask = True
         elif choice == "14":
-            args.all = True
+            args.manual_segment_unfiltered = True
         elif choice == "15":
+            args.all = True
+        elif choice == "16":
             print("Exiting.")
             sys.exit(0)
         else:
@@ -854,14 +867,74 @@ def main():
                                 logger.logger.info(f"Found BIN files in subdirectory: {data_dir}")
                                 break
                 
-                success = run_preprocessing(
-                    config,
-                    data_dir,        # Use the actual data directory containing BIN files
-                    output_dir,           
-                    preprocessed_dir,     
-                    calibration_file_path, # Pass fixed calibration path
-                    args.input        # Keep raw_data_root as the full path for path mapping
-                )
+                # Prompt user for file selection mode (except for --all which processes everything)
+                interactive_file_selection = False
+                if not args.all:
+                    logger.logger.info("Prompting user for file selection mode")
+                    # Temporarily restore stdout/stderr for interactive prompt
+                    original_stdout = sys.stdout
+                    original_stderr = sys.stderr
+                    sys.stdout = sys.__stdout__
+                    sys.stderr = sys.__stderr__
+                    
+                    try:
+                        print("\n=== Preprocessing File Selection ===")
+                        print("Choose how to select files for preprocessing:")
+                        print("  [1] Process all .bin files (default)")
+                        print("  [2] Select specific .bin files interactively")
+                        
+                        while True:
+                            choice = input("Select option (1 or 2, default: 1): ").strip()
+                            if choice == "" or choice == "1":
+                                interactive_file_selection = False
+                                print("→ Processing all .bin files")
+                                break
+                            elif choice == "2":
+                                interactive_file_selection = True
+                                print("→ Interactive file selection enabled")
+                                break
+                            else:
+                                print("Please enter 1 or 2.")
+                        
+                    finally:
+                        # Restore log file redirection
+                        sys.stdout = original_stdout
+                        sys.stderr = original_stderr
+                
+                # Run preprocessing with or without interactive file selection
+                if interactive_file_selection:
+                    logger.logger.info("Running preprocessing with interactive file selection")
+                    # Temporarily restore stdout/stderr for interactive mode
+                    original_stdout = sys.stdout
+                    original_stderr = sys.stderr
+                    sys.stdout = sys.__stdout__
+                    sys.stderr = sys.__stderr__
+                    
+                    try:
+                        success = run_preprocessing(
+                            config,
+                            data_dir,        # Use the actual data directory containing BIN files
+                            output_dir,           
+                            preprocessed_dir,     
+                            calibration_file_path, # Pass fixed calibration path
+                            args.input,        # Keep raw_data_root as the full path for path mapping
+                            interactive_file_selection=True  # Enable interactive file selection
+                        )
+                    finally:
+                        # Restore log file redirection
+                        sys.stdout = original_stdout
+                        sys.stderr = original_stderr
+                else:
+                    logger.logger.info("Running preprocessing with all files")
+                    success = run_preprocessing(
+                        config,
+                        data_dir,        # Use the actual data directory containing BIN files
+                        output_dir,           
+                        preprocessed_dir,     
+                        calibration_file_path, # Pass fixed calibration path
+                        args.input        # Keep raw_data_root as the full path for path mapping
+                    )
+                
                 logger.log_stage_end("Stage 1: Preprocessing", success)
             except Exception as e:
                 logger.log_error(e, "Running preprocessing", "Stage 1: Preprocessing")
@@ -1122,6 +1195,87 @@ def main():
             error_msg = "run_manual_segmentation function not available"
             logger.log_error(Exception(error_msg), "Import check", "Stage 4B: Manual Segmentation")
             logger.log_stage_end("Stage 4B: Manual Segmentation", False, error_msg)
+            
+    # --- Stage 4B2: Manual Segmentation Unfiltered ---
+    if args.manual_segment_unfiltered or args.all:
+        logger.log_stage_start("Stage 4B2: Manual Segmentation Unfiltered", "Interactive manual ellipse-based segmentation using unfiltered data (GU, SU)")
+        if run_manual_segmentation_unfiltered:
+            try:
+                # Prompt user for NPZ directory choice
+                print("\nManual Segmentation Unfiltered - NPZ Directory Selection:")
+                print("  [1] Use original NPZ files (npz_datasets)")
+                print("  [2] Use external mask NPZ files (external_mask_npz_datasets)")
+                
+                # Check if directories exist and show file counts
+                original_count = 0
+                external_count = 0
+                
+                if os.path.exists(npz_dir):
+                    original_count = len([f for f in os.listdir(npz_dir) if f.endswith('.npz')])
+                    print(f"      → {original_count} NPZ files found in npz_datasets")
+                else:
+                    print("      → npz_datasets directory not found")
+                
+                if os.path.exists(external_mask_npz_dir):
+                    external_count = len([f for f in os.listdir(external_mask_npz_dir) if f.endswith('.npz')])
+                    print(f"      → {external_count} NPZ files found in external_mask_npz_datasets")
+                else:
+                    print("      → external_mask_npz_datasets directory not found")
+                
+                # Get user choice
+                while True:
+                    user_choice = input("Select option (1 or 2, default: 1): ").strip()
+                    if user_choice == "" or user_choice == "1":
+                        selected_npz_dir = npz_dir
+                        dir_name = "npz_datasets"
+                        print(f"→ Using {dir_name} directory for manual segmentation unfiltered.")
+                        break
+                    elif user_choice == "2":
+                        selected_npz_dir = external_mask_npz_dir
+                        dir_name = "external_mask_npz_datasets"
+                        print(f"→ Using {dir_name} directory for manual segmentation unfiltered.")
+                        break
+                    else:
+                        print("Please enter 1 or 2.")
+                
+                # Log the choice
+                logger.logger.info(f"User selected NPZ directory: {dir_name}")
+                logger.logger.info(f"NPZ directory path: {selected_npz_dir}")
+                
+                # Manual segmentation unfiltered is always interactive, so restore terminal I/O
+                logger.logger.info("Manual segmentation unfiltered is interactive - restoring terminal I/O")
+                original_stdout = sys.stdout
+                original_stderr = sys.stderr
+                sys.stdout = sys.__stdout__
+                sys.stderr = sys.__stderr__
+                logger.logger.info("Terminal I/O restored for manual segmentation unfiltered mode")
+
+                # Run manual segmentation unfiltered with selected directory
+                success = run_manual_segmentation_unfiltered(
+                    config, 
+                    selected_npz_dir, 
+                    segmented_dir, 
+                    plots_dir, 
+                    lifetime_dir,
+                    True  # interactive mode
+                )
+
+                # Restore log file redirection
+                sys.stdout = original_stdout
+                sys.stderr = original_stderr
+                logger.logger.info("Terminal I/O restored to logging mode")
+                
+                logger.log_stage_end("Stage 4B2: Manual Segmentation Unfiltered", success)
+            except Exception as e:
+                # Make sure to restore logging even if there's an error
+                sys.stdout = original_stdout
+                sys.stderr = original_stderr
+                logger.log_error(e, "Running manual segmentation unfiltered", "Stage 4B2: Manual Segmentation Unfiltered")
+                logger.log_stage_end("Stage 4B2: Manual Segmentation Unfiltered", False, f"Error: {str(e)}")
+        else:
+            error_msg = "run_manual_segmentation_unfiltered function not available"
+            logger.log_error(Exception(error_msg), "Import check", "Stage 4B2: Manual Segmentation Unfiltered")
+            logger.log_stage_end("Stage 4B2: Manual Segmentation Unfiltered", False, error_msg)
             
     # --- Stage 4C: Lifetime Image Generation ---
     if args.lifetime_images or args.all:
