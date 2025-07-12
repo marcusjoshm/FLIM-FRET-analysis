@@ -1,3 +1,11 @@
+// Try to enable batch mode for faster processing (works in compatible ImageJ versions)
+if (is("Batch Mode")) {
+    print("ImageJ already in batch mode");
+} else {
+    setBatchMode(true);
+    print("Enabled batch mode for faster processing");
+}
+
 // Get the input and output directories from macro arguments
 macroArgs = getArgument();
 args = split(macroArgs, ",");
@@ -218,6 +226,12 @@ if (use_file_list) {
 print("FLIM_processing_macro_2.ijm finished.");
 print("Successfully processed: " + processed + " BIN files");
 print("Failed: " + failures + " BIN files");
+
+// Disable batch mode if it was enabled
+if (is("Batch Mode")) {
+    setBatchMode(false);
+    print("Disabled batch mode");
+}
 
 // Exit ImageJ when done
 run("Quit");

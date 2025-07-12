@@ -242,23 +242,44 @@ def run_imagej(imagej_path, macro_file, *args):
     Returns:
         bool: True if successful, False if failed
     """
-    command = [
+    # Try headless mode first, fall back to regular mode if it fails
+    command_headless = [
+        imagej_path,
+        '-batch',      # Batch mode for faster processing
+        '-macro', macro_file, ",".join(args)
+    ]
+    
+    command_regular = [
         imagej_path,
         '-macro', macro_file, ",".join(args)
     ]
-    print(f"Running ImageJ command: {' '.join(command)}")
+    
+    print(f"Attempting ImageJ in batch mode: {' '.join(command_headless)}")
     
     try:
-        # Run ImageJ with stdout and stderr captured
-        result = subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        print(f"ImageJ Command Output: {result.stdout}")
+        # Try batch mode first
+        result = subprocess.run(command_headless, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=300)
+        print(f"ImageJ Command Output (batch mode): {result.stdout}")
         return True
-    except subprocess.CalledProcessError as e:
-        print(f"An error occurred while running the macro: {e}")
-        print(f"Exit code: {e.returncode}")
-        print(f"Output: {e.stdout}")
-        print(f"Error: {e.stderr}")
-        return False
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+        print(f"Batch mode failed: {e}")
+        print(f"Falling back to regular mode...")
+        
+        try:
+            # Fall back to regular mode
+            print(f"Running ImageJ in regular mode: {' '.join(command_regular)}")
+            result = subprocess.run(command_regular, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=600)
+            print(f"ImageJ Command Output (regular mode): {result.stdout}")
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"An error occurred while running the macro: {e}")
+            print(f"Exit code: {e.returncode}")
+            print(f"Output: {e.stdout}")
+            print(f"Error: {e.stderr}")
+            return False
+        except subprocess.TimeoutExpired as e:
+            print(f"ImageJ macro timed out: {e}")
+            return False
     except FileNotFoundError as e:
         print(f"File not found: {e}")
         print("Please check the path to the ImageJ executable.")
