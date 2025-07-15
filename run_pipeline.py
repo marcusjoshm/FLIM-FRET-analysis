@@ -459,53 +459,53 @@ def parse_arguments():
         print("=" * 30)
         print("MENU:")
         print("1. Preprocessing (.bin to .tif conversion + phasor transformation)")
-        print("2. Processing (preprocessing + wavelet filtering and lifetime calculation)")
-        print("3. Filter only (wavelet filtering)")
-        print("4. Visualize (interactive phasor plots)")
-        print("5. Segment (GMM segmentation with interactive parameter selection)")
-        print("6. Manual Segment (interactive manual ellipse-based segmentation)")
-        print("7. Lifetime Images (generate lifetime images from NPZ files)")
-        print("8. Average Lifetime (calculate average lifetime from segmented data)")
-        print("9. Phasor (phasor transformation only)")
-        print("10. Apply Mask (apply binary masks to NPZ data)")
-        print("11. Visualize Segmented (visualize segmented data from masked NPZ files)")
-        print("12. Manual Segment From Mask (manual segmentation from masked NPZ files)")
-        print("13. Manual Segment Unfiltered (manual segmentation using unfiltered data)")
-        print("14. Manual Segment Unfiltered From Mask (manual segmentation from masked NPZ files using unfiltered data)")
-        print("15. All stages")
-        print("16. Exit")
+        print("2. ______Phasor (phasor transformation only)")
+        print("3. Processing (preprocessing + wavelet filtering and lifetime calculation)")
+        print("4. ______Filter only (wavelet filtering)")
+        print("5. Lifetime Images (generate lifetime images from NPZ files)")
+        print("6. Apply Mask (apply binary masks to NPZ data)")
+        print("7. Visualize (interactive phasor plots)")
+        print("8. Visualize Segmented (visualize segmented data from masked NPZ files)")
+        print("9. Segment (GMM segmentation with interactive parameter selection)")
+        print("10. Manual Segment (interactive manual ellipse-based segmentation)")
+        print("11. Manual Segment From Mask (manual segmentation from masked NPZ files)")
+        print("12. Manual Segment Unfiltered (manual segmentation using unfiltered data)")
+        print("13. Manual Segment Unfiltered From Mask (manual segmentation from masked NPZ files using unfiltered data)")
+        print("14. Average Lifetime (calculate average lifetime from segmented data)")
+        print("15. _____All stages")
+        print("15. Exit")
         
-        choice = input("Select an option (1-16): ")
+        choice = input("Select an option (1-15): ")
         
         if choice == "1":
             args.preprocessing = True
         elif choice == "2":
-            args.processing = True
+            args.phasor = True
         elif choice == "3":
-            args.filter = True
+            args.processing = True
         elif choice == "4":
-            args.visualize = True
+            args.filter = True
         elif choice == "5":
+            args.lifetime_images = True
+        elif choice == "6":
+            args.apply_mask = True
+        elif choice == "7":
+            args.visualize = True
+        elif choice == "8":
+            args.visualize_segmented = True
+        elif choice == "9":
             args.segment = True
             args.interactive = True  # Automatically enable interactive mode for GMM segmentation
-        elif choice == "6":
-            args.manual_segment = True
-        elif choice == "7":
-            args.lifetime_images = True
-        elif choice == "8":
-            args.average_lifetime = True
-        elif choice == "9":
-            args.phasor = True
         elif choice == "10":
-            args.apply_mask = True
+            args.manual_segment = True
         elif choice == "11":
-            args.visualize_segmented = True
-        elif choice == "12":
             args.manual_segment_from_mask = True
-        elif choice == "13":
+        elif choice == "12":
             args.manual_segment_unfiltered = True
-        elif choice == "14":
+        elif choice == "13":
             args.manual_segment_unfiltered_from_mask = True
+        elif choice == "14":
+            args.average_lifetime = True
         elif choice == "15":
             args.all = True
         elif choice == "16":
