@@ -21,10 +21,18 @@ import datetime
 from contextlib import contextmanager
 from typing import Dict, List, Optional, Any, Tuple
 
-# Print sys.path right before imports
-print("--- sys.path before imports in run_pipeline.py ---")
-print(sys.path)
-print("--------------------------------------------------")
+# Store import errors for logging after logger initialization
+import_errors = []
+
+def store_import_error(module_name, error_msg, suggestion=""):
+    """Store import error for logging after logger initialization"""
+    import_errors.append({
+        'module': module_name,
+        'error': error_msg,
+        'suggestion': suggestion
+    })
+
+# Debug information will be logged after logger initialization
 
 # --- Error Tracking and Logging System ---
 class PipelineLogger:
@@ -267,39 +275,37 @@ except ImportError as e:
     print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
     run_preprocessing = None # Placeholder
     
-try:
-    # Stage 1B: Filename simplification (optional)
-    from src.python.modules.simplify_filenames import simplify_filenames
-except ImportError as e:
-    # Use current filename in error message
-    print(f"Error: Could not import simplify_filenames from simplify_filenames.py: {e}")
-    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
-    simplify_filenames = None # Placeholder
+
 
 try:
     # Stage 2: Wavelet Filtering & NPZ Generation
     from src.python.modules.ComplexWaveletFilter_v2_0 import main as run_wavelet_filtering
-    print("Using Complex Wavelet Filter v2.0 implementation")
+    # Log this after logger initialization
+    wavelet_filter_available = True
 except ImportError as e:
-    print(f"Error: Could not import main (as run_wavelet_filtering) from ComplexWaveletFilter_v2_0.py: {e}") 
-    print("Ensure the ComplexWaveletFilter_v2_0.py module is available.")
+    # Store error for logging after logger initialization
+    store_import_error("ComplexWaveletFilter_v2_0", 
+                      f"Could not import main (as run_wavelet_filtering): {e}",
+                      "Ensure the ComplexWaveletFilter_v2_0.py module is available.")
     run_wavelet_filtering = None # Placeholder
+    wavelet_filter_available = False
     
 try:
     # Stage 3: Phasor Visualization
     from src.python.modules.phasor_visualization import run_phasor_visualization
 except ImportError as e:
-    print(f"Error: Could not import run_phasor_visualization from phasor_visualization.py: {e}")
-    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    store_import_error("phasor_visualization", 
+                      f"Could not import run_phasor_visualization: {e}",
+                      "Ensure the script is in the same directory or accessible via PYTHONPATH.")
     run_phasor_visualization = None # Placeholder
     
 try:
     # Intensity Image Generation for Wavelet Filtering
     from src.python.modules.generate_intensity_images import process_raw_flim_files as generate_intensity_images
 except ImportError as e:
-    # Use current filename in error message
-    print(f"Error: Could not import process_raw_flim_files (as generate_intensity_images) from generate_intensity_images.py: {e}") 
-    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    store_import_error("generate_intensity_images", 
+                      f"Could not import process_raw_flim_files (as generate_intensity_images): {e}",
+                      "Ensure the script is in the same directory or accessible via PYTHONPATH.")
     generate_intensity_images = None # Placeholder
     
 # Additional imports needed for file operations
@@ -309,340 +315,95 @@ try:
     # Stage 3: GMM Segmentation, Plotting, Lifetime Saving
     from src.python.modules.GMMSegmentation_v2_6 import main as run_gmm_segmentation
 except ImportError as e:
-    # Use current filename in error message
-    print(f"Error: Could not import main (as run_gmm_segmentation) from GMMSegmentation_v2_6.py: {e}") 
-    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    store_import_error("GMMSegmentation_v2_6", 
+                      f"Could not import main (as run_gmm_segmentation): {e}",
+                      "Ensure the script is in the same directory or accessible via PYTHONPATH.")
     run_gmm_segmentation = None # Placeholder
     
 try:
     # Stage 4: Phasor Transformation
     from src.python.modules.phasor_transform import process_flim_file as run_phasor_transform
 except ImportError as e:
-    # Use current filename in error message
-    print(f"Error: Could not import process_flim_file (as run_phasor_transform) from phasor_transform.py: {e}") 
-    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    store_import_error("phasor_transform", 
+                      f"Could not import process_flim_file (as run_phasor_transform): {e}",
+                      "Ensure the script is in the same directory or accessible via PYTHONPATH.")
     run_phasor_transform = None # Placeholder
 
 try:
     # Stage 4B: Manual Segmentation
     from src.python.modules.ManualSegmentation import main as run_manual_segmentation
 except ImportError as e:
-    # Use current filename in error message
-    print(f"Error: Could not import main (as run_manual_segmentation) from ManualSegmentation.py: {e}") 
-    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    store_import_error("ManualSegmentation", 
+                      f"Could not import main (as run_manual_segmentation): {e}",
+                      "Ensure the script is in the same directory or accessible via PYTHONPATH.")
     run_manual_segmentation = None # Placeholder
 
 try:
     # Stage 4B2: Manual Segmentation Unfiltered
     from src.python.modules.ManualSegmentationUnfiltered import main as run_manual_segmentation_unfiltered
 except ImportError as e:
-    # Use current filename in error message
-    print(f"Error: Could not import main (as run_manual_segmentation_unfiltered) from ManualSegmentationUnfiltered.py: {e}") 
-    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    store_import_error("ManualSegmentationUnfiltered", 
+                      f"Could not import main (as run_manual_segmentation_unfiltered): {e}",
+                      "Ensure the script is in the same directory or accessible via PYTHONPATH.")
     run_manual_segmentation_unfiltered = None # Placeholder
 
 try:
     # Stage 4C: Lifetime Image Generation
     from src.python.modules.generate_lifetime_images import main as run_lifetime_generation
 except ImportError as e:
-    # Use current filename in error message
-    print(f"Error: Could not import main (as run_lifetime_generation) from generate_lifetime_images.py: {e}") 
-    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    store_import_error("generate_lifetime_images", 
+                      f"Could not import main (as run_lifetime_generation): {e}",
+                      "Ensure the script is in the same directory or accessible via PYTHONPATH.")
     run_lifetime_generation = None # Placeholder
 
 try:
     # Stage 4D: Average Lifetime Calculation
     from src.python.modules.calculate_average_lifetime import main as run_average_lifetime
 except ImportError as e:
-    # Use current filename in error message
-    print(f"Error: Could not import main (as run_average_lifetime) from calculate_average_lifetime.py: {e}") 
-    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    store_import_error("calculate_average_lifetime", 
+                      f"Could not import main (as run_average_lifetime): {e}",
+                      "Ensure the script is in the same directory or accessible via PYTHONPATH.")
     run_average_lifetime = None # Placeholder
 
 try:
     # Stage 5A: Apply Mask
     from src.python.modules.apply_mask import main as run_apply_mask
 except ImportError as e:
-    # Use current filename in error message
-    print(f"Error: Could not import main (as run_apply_mask) from apply_mask.py: {e}") 
-    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    store_import_error("apply_mask", 
+                      f"Could not import main (as run_apply_mask): {e}",
+                      "Ensure the script is in the same directory or accessible via PYTHONPATH.")
     run_apply_mask = None # Placeholder
 
 try:
     # Stage 5B: Visualize Segmented Data
     from src.python.modules.visualize_segmented_data import main as run_visualize_segmented
 except ImportError as e:
-    # Use current filename in error message
-    print(f"Error: Could not import main (as run_visualize_segmented) from visualize_segmented_data.py: {e}") 
-    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    store_import_error("visualize_segmented_data", 
+                      f"Could not import main (as run_visualize_segmented): {e}",
+                      "Ensure the script is in the same directory or accessible via PYTHONPATH.")
     run_visualize_segmented = None # Placeholder
 
 try:
     # Stage 5C: Manual Segment From Mask
     from src.python.modules.ManualSegmentFromMask import main as run_manual_segment_from_mask
 except ImportError as e:
-    # Use current filename in error message
-    print(f"Error: Could not import main (as run_manual_segment_from_mask) from ManualSegmentFromMask.py: {e}") 
-    print("Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    store_import_error("ManualSegmentFromMask", 
+                      f"Could not import main (as run_manual_segment_from_mask): {e}",
+                      "Ensure the script is in the same directory or accessible via PYTHONPATH.")
     run_manual_segment_from_mask = None # Placeholder
-    
-# --- New Test Function ---
-def test_flute_integration(config, logger=None):
-    """
-    Tests the FLUTE integration to ensure that all components are working correctly.
-    
-    Args:
-        config (dict): Configuration dictionary with paths and parameters
-        
-    Returns:
-        bool: True if tests pass, False otherwise
-    """
-    print("\n===================================")
-    print("       FLUTE Integration Test      ")
-    print("===================================")
-    
-    # Test 1: FLUTE Python Environment
-    print("\n--- Test 1: FLUTE Python Environment ---")
-    
-    flute_path = config.get("flute_path")
-    flute_python_path = config.get("flute_python_path")
-    
-    if not flute_path or not os.path.exists(flute_path):
-        error_msg = f"flute_path not found or invalid: {flute_path}"
-        print(f"❌ Error: {error_msg}")
-        if logger:
-            logger.log_error(Exception(error_msg), "FLUTE path validation", "Test")
-        return False
-    
-    if not flute_python_path or not os.path.exists(flute_python_path):
-        error_msg = f"flute_python_path not found or invalid: {flute_python_path}"
-        print(f"❌ Error: {error_msg}")
-        if logger:
-            logger.log_error(Exception(error_msg), "FLUTE Python path validation", "Test")
-        return False
-    
-    print(f"✓ FLUTE path: {flute_path}")
-    print(f"✓ FLUTE Python path: {flute_python_path}")
-    
-    # Test 2: Required Packages
-    print("\n--- Test 2: Required Packages ---")
-    
-    # Create a test script to verify required packages
-    test_script = "test_flute_packages.py"
-    
-    # Get FLUTE directory
-    flute_dir = os.path.dirname(flute_path)
-    
-    with open(test_script, 'w') as f:
-        f.write(f"""
-import sys
-import os
-
-packages = [
-    "PyQt5", 
-    "numpy", 
-    "cv2",  # OpenCV
-    "matplotlib", 
-    "scipy",
-    "skimage"  # scikit-image
-]
-
-print("Python executable:", sys.executable)
-print("Python version:", sys.version)
-print("\\nTesting package imports:")
-
-success = True
-for package in packages:
-    try:
-        if package == "PyQt5":
-            from PyQt5.QtWidgets import QApplication
-            from PyQt5.QtCore import QObject
-            print(f"  ✓ {{package}} (and QtWidgets, QtCore)")
-        elif package == "cv2":
-            import cv2
-            print(f"  ✓ {{package}} (version: {{cv2.__version__}})")
-        elif package == "numpy":
-            import numpy as np
-            print(f"  ✓ {{package}} (version: {{np.__version__}})")
-        elif package == "matplotlib":
-            import matplotlib
-            print(f"  ✓ {{package}} (version: {{matplotlib.__version__}})")
-        elif package == "scipy":
-            import scipy
-            print(f"  ✓ {{package}} (version: {{scipy.__version__}})")
-        elif package == "skimage":
-            import skimage
-            print(f"  ✓ {{package}} (version: {{skimage.__version__}})")
-        else:
-            module = __import__(package)
-            print(f"  ✓ {{package}}")
-    except ImportError as e:
-        print(f"  ❌ {{package}}: {{e}}")
-        success = False
-
-sys.exit(0 if success else 1)
-""")
-    
-    try:
-        result = subprocess.run(
-            [flute_python_path, test_script],
-            check=False,
-            capture_output=True,
-            text=True
-        )
-        
-        print(result.stdout)
-        
-        if result.returncode != 0:
-            print(f"❌ Some packages are missing. Check output above.")
-            # Clean up and return
-            if os.path.exists(test_script):
-                os.remove(test_script)
-            return False
-            
-        print("✓ All required packages are installed correctly!")
-    except Exception as e:
-        print(f"❌ Error running package test: {e}")
-        if os.path.exists(test_script):
-            os.remove(test_script)
-        return False
-        
-    # Clean up
-    if os.path.exists(test_script):
-        os.remove(test_script)
-    
-    # Test 3: ImageHandler Import
-    print("\n--- Test 3: ImageHandler Import ---")
-    
-    # Create a test script to verify ImageHandler import
-    test_script = "test_flute_handler.py"
-    
-    with open(test_script, "w") as f:
-        f.write(f"""
-import os
-import sys
-
-# Add FLUTE directory to Python path
-flute_dir = "{flute_dir}"
-if flute_dir not in sys.path:
-    sys.path.append(flute_dir)
 
 try:
-    from ImageHandler import ImageHandler
-    print("Successfully imported ImageHandler from:", flute_dir)
-
-    # List available attributes
-    handler_attrs = [attr for attr in dir(ImageHandler) if not attr.startswith('__')]
-    print("\\nImageHandler attributes (first 10):")
-    for attr in sorted(handler_attrs)[:10]:
-        print(f"  - {{attr}}")
-        
-    print("\\nImageHandler test successful!")
-    sys.exit(0)
+    # Stage 5D: Manual Segment Unfiltered From Mask
+    from src.python.modules.ManualSegmentUnfilteredFromMask import main as run_manual_segment_unfiltered_from_mask
 except ImportError as e:
-    print(f"❌ Error importing ImageHandler: {{e}}")
-    print("Python path:")
-    for p in sys.path:
-        print(f"  {{p}}")
-    print("ImageHandler test failed.")
-    sys.exit(1)
-""")
+    store_import_error("ManualSegmentUnfilteredFromMask", 
+                      f"Could not import main (as run_manual_segment_unfiltered_from_mask): {e}",
+                      "Ensure the script is in the same directory or accessible via PYTHONPATH.")
+    run_manual_segment_unfiltered_from_mask = None # Placeholder
     
-    try:
-        # Run the test script with the FLUTE virtual environment's Python
-        result = subprocess.run(
-            [flute_python_path, test_script], 
-            check=False, 
-            capture_output=True, 
-            text=True
-        )
-        
-        print(result.stdout)
-        
-        if result.returncode != 0:
-            print(f"❌ Failed to import ImageHandler. Check output above.")
-            # Clean up and return
-            if os.path.exists(test_script):
-                os.remove(test_script)
-            return False
-            
-        print("✓ ImageHandler can be imported and used correctly!")
-    except Exception as e:
-        print(f"❌ Error running ImageHandler test: {e}")
-        if os.path.exists(test_script):
-            os.remove(test_script)
-        return False
-        
-    # Clean up
-    if os.path.exists(test_script):
-        os.remove(test_script)
-    
-    # Test 4: Simple Test Script (Sample Run)
-    print("\n--- Test 4: Sample Run ---")
-    
-    # Create a test script for a simple sample run
-    test_script = "test_flute_sample.py"
-    
-    with open(test_script, "w") as f:
-        f.write(f"""
-import os
-import sys
-
-# Add FLUTE directory to Python path
-flute_dir = "{flute_dir}"
-if flute_dir not in sys.path:
-    sys.path.append(flute_dir)
-
-from ImageHandler import ImageHandler
-
-print("Creating and checking a simple ImageHandler instance...")
-try:
-    # Create a dummy handler (just to test the class)
-    # Note: This doesn't actually process an image
-    handler = ImageHandler.__new__(ImageHandler)
-    print("ImageHandler instance created successfully!")
-    print("Sample run successful!")
-    sys.exit(0)
-except Exception as e:
-    print(f"❌ Error creating ImageHandler instance: {{e}}")
-    print("Sample run failed.")
-    sys.exit(1)
-""")
-    
-    try:
-        # Run the test script with the FLUTE virtual environment's Python
-        result = subprocess.run(
-            [flute_python_path, test_script], 
-            check=False, 
-            capture_output=True, 
-            text=True
-        )
-        
-        print(result.stdout)
-        
-        if result.returncode != 0:
-            print(f"❌ Sample run failed. Check output above.")
-            # Clean up and return
-            if os.path.exists(test_script):
-                os.remove(test_script)
-            return False
-            
-        print("✓ Sample run completed successfully!")
-    except Exception as e:
-        print(f"❌ Error running sample test: {e}")
-        if os.path.exists(test_script):
-            os.remove(test_script)
-        return False
-    
-    # Clean up
-    if os.path.exists(test_script):
-        os.remove(test_script)
-    
-    print("\n====================================")
-    print("  All FLUTE integration tests passed!")
-    print("====================================")
-    
-    return True
+# Legacy FLUTE integration test function removed
+# FLUTE functionality has been replaced by custom phasor_transform module
+# to avoid GUI dependencies and improve maintainability
 
 # --- Argument Parsing ---
 def parse_arguments():
@@ -658,7 +419,6 @@ def parse_arguments():
     # Workflow groupings
     parser.add_argument("--preprocessing", action="store_true", help="Run Stages 1-2A: convert files, phasor transformation, and organize files")
     parser.add_argument("--processing", action="store_true", help="Run Stages 1-2B: preprocessing + wavelet filtering and lifetime calculation")
-    parser.add_argument("--LF-preprocessing", action="store_true", help="LF workflow: Run preprocessing with automatic filename simplification")
     
     # Individual stages (for advanced users)
     parser.add_argument("--preprocess", action="store_true", help="[DEPRECATED] Use --preprocessing instead")
@@ -673,44 +433,45 @@ def parse_arguments():
     parser.add_argument("--apply-mask", action="store_true", help="Apply binary masks to NPZ data and create masked NPZ files")
     parser.add_argument("--visualize-segmented", action="store_true", help="Visualize segmented data from masked NPZ files")
     parser.add_argument("--manual-segment-from-mask", action="store_true", help="Manual segmentation from masked NPZ files (G*mask, S*mask)")
+    parser.add_argument("--manual-segment-unfiltered-from-mask", action="store_true", help="Manual segmentation from masked NPZ files using unfiltered data (GU*mask, SU*mask)")
     
-    # Testing mode
-    parser.add_argument("--test", action="store_true", help="Run in test mode to verify the environment")
+    # Testing mode removed - FLUTE integration has been replaced by custom phasor_transform module
     
     # Interactive mode
     parser.add_argument("--interactive", action="store_true", help="Run in interactive mode for user input (affects GMM segmentation)")
     
-    # File naming options
-    parser.add_argument("--simplify-filenames", action="store_true", help="Simplify filenames in preprocessed directory (e.g., R_1_s2_g.tiff -> 2.tiff)")
+
     
     # Parse arguments
     args = parser.parse_args()
     
     # Validate input directory
-    if not args.test:
-        if not os.path.isdir(args.input):
-            parser.error(f"Input directory '{args.input}' does not exist or is not a directory")
+    if not os.path.isdir(args.input):
+        parser.error(f"Input directory '{args.input}' does not exist or is not a directory")
     
-    # If no specific stages are selected, and not running in test mode
-    # ask the user what to do
-    if not (args.all or args.preprocessing or args.processing or args.LF_preprocessing or
-            args.preprocess or args.filter or args.visualize or args.segment or args.manual_segment or args.manual_segment_unfiltered or args.lifetime_images or args.average_lifetime or args.phasor or args.apply_mask or args.visualize_segmented or args.manual_segment_from_mask or args.test):
-        # Not running any specific stage and not in test mode
-        print("No pipeline stages specified. Options:")
+    # If no specific stages are selected, ask the user what to do
+    if not (args.all or args.preprocessing or args.processing or
+            args.preprocess or args.filter or args.visualize or args.segment or args.manual_segment or args.manual_segment_unfiltered or args.lifetime_images or args.average_lifetime or args.phasor or args.apply_mask or args.visualize_segmented or args.manual_segment_from_mask or args.manual_segment_unfiltered_from_mask):
+        # Not running any specific stage
+        print("\n")
+        print("=" * 30)
+        print("      FLIM-FRET Analysis")
+        print("=" * 30)
+        print("MENU:")
         print("1. Preprocessing (.bin to .tif conversion + phasor transformation)")
         print("2. Processing (preprocessing + wavelet filtering and lifetime calculation)")
-        print("3. LF preprocessing (preprocessing with simplified filenames)")
-        print("4. Filter only (wavelet filtering)")
-        print("5. Visualize (interactive phasor plots)")
-        print("6. Segment (GMM segmentation with interactive parameter selection)")
-        print("7. Manual Segment (interactive manual ellipse-based segmentation)")
-        print("8. Lifetime Images (generate lifetime images from NPZ files)")
-        print("9. Average Lifetime (calculate average lifetime from segmented data)")
-        print("10. Phasor (phasor transformation only)")
-        print("11. Apply Mask (apply binary masks to NPZ data)")
-        print("12. Visualize Segmented (visualize segmented data from masked NPZ files)")
-        print("13. Manual Segment From Mask (manual segmentation from masked NPZ files)")
-        print("14. Manual Segment Unfiltered (manual segmentation using unfiltered data)")
+        print("3. Filter only (wavelet filtering)")
+        print("4. Visualize (interactive phasor plots)")
+        print("5. Segment (GMM segmentation with interactive parameter selection)")
+        print("6. Manual Segment (interactive manual ellipse-based segmentation)")
+        print("7. Lifetime Images (generate lifetime images from NPZ files)")
+        print("8. Average Lifetime (calculate average lifetime from segmented data)")
+        print("9. Phasor (phasor transformation only)")
+        print("10. Apply Mask (apply binary masks to NPZ data)")
+        print("11. Visualize Segmented (visualize segmented data from masked NPZ files)")
+        print("12. Manual Segment From Mask (manual segmentation from masked NPZ files)")
+        print("13. Manual Segment Unfiltered (manual segmentation using unfiltered data)")
+        print("14. Manual Segment Unfiltered From Mask (manual segmentation from masked NPZ files using unfiltered data)")
         print("15. All stages")
         print("16. Exit")
         
@@ -721,30 +482,30 @@ def parse_arguments():
         elif choice == "2":
             args.processing = True
         elif choice == "3":
-            args.LF_preprocessing = True
-        elif choice == "4":
             args.filter = True
-        elif choice == "5":
+        elif choice == "4":
             args.visualize = True
-        elif choice == "6":
+        elif choice == "5":
             args.segment = True
             args.interactive = True  # Automatically enable interactive mode for GMM segmentation
-        elif choice == "7":
+        elif choice == "6":
             args.manual_segment = True
-        elif choice == "8":
+        elif choice == "7":
             args.lifetime_images = True
-        elif choice == "9":
+        elif choice == "8":
             args.average_lifetime = True
-        elif choice == "10":
+        elif choice == "9":
             args.phasor = True
-        elif choice == "11":
+        elif choice == "10":
             args.apply_mask = True
-        elif choice == "12":
+        elif choice == "11":
             args.visualize_segmented = True
-        elif choice == "13":
+        elif choice == "12":
             args.manual_segment_from_mask = True
-        elif choice == "14":
+        elif choice == "13":
             args.manual_segment_unfiltered = True
+        elif choice == "14":
+            args.manual_segment_unfiltered_from_mask = True
         elif choice == "15":
             args.all = True
         elif choice == "16":
@@ -779,14 +540,25 @@ def main():
     logger.logger.info("FLIM-FRET Analysis Pipeline Starting")
     logger.logger.info(f"Input directory: {args.input}")
     logger.logger.info(f"Output base directory: {args.output}")
+    
+    # Log debug information
+    logger.logger.debug("--- sys.path before imports in run_pipeline.py ---")
+    logger.logger.debug(str(sys.path))
+    logger.logger.debug("--------------------------------------------------")
+    
+    # Log module availability
+    if 'wavelet_filter_available' in globals() and wavelet_filter_available:
+        logger.logger.info("Using Complex Wavelet Filter v2.0 implementation")
+    
+    # Log any import errors
+    if import_errors:
+        logger.logger.warning(f"Found {len(import_errors)} import errors:")
+        for error in import_errors:
+            logger.logger.error(f"Module {error['module']}: {error['error']}")
+            if error['suggestion']:
+                logger.logger.error(f"  Suggestion: {error['suggestion']}")
          
-    # Handle test mode
-    if args.test:
-        logger.log_stage_start("FLUTE Integration Test", "Testing FLUTE environment and dependencies")
-        success = test_flute_integration(config, logger)
-        logger.log_stage_end("FLUTE Integration Test", success)
-        logger.save_error_report()
-        sys.exit(0 if success else 1)
+
     
     # Define specific output subdirectories based on the output argument
     output_dir = os.path.join(args.output, 'output')
@@ -849,7 +621,7 @@ def main():
     logger.logger.info("===================================")
 
     # --- Stage 1: Preprocessing ---
-    if args.preprocess or args.preprocessing or args.processing or args.LF_preprocessing or args.all:
+    if args.preprocess or args.preprocessing or args.processing or args.all:
         logger.log_stage_start("Stage 1: Preprocessing", "Convert .bin files to .tif and perform phasor transformation")
         if run_preprocessing:
             try:
@@ -944,30 +716,11 @@ def main():
             logger.log_error(Exception(error_msg), "Import check", "Stage 1: Preprocessing")
             logger.log_stage_end("Stage 1: Preprocessing", False, error_msg)
             
-    # --- Stage 2A: Optional Filename Simplification ---
-    if args.preprocess or args.preprocessing or args.processing or args.LF_preprocessing or args.all:
-        if (args.simplify_filenames or args.LF_preprocessing) and simplify_filenames:
-            logger.log_stage_start("Stage 2A: Filename Simplification", "Simplify filenames for LF workflow")
-            try:
-                simple_success, simple_errors = simplify_filenames(preprocessed_dir, dry_run=False)
-                
-                if simple_success > 0:
-                    logger.logger.info(f"Successfully simplified {simple_success} filenames (with {simple_errors} errors)")
-                    logger.log_stage_end("Stage 2A: Filename Simplification", True, f"Simplified {simple_success} files")
-                else:
-                    logger.log_warning("No files were successfully simplified", "Filename simplification", "Stage 2A: Filename Simplification")
-                    logger.log_stage_end("Stage 2A: Filename Simplification", False, "No files simplified")
-            except Exception as e:
-                logger.log_error(e, "Filename simplification", "Stage 2A: Filename Simplification")
-                logger.log_stage_end("Stage 2A: Filename Simplification", False, f"Error: {str(e)}")
-        elif args.simplify_filenames and not simplify_filenames:
-            error_msg = "simplify_filenames function not available"
-            logger.log_error(Exception(error_msg), "Import check", "Stage 2A: Filename Simplification")
-            logger.log_stage_end("Stage 2A: Filename Simplification", False, error_msg)
 
-    # --- Stage 2B: Wavelet Filtering & NPZ Generation ---
+
+    # --- Stage 2: Wavelet Filtering & NPZ Generation ---
     if args.filter or args.processing or args.all:
-        logger.log_stage_start("Stage 2B: Wavelet Filtering", "Apply complex wavelet filtering and generate NPZ files")
+        logger.log_stage_start("Stage 2: Wavelet Filtering", "Apply complex wavelet filtering and generate NPZ files")
         if run_wavelet_filtering:
             try:
                 # Add required microscope parameters if missing in config
@@ -984,14 +737,14 @@ def main():
                     preprocessed_dir,  # Use the preprocessed directory directly
                     npz_dir
                 )
-                logger.log_stage_end("Stage 2B: Wavelet Filtering", success)
+                logger.log_stage_end("Stage 2: Wavelet Filtering", success)
             except Exception as e:
-                logger.log_error(e, "Running wavelet filtering", "Stage 2B: Wavelet Filtering")
-                logger.log_stage_end("Stage 2B: Wavelet Filtering", False, f"Error: {str(e)}")
+                logger.log_error(e, "Running wavelet filtering", "Stage 2: Wavelet Filtering")
+                logger.log_stage_end("Stage 2: Wavelet Filtering", False, f"Error: {str(e)}")
         else:
             error_msg = "run_wavelet_filtering function not available"
-            logger.log_error(Exception(error_msg), "Import check", "Stage 2B: Wavelet Filtering")
-            logger.log_stage_end("Stage 2B: Wavelet Filtering", False, error_msg)
+            logger.log_error(Exception(error_msg), "Import check", "Stage 2: Wavelet Filtering")
+            logger.log_stage_end("Stage 2: Wavelet Filtering", False, error_msg)
 
     # --- Stage 3: Interactive Phasor Visualization ---
     if args.visualize or args.all:
@@ -1609,6 +1362,87 @@ def main():
             error_msg = "run_manual_segment_from_mask function not available"
             logger.log_error(Exception(error_msg), "Import check", "Stage 5C: Manual Segment From Mask")
             logger.log_stage_end("Stage 5C: Manual Segment From Mask", False, error_msg)
+            
+    # --- Stage 5D: Manual Segment Unfiltered From Mask ---
+    if args.manual_segment_unfiltered_from_mask or args.all:
+        logger.log_stage_start("Stage 5D: Manual Segment Unfiltered From Mask", "Interactive manual segmentation from masked NPZ files using unfiltered data (GU*mask, SU*mask)")
+        if run_manual_segment_unfiltered_from_mask:
+            try:
+                # Prompt user for NPZ directory choice
+                print("\nManual Segment Unfiltered From Mask - NPZ Directory Selection:")
+                print("  [1] Use external mask NPZ files (external_mask_npz_datasets)")
+                print("  [2] Use segmented NPZ files (segmented_npz_datasets)")
+                
+                # Check if directories exist and show file counts
+                external_count = 0
+                segmented_count = 0
+                
+                if os.path.exists(external_mask_npz_dir):
+                    external_count = len([f for f in os.listdir(external_mask_npz_dir) if f.endswith('.npz')])
+                    print(f"      → {external_count} NPZ files found in external_mask_npz_datasets")
+                else:
+                    print("      → external_mask_npz_datasets directory not found")
+                
+                if os.path.exists(segmented_npz_dir):
+                    segmented_count = len([f for f in os.listdir(segmented_npz_dir) if f.endswith('.npz')])
+                    print(f"      → {segmented_count} NPZ files found in segmented_npz_datasets")
+                else:
+                    print("      → segmented_npz_datasets directory not found")
+                
+                # Get user choice
+                while True:
+                    user_choice = input("Select option (1 or 2, default: 1): ").strip()
+                    if user_choice == "" or user_choice == "1":
+                        selected_npz_dir = external_mask_npz_dir
+                        dir_name = "external_mask_npz_datasets"
+                        print(f"→ Using {dir_name} directory for manual segmentation unfiltered from mask.")
+                        break
+                    elif user_choice == "2":
+                        selected_npz_dir = segmented_npz_dir
+                        dir_name = "segmented_npz_datasets"
+                        print(f"→ Using {dir_name} directory for manual segmentation unfiltered from mask.")
+                        break
+                    else:
+                        print("Please enter 1 or 2.")
+                
+                # Log the choice
+                logger.logger.info(f"User selected NPZ directory: {dir_name}")
+                logger.logger.info(f"NPZ directory path: {selected_npz_dir}")
+                
+                # Manual segment unfiltered from mask is always interactive, so restore terminal I/O
+                logger.logger.info("Manual segment unfiltered from mask is interactive - restoring terminal I/O")
+                original_stdout = sys.stdout
+                original_stderr = sys.stderr
+                sys.stdout = sys.__stdout__
+                sys.stderr = sys.__stderr__
+                logger.logger.info("Terminal I/O restored for manual segment unfiltered from mask mode")
+
+                # Run manual segment unfiltered from mask with selected directory
+                success = run_manual_segment_unfiltered_from_mask(
+                    config, 
+                    selected_npz_dir, 
+                    segmented_dir, 
+                    plots_dir, 
+                    lifetime_dir,
+                    True  # interactive mode
+                )
+
+                # Restore log file redirection
+                sys.stdout = original_stdout
+                sys.stderr = original_stderr
+                logger.logger.info("Terminal I/O restored to logging mode")
+                
+                logger.log_stage_end("Stage 5D: Manual Segment Unfiltered From Mask", success)
+            except Exception as e:
+                # Make sure to restore logging even if there's an error
+                sys.stdout = original_stdout
+                sys.stderr = original_stderr
+                logger.log_error(e, "Running manual segment unfiltered from mask", "Stage 5D: Manual Segment Unfiltered From Mask")
+                logger.log_stage_end("Stage 5D: Manual Segment Unfiltered From Mask", False, f"Error: {str(e)}")
+        else:
+            error_msg = "run_manual_segment_unfiltered_from_mask function not available"
+            logger.log_error(Exception(error_msg), "Import check", "Stage 5D: Manual Segment Unfiltered From Mask")
+            logger.log_stage_end("Stage 5D: Manual Segment Unfiltered From Mask", False, error_msg)
             
     end_pipeline_time = time.time()
     total_time = end_pipeline_time - start_pipeline_time

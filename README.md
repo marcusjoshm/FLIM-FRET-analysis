@@ -215,7 +215,7 @@ source venv/bin/activate
 
 To run the script enter the following in the terminal:
 ```bash
-python run_pipeline.py --input-dir {/path/to/input/dir} --output-base-dir {/path/to/output/dir} --LF-preprocessing
+python run_pipeline.py --input-dir {/path/to/input/dir} --output-base-dir {/path/to/output/dir} --preprocessing
 ```
 
 Change `{/path/to/input/dir}` to the actual path of your input directory that contains the raw data `.bin` files, `FITC.bin` file, and `calibration.csv` file. Change `{/path/to/output/dir}` to a location you want the output to go. It doesn't have to exist, the script will create the directory and save the output files to that location.
@@ -244,7 +244,7 @@ When the script finishes running, your preprocessed files will be in a folder ca
   - Uses the **dtcwt** Python package for sophisticated noise reduction
   - Implements Anscombe transform for variance stabilization
   - Produces both filtered and unfiltered lifetime calculations
-- `simplify_filenames.py`: Optional tool to convert complex filenames to simpler format
+
 - `GMMSegmentation_v2_6.py`: Performs GMM-based segmentation and analysis
 - `ManualSegmentation.py`: Interactive manual ellipse-based segmentation
 - `generate_lifetime_images.py`: Extracts lifetime data from NPZ files and saves as TIFF images
@@ -476,16 +476,15 @@ python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /pat
 # OPTION 2: Run complete processing pipeline (Stages 1-2B) - Preprocessing + wavelet filtering and lifetime calculation
 python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --processing
 
-# OPTION 3: Run LF-specific workflow - Preprocessing with automatic filename simplification 
-python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --LF-preprocessing
 
-# OPTION 4: Run only wavelet filtering (Stage 2B) - For already preprocessed data
+
+# OPTION 3: Run only wavelet filtering (Stage 2) - For already preprocessed data
 python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --filter
 
-# OPTION 5: Generate lifetime images from NPZ files (Stage 4C) - Extract lifetime data as TIFF images
+# OPTION 4: Generate lifetime images from NPZ files (Stage 4C) - Extract lifetime data as TIFF images
 python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --lifetime-images
 
-# OPTION 6: Calculate average lifetime from segmented data (Stage 4D) - Calculate average lifetime from segmented NPZ files
+# OPTION 5: Calculate average lifetime from segmented data (Stage 4D) - Calculate average lifetime from segmented NPZ files
 python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --average-lifetime
 ```
 
