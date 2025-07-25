@@ -9,7 +9,7 @@ import os
 import sys
 
 # Import directly from the current directory
-from TCSPC_preprocessing_AUTOcal_v2_0 import run_preprocessing
+from src.python.modules.preprocessing import run_preprocessing
 
 def load_config(config_path="config.json"):
     with open(config_path, "r") as f:

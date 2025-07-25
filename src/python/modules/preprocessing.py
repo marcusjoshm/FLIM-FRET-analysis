@@ -14,6 +14,10 @@ import json
 import sys
 import shutil
 import glob
+from typing import Optional
+import numpy as np
+from PIL import Image
+import traceback
 
 def prompt_file_selection(input_dir, file_extension='.bin'):
     """
@@ -431,7 +435,105 @@ def manually_copy_files_to_preprocessed(output_dir, preprocessed_dir):
     print(f"Copied {g_count} G files, {s_count} S files, and {intensity_count} intensity files to preprocessed directory.")
     return g_count > 0 and s_count > 0
 
-def process_tiffs_with_phasor_transform(calibration_file, base_output_dir, raw_data_root, microscope_params):
+def process_flim_file(input_file: str, output_dir: str, phi_cal: float, m_cal: float, 
+                     bin_width_ns: float, freq_mhz: float, harmonic: int = 1,
+                     apply_filter: int = 1, threshold_min: float = 0, 
+                     threshold_max: Optional[float] = None) -> bool:
+    """
+    Process a FLIM file to generate phasor coordinates.
+    (Moved from phasor_transform.py)
+    """
+    try:
+        print(f"    Processing FLIM file: {input_file}")
+        # Determine file type and load data
+        if input_file.endswith('.bin'):
+            print(f"    Error: Direct .bin file processing not implemented yet")
+            return False
+        elif input_file.endswith(('.tif', '.tiff')):
+            try:
+                with Image.open(input_file) as img:
+                    if hasattr(img, 'n_frames'):
+                        frames = []
+                        for i in range(img.n_frames):
+                            img.seek(i)
+                            frames.append(np.array(img))
+                        flim_data = np.stack(frames, axis=-1)
+                    else:
+                        flim_data = np.array(img)
+                        if flim_data.ndim == 2:
+                            flim_data = flim_data[:, :, np.newaxis]
+            except Exception as e:
+                print(f"    Error loading TIFF file: {e}")
+                return False
+        else:
+            print(f"    Error: Unsupported file format: {input_file}")
+            return False
+        print(f"    Loaded data shape: {flim_data.shape}")
+        omega = 2 * np.pi * freq_mhz * 1e6 * bin_width_ns * 1e-9 * harmonic
+        if flim_data.ndim == 3:
+            height, width, n_bins = flim_data.shape
+        else:
+            height, width = flim_data.shape
+            n_bins = 1
+            flim_data = flim_data[:, :, np.newaxis]
+        print(f"    Calculating phasor coordinates (omega={omega:.6f})")
+        g_coords = np.zeros((height, width), dtype=np.float32)
+        s_coords = np.zeros((height, width), dtype=np.float32)
+        intensity = np.zeros((height, width), dtype=np.float32)
+        for y in range(height):
+            for x in range(width):
+                pixel_data = flim_data[y, x, :]
+                pixel_intensity = np.sum(pixel_data)
+                intensity[y, x] = pixel_intensity
+                if pixel_intensity > threshold_min and (threshold_max is None or pixel_intensity < threshold_max):
+                    time_indices = np.arange(n_bins)
+                    cos_component = np.sum(pixel_data * np.cos(omega * time_indices))
+                    g_raw = cos_component / pixel_intensity if pixel_intensity > 0 else 0
+                    sin_component = np.sum(pixel_data * np.sin(omega * time_indices))
+                    s_raw = sin_component / pixel_intensity if pixel_intensity > 0 else 0
+                    g_corrected = (g_raw * m_cal * np.cos(phi_cal) - s_raw * m_cal * np.sin(phi_cal))
+                    s_corrected = (g_raw * m_cal * np.sin(phi_cal) + s_raw * m_cal * np.cos(phi_cal))
+                    g_coords[y, x] = g_corrected
+                    s_coords[y, x] = s_corrected
+                else:
+                    g_coords[y, x] = 0
+                    s_coords[y, x] = 0
+        if apply_filter > 0:
+            try:
+                from scipy.ndimage import median_filter
+                for _ in range(apply_filter):
+                    g_coords = median_filter(g_coords, size=3)
+                    s_coords = median_filter(s_coords, size=3)
+                    intensity = median_filter(intensity, size=3)
+                print(f"    Applied {apply_filter} passes of median filtering")
+            except ImportError:
+                print(f"    Warning: scipy not available, skipping median filtering")
+        os.makedirs(output_dir, exist_ok=True)
+        base_name = os.path.splitext(os.path.basename(input_file))[0]
+        g_output = os.path.join(output_dir, f"{base_name}_g.tiff")
+        s_output = os.path.join(output_dir, f"{base_name}_s.tiff")
+        intensity_output = os.path.join(output_dir, f"{base_name}_intensity.tiff")
+        try:
+            g_img = Image.fromarray(g_coords.astype(np.float32))
+            g_img.save(g_output)
+            s_img = Image.fromarray(s_coords.astype(np.float32))
+            s_img.save(s_output)
+            intensity_img = Image.fromarray(intensity.astype(np.float32))
+            intensity_img.save(intensity_output)
+            print(f"    Saved output files:")
+            print(f"      G: {g_output}")
+            print(f"      S: {s_output}")
+            print(f"      Intensity: {intensity_output}")
+            return True
+        except Exception as e:
+            print(f"    Error saving output files: {e}")
+            return False
+    except Exception as e:
+        print(f"    Error in phasor transformation: {e}")
+        traceback.print_exc()
+        return False
+
+
     """
     Processes specific TIFF files to generate phasor coordinates (G, S, intensity).
     Maps the full .bin file path from CSV to the expected .tif path in base_output_dir.
@@ -444,22 +546,9 @@ def process_tiffs_with_phasor_transform(calibration_file, base_output_dir, raw_d
         microscope_params (dict): Dictionary containing 'bin_width_ns', 'freq_mhz', 'harmonic'.
     """
     
-    # --- Import our custom phasor transform module ---
+    # --- Phasor transformation function is now local; call process_flim_file directly ---
     try:
-        # Add the modules directory to the path if not already there
-        modules_dir = os.path.dirname(os.path.abspath(__file__))
-        if modules_dir not in sys.path:
-            sys.path.insert(0, modules_dir)
-        
-        import phasor_transform
-        print("Successfully imported phasor_transform module")
-    except ImportError as e:
-        print(f"Error importing phasor_transform module: {e}")
-        print("Cannot proceed with phasor processing.")
-        return False # Exit this function if import fails
-    
-    # --- Continue with the rest of the function --- 
-    try:
+        # Read calibration data
         calibration_data = pd.read_csv(calibration_file, dtype={'file_path': str})
     except FileNotFoundError:
         print(f"Error: Calibration file not found: {calibration_file}")
@@ -565,7 +654,7 @@ def process_tiffs_with_phasor_transform(calibration_file, base_output_dir, raw_d
                 # Process the file using our custom phasor transform
                 try:
                     print(f"  Processing with phasor_transform: bin_width={bin_width_ns}, freq={freq_mhz}, harmonic={harmonic}")
-                    success = phasor_transform.process_flim_file(
+                    success = process_flim_file(
                         input_file=input_file,
                         output_dir=output_subdir,
                         phi_cal=phi_cal,
@@ -625,89 +714,78 @@ def process_tiffs_with_phasor_transform(calibration_file, base_output_dir, raw_d
     
     return processed_count > 0
 
-def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibration_file, raw_data_root, interactive_file_selection=False):
+def run_bin_to_tiff_conversion(config, input_dir, output_dir, calibration_file, raw_data_root, interactive_file_selection=False):
     """
-    Runs the full TCSPC preprocessing pipeline (ImageJ + phasor transformation).
+    Stage 1: Convert .bin files to .tiff files using ImageJ macros
     
     Args:
         config (dict): Configuration dictionary
         input_dir (str): Input directory containing .bin files
-        output_dir (str): Output directory for processed files
-        preprocessed_dir (str): Directory for organized preprocessed files
+        output_dir (str): Output directory for TIFF files
         calibration_file (str): Path to calibration CSV file
         raw_data_root (str): Root directory for raw data
         interactive_file_selection (bool): If True, prompt user to select specific files
     
     Returns:
-        bool: True if successful, False if failed
+        tuple: (success, temp_calibration_file or calibration_file)
     """
-    
     # Extract required config params
     try:
         imagej_path = config["imagej_path"]
         macro_files = config["macro_files"]
-        microscope_params = config["microscope_params"]
     except KeyError as e:
-        print(f"Error: Missing required key in config data: {e}. Cannot run preprocessing.")
-        return False # Indicate failure
+        print(f"Error: Missing required key in config data: {e}. Cannot run bin to TIFF conversion.")
+        return False, calibration_file
     
     # Handle interactive file selection if requested
+    temp_calibration_file = calibration_file
     if interactive_file_selection:
         print("\n=== Interactive File Selection Mode ===")
         selected_files = prompt_file_selection(input_dir, '.bin')
         
         if selected_files is None:
-            print("File selection cancelled. Preprocessing aborted.")
-            return False
+            print("File selection cancelled. Conversion aborted.")
+            return False, calibration_file
         
-        # Create a temporary calibration file with selected files using original calibration values
+        # Create a temporary calibration file with selected files
         temp_calibration_file = os.path.join(os.path.dirname(calibration_file), 'temp_calibration.csv')
         
         print("\n=== Using Original Calibration Values ===")
         print(f"Reading calibration values from: {calibration_file}")
         print("Creating filtered calibration file for selected files...")
         
-        # Create calibration file from selected files using original calibration values
         if not create_calibration_file_from_selection(selected_files, calibration_file, temp_calibration_file):
-            print("Error creating filtered calibration file. Preprocessing aborted.")
-            return False
+            print("Error creating filtered calibration file. Conversion aborted.")
+            return False, calibration_file
         
-        # Use the temporary calibration file
-        calibration_file = temp_calibration_file
-        print(f"Using temporary calibration file: {calibration_file}")
+        print(f"Using temporary calibration file: {temp_calibration_file}")
     
-    # Ensure input, output and preprocessed directories exist
+    # Ensure output directory exists
     os.makedirs(output_dir, exist_ok=True)
-    os.makedirs(preprocessed_dir, exist_ok=True)
         
     # Check if ImageJ executable exists
     if not os.path.exists(imagej_path):
         print(f"Error: ImageJ executable not found at {imagej_path}")
-        print("You may need to update the 'imagej_path' in config.json")
-        return False
+        return False, temp_calibration_file
     
-    # Check if macros exist (only macros 1 and 2 are used)
+    # Check if macros exist
     for i, macro_file in enumerate(macro_files):
         if not os.path.exists(macro_file):
             print(f"Error: Macro file {i+1} not found at {macro_file}")
-            print("Please check the 'macro_files' paths in config.json")
-            return False
+            return False, temp_calibration_file
     
     # === Run ImageJ Macros for TIF conversion ===
     if interactive_file_selection:
-        # Create a file list for ImageJ macro to process only selected files
+        # Create file list for ImageJ macro
         print("Creating file list for ImageJ macro from selected files...")
         
-        # Read the temporary calibration file to get selected file paths
         try:
-            selected_df = pd.read_csv(calibration_file, dtype={'file_path': str})
+            selected_df = pd.read_csv(temp_calibration_file, dtype={'file_path': str})
             selected_file_paths = [str(row['file_path']).strip() for _, row in selected_df.iterrows()]
             
-            # Create a temporary file list for ImageJ
-            file_list_path = os.path.join(os.path.dirname(calibration_file), 'selected_files.txt')
+            file_list_path = os.path.join(os.path.dirname(temp_calibration_file), 'selected_files.txt')
             with open(file_list_path, 'w') as f:
                 for file_path in selected_file_paths:
-                    # Ensure .bin extension
                     if not file_path.endswith('.bin'):
                         file_path += '.bin'
                     f.write(file_path + '\n')
@@ -718,8 +796,6 @@ def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibrati
             # Run ImageJ Macro 2 with file list
             print("Running ImageJ Macro 2 with selected files...")
             macro2_success = run_imagej(imagej_path, macro_files[1], input_dir, output_dir, file_list_path)
-            if not macro2_success:
-                print("Warning: ImageJ Macro 2 (selected files) failed. Continuing anyway...")
             
             # Clean up file list
             try:
@@ -734,8 +810,7 @@ def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibrati
             print("Falling back to processing all files...")
             macro2_success = run_imagej(imagej_path, macro_files[1], input_dir, output_dir)
         
-        # Note: Skip macro 1 (FITC.bin) for interactive selection since it's not typically part of user selection
-        macro1_success = True
+        macro1_success = True  # Skip macro 1 for interactive selection
     else:
         print("Running ImageJ Macro 1 for FITC.bin...")
         macro1_success = run_imagej(imagej_path, macro_files[0], input_dir, output_dir)
@@ -747,7 +822,7 @@ def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibrati
         if not macro2_success:
             print("Warning: ImageJ Macro 2 (All BIN files) failed. Continuing anyway...")
     
-    # Check if any .tif files were created in the output directory
+    # Check if any .tif files were created
     tif_files_exist = False
     for root, dirs, files in os.walk(output_dir):
         if any(f.endswith('.tif') or f.endswith('.tiff') for f in files):
@@ -756,36 +831,195 @@ def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibrati
     
     if not tif_files_exist:
         print("Warning: No .tif files were created by ImageJ macros.")
-        print("Proceeding directly to phasor processing...")
-    
-    # === Run phasor transformation processing ===
-    if interactive_file_selection:
-        print("Starting phasor transformation processing...")
-        print(f"Processing TIF files created from selected BIN files")
-        print(f"Using filtered calibration file: {calibration_file}")
     else:
-        print("Starting phasor transformation processing...")
-        print(f"Processing all TIF files created by ImageJ macros")
-        print(f"Using calibration file: {calibration_file}")
+        print("Successfully converted BIN files to TIFF format.")
     
-    phasor_success = process_tiffs_with_phasor_transform(
-        calibration_file, 
-        output_dir, 
-        raw_data_root, 
-        microscope_params
-    )
+    return True, temp_calibration_file
+
+def run_phasor_transformation_stage(config, output_dir, calibration_file, raw_data_root):
+    """
+    Stage 2: Perform phasor transformation on TIFF files
     
-    if not phasor_success:
-        print("Error: Phasor transformation processing failed. Cannot continue pipeline.")
+    Args:
+        config (dict): Configuration dictionary
+        output_dir (str): Directory containing TIFF files and where G/S/intensity files will be saved
+        calibration_file (str): Path to calibration CSV file
+        raw_data_root (str): Root directory for raw data
+    
+    Returns:
+        bool: True if successful
+    """
+    try:
+        microscope_params = config["microscope_params"]
+    except KeyError as e:
+        print(f"Error: Missing required microscope_params in config: {e}")
         return False
     
-    # === Organize output files using Python script ===
-    # This replaces the ImageJ Macros 3, 4, and 5 for better reliability
-    print("Organizing output files with Python script...")
+    print("=== Stage 2: Phasor Transformation ===")
+    print(f"Processing TIFF files in: {output_dir}")
+    print(f"Using calibration file: {calibration_file}")
+    
+    # --- Phasor transformation function is now local; call process_flim_file directly ---
+    try:
+        # Read calibration data
+        calibration_data = pd.read_csv(calibration_file, dtype={'file_path': str})
+    except FileNotFoundError:
+        print(f"Error: Calibration file not found: {calibration_file}")
+        return False
+    except pd.errors.EmptyDataError:
+        print(f"Error: Calibration file is empty: {calibration_file}")
+        return False
+    except pd.errors.ParserError as e:
+        print(f"Error parsing calibration CSV: {e}")
+        return False
+        
+    # Ensure output directory exists
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Extract params
+    try:
+        bin_width_ns = microscope_params["bin_width_ns"]
+        freq_mhz = microscope_params["freq_mhz"]
+        harmonic = microscope_params["harmonic"]
+    except KeyError as e:
+        print(f"Error: Missing microscope parameter in config: {e}. Cannot run phasor transform.")
+        return False
+        
+    normalized_raw_root = os.path.normpath(raw_data_root)
+    if not normalized_raw_root.endswith(os.path.sep):
+         normalized_raw_root += os.path.sep
+
+    print(f"Starting phasor transformation using calibration from: {calibration_file}")
+    print(f"Mapping from raw root: {normalized_raw_root} to output base: {output_dir}")
+    processed_count = 0
+    skipped_count = 0
+
+    for index, row in calibration_data.iterrows():
+        try:
+            bin_file_full_path = str(row['file_path']).strip()
+            
+            # Handle different possible column names for phi calibration
+            if 'phi_cal' in row:
+                phi_cal = float(row['phi_cal'])
+            elif 'phi' in row:
+                phi_cal = float(row['phi'])
+            else:
+                print(f"Error: Row {index}: Missing column: 'phi_cal' or 'phi'. Skipping.")
+                skipped_count += 1
+                continue
+            
+            # Handle different possible column names for modulation calibration
+            if 'm_cal' in row:
+                m_cal = float(row['m_cal'])
+            elif 'modulation' in row:
+                m_cal = float(row['modulation'])
+            else:
+                print(f"Error: Row {index}: Missing column: 'm_cal' or 'modulation'. Skipping.")
+                skipped_count += 1
+                continue
+            
+            # Ensure normalized path and add .bin extension if needed
+            normalized_bin_path = os.path.normpath(bin_file_full_path)
+            if not normalized_bin_path.endswith('.bin'):
+                normalized_bin_path += '.bin'
+            
+            if not normalized_bin_path.startswith(normalized_raw_root):
+                print(f"Warning: Row {index}: .bin path {bin_file_full_path} does not start with raw_data_root {raw_data_root}. Skipping.")
+                skipped_count += 1
+                continue
+                
+            # Get relative paths based on bin file location
+            relative_path = os.path.relpath(normalized_bin_path, normalized_raw_root)
+            relative_dir = os.path.dirname(relative_path)
+            bin_filename = os.path.basename(normalized_bin_path)
+            tif_filename = os.path.splitext(bin_filename)[0] + ".tif"
+            
+            # Construct output paths
+            output_subdir = os.path.join(output_dir, relative_dir)
+            target_tif_path = os.path.join(output_subdir, tif_filename)
+            
+            print(f"\nProcessing entry {index}: BIN={bin_filename} with Phi={phi_cal}, Mod={m_cal}")
+            print(f"  Target TIFF path: {target_tif_path}")
+
+            # Create output subdirectory if it doesn't exist
+            os.makedirs(output_subdir, exist_ok=True)
+            
+            try:
+                # Process either the bin file directly or tif file if it exists
+                input_file = None
+                if os.path.exists(target_tif_path):
+                    input_file = target_tif_path
+                    print(f"  Processing existing TIF file: {input_file}")
+                elif os.path.exists(normalized_bin_path):
+                    input_file = normalized_bin_path
+                    print(f"  Processing BIN file directly: {input_file}")
+                else:
+                    print(f"  Error: Neither TIF file nor BIN file found. Skipping.")
+                    skipped_count += 1
+                    continue
+                
+                # Process the file using our custom phasor transform
+                try:
+                    print(f"  Processing with phasor_transform: bin_width={bin_width_ns}, freq={freq_mhz}, harmonic={harmonic}")
+                    success = process_flim_file(
+                        input_file=input_file,
+                        output_dir=output_subdir,
+                        phi_cal=phi_cal,
+                        m_cal=m_cal,
+                        bin_width_ns=bin_width_ns,
+                        freq_mhz=freq_mhz,
+                        harmonic=harmonic
+                    )
+                    
+                    if success:
+                        print(f"  Phasor transformation completed successfully for {input_file}")
+                        processed_count += 1
+                    else:
+                        print(f"  Phasor transformation failed for {input_file}")
+                        skipped_count += 1
+                        
+                except Exception as transform_error:
+                    print(f"  Error in phasor transformation: {transform_error}")
+                    skipped_count += 1
+                    
+            except Exception as e:
+                print(f"    Error processing file: {e}")
+                skipped_count += 1
+        except KeyError as e: 
+            print(f"Error: Row {index}: Missing column: {e}. Skipping.") 
+            skipped_count += 1
+        except ValueError as e: 
+            print(f"Error: Row {index}: Invalid numerical/path value: {e}. Skipping.") 
+            skipped_count += 1
+        except Exception as e: 
+            print(f"Error processing row {index} ({bin_file_full_path}): {e}") 
+            skipped_count += 1
+
+    print(f"\nPhasor transformation complete.")
+    print(f"Successfully processed files: {processed_count}")
+    print(f"Skipped/failed entries: {skipped_count}")
+    
+    return processed_count > 0
+
+def run_file_organization(output_dir, preprocessed_dir):
+    """
+    Stage 3: Organize phasor transformation output files into preprocessed directory structure
+    
+    Args:
+        output_dir (str): Directory containing G, S, and intensity files
+        preprocessed_dir (str): Target directory for organized files
+    
+    Returns:
+        bool: True if successful
+    """
+    print("=== Stage 3: File Organization ===")
+    print(f"Organizing files from {output_dir} to {preprocessed_dir}")
+    
+    # Ensure preprocessed directory exists
+    os.makedirs(preprocessed_dir, exist_ok=True)
     
     try:
-        # Use the new organize_output_files.py script to organize files
-        # Add the modules directory to the path if not already there
+        # Use the organize_output_files module
         modules_dir = os.path.dirname(os.path.abspath(__file__))
         if modules_dir not in sys.path:
             sys.path.insert(0, modules_dir)
@@ -830,11 +1064,12 @@ def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibrati
             g_files_exist = True
         if "S_unfiltered" in root and any(f.endswith('.tiff') for f in files):
             s_files_exist = True
-        if "Intensity" in root and any(f.endswith('.tiff') for f in files):
+        if "intensity" in root and any(f.endswith('.tiff') for f in files):
             intensity_files_exist = True
     
     if g_files_exist and s_files_exist and intensity_files_exist:
         print("Successfully organized all required file types in preprocessed directory.")
+        return True
     else:
         print("Warning: Some file types are missing in the preprocessed directory.")
         if not g_files_exist:
@@ -842,28 +1077,49 @@ def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibrati
         if not s_files_exist:
             print("  - Missing S_unfiltered files")
         if not intensity_files_exist:
-            print("  - Missing Intensity files")
+            print("  - Missing intensity files")
+        return False
+
+def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibration_file, raw_data_root, interactive_file_selection=False):
+    """
+    Runs the full TCSPC preprocessing pipeline (all 3 stages).
     
-    # Final verification
-    for root, dirs, files in os.walk(preprocessed_dir):
-        if any(f.endswith('.tiff') for f in files):
-            print("Preprocessing pipeline complete.")
-            
-            # Clean up temporary calibration file if it was created
-            if interactive_file_selection and 'temp_calibration_file' in locals():
-                try:
-                    if os.path.exists(temp_calibration_file):
-                        os.remove(temp_calibration_file)
-                        print(f"Cleaned up temporary calibration file: {temp_calibration_file}")
-                except Exception as e:
-                    print(f"Warning: Could not clean up temporary calibration file: {e}")
-            
-            return True
+    Args:
+        config (dict): Configuration dictionary
+        input_dir (str): Input directory containing .bin files
+        output_dir (str): Output directory for processed files
+        preprocessed_dir (str): Directory for organized preprocessed files
+        calibration_file (str): Path to calibration CSV file
+        raw_data_root (str): Root directory for raw data
+        interactive_file_selection (bool): If True, prompt user to select specific files
     
-    print("Error: No files found in preprocessed directory after pipeline.")
+    Returns:
+        bool: True if successful, False if failed
+    """
+    print("\n=== Full Preprocessing Pipeline ===")
     
-    # Clean up temporary calibration file if it was created (even on failure)
-    if interactive_file_selection and 'temp_calibration_file' in locals():
+    # Stage 1: BIN to TIFF conversion
+    conversion_success, temp_calibration_file = run_bin_to_tiff_conversion(
+        config, input_dir, output_dir, calibration_file, raw_data_root, interactive_file_selection
+    )
+    if not conversion_success:
+        print("Error: BIN to TIFF conversion stage failed.")
+        return False
+    
+    # Stage 2: Phasor transformation
+    phasor_success = run_phasor_transformation_stage(config, output_dir, temp_calibration_file, raw_data_root)
+    if not phasor_success:
+        print("Error: Phasor transformation stage failed.")
+        return False
+    
+    # Stage 3: File organization
+    organization_success = run_file_organization(output_dir, preprocessed_dir)
+    if not organization_success:
+        print("Error: File organization stage failed.")
+        return False
+    
+    # Clean up temporary calibration file if it was created
+    if interactive_file_selection and temp_calibration_file != calibration_file:
         try:
             if os.path.exists(temp_calibration_file):
                 os.remove(temp_calibration_file)
@@ -871,10 +1127,5 @@ def run_preprocessing(config, input_dir, output_dir, preprocessed_dir, calibrati
         except Exception as e:
             print(f"Warning: Could not clean up temporary calibration file: {e}")
     
-    return False
-
-# === Main script execution block (for running standalone) ===
-if __name__ == "__main__":
-    print("This script is intended to be run via run_pipeline.py")
-    print("Please use: python run_pipeline.py --preprocess -i <input_dir> -o <output_base_dir> [-c <calib.csv>]")
-    sys.exit(1) 
+    print("Full preprocessing pipeline completed successfully.")
+    return True

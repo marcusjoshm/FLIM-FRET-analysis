@@ -8,7 +8,7 @@ import os
 import sys
 import json
 import time
-from TCSPC_preprocessing_AUTOcal_v2_0 import run_preprocessing
+from src.python.modules.preprocessing import run_preprocessing
 
 def main():
     # Load config

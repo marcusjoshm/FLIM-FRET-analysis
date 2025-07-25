@@ -668,8 +668,3 @@ def save_npz(file_path, data_dict):
     except Exception as e:
         print(f"Error saving NPZ file: {e}", file=sys.stderr)
         return False
-
-if __name__ == "__main__":
-    print("This script is intended to be run via run_pipeline.py")
-    print("Please use: python run_pipeline.py --filter -i <input_dir> -o <output_base_dir>")
-    sys.exit(1)

@@ -422,14 +422,13 @@ def parse_arguments():
     
     # Individual stages (for advanced users)
     parser.add_argument("--preprocess", action="store_true", help="[DEPRECATED] Use --preprocessing instead")
-    parser.add_argument("--filter", action="store_true", help="Run only Stage 2B: wavelet filtering and lifetime calculation")
     parser.add_argument("--visualize", action="store_true", help="Run Stage 3: Interactive phasor visualization and plot generation")
     parser.add_argument("--segment", action="store_true", help="Run GMM segmentation stage")
     parser.add_argument("--manual-segment", action="store_true", help="Run manual segmentation stage")
     parser.add_argument("--manual-segment-unfiltered", action="store_true", help="Run manual segmentation stage using unfiltered data (GU, SU)")
     parser.add_argument("--lifetime-images", action="store_true", help="Run lifetime image generation from NPZ files")
     parser.add_argument("--average-lifetime", action="store_true", help="Calculate average lifetime from segmented data")
-    parser.add_argument("--phasor", action="store_true", help="Run phasor transformation stage")
+
     parser.add_argument("--apply-mask", action="store_true", help="Apply binary masks to NPZ data and create masked NPZ files")
     parser.add_argument("--visualize-segmented", action="store_true", help="Visualize segmented data from masked NPZ files")
     parser.add_argument("--manual-segment-from-mask", action="store_true", help="Manual segmentation from masked NPZ files (G*mask, S*mask)")
@@ -451,7 +450,7 @@ def parse_arguments():
     
     # If no specific stages are selected, ask the user what to do
     if not (args.all or args.preprocessing or args.processing or
-            args.preprocess or args.filter or args.visualize or args.segment or args.manual_segment or args.manual_segment_unfiltered or args.lifetime_images or args.average_lifetime or args.phasor or args.apply_mask or args.visualize_segmented or args.manual_segment_from_mask or args.manual_segment_unfiltered_from_mask):
+            args.preprocess or args.visualize or args.segment or args.manual_segment or args.manual_segment_unfiltered or args.lifetime_images or args.average_lifetime or args.apply_mask or args.visualize_segmented or args.manual_segment_from_mask or args.manual_segment_unfiltered_from_mask):
         # Not running any specific stage
         print("\n")
         print("=" * 30)
@@ -459,20 +458,19 @@ def parse_arguments():
         print("=" * 30)
         print("MENU:")
         print("1. Preprocessing (.bin to .tif conversion + phasor transformation)")
-        print("2. ______Phasor (phasor transformation only)")
-        print("3. Processing (preprocessing + wavelet filtering and lifetime calculation)")
-        print("4. ______Filter only (wavelet filtering)")
-        print("5. Lifetime Images (generate lifetime images from NPZ files)")
-        print("6. Apply Mask (apply binary masks to NPZ data)")
-        print("7. Visualize (interactive phasor plots)")
-        print("8. Visualize Segmented (visualize segmented data from masked NPZ files)")
-        print("9. Segment (GMM segmentation with interactive parameter selection)")
-        print("10. Manual Segment (interactive manual ellipse-based segmentation)")
-        print("11. Manual Segment From Mask (manual segmentation from masked NPZ files)")
-        print("12. Manual Segment Unfiltered (manual segmentation using unfiltered data)")
-        print("13. Manual Segment Unfiltered From Mask (manual segmentation from masked NPZ files using unfiltered data)")
-        print("14. Average Lifetime (calculate average lifetime from segmented data)")
-        print("15. _____All stages")
+        print("2. Processing (preprocessing + wavelet filtering and lifetime calculation)")
+        print("3. Interactive phasor visualization and plot generation")
+        print("4. Lifetime Images (generate lifetime images from NPZ files)")
+        print("5. Apply Mask (apply binary masks to NPZ data)")
+        print("6. Visualize (interactive phasor plots)")
+        print("7. Visualize Segmented (visualize segmented data from masked NPZ files)")
+        print("8. Segment (GMM segmentation with interactive parameter selection)")
+        print("9. Manual Segment (interactive manual ellipse-based segmentation)")
+        print("10. Manual Segment From Mask (manual segmentation from masked NPZ files)")
+        print("11. Manual Segment Unfiltered (manual segmentation using unfiltered data)")
+        print("12. Manual Segment Unfiltered From Mask (manual segmentation from masked NPZ files using unfiltered data)")
+        print("13. Average Lifetime (calculate average lifetime from segmented data)")
+        print("14. _____All stages")
         print("15. Exit")
         
         choice = input("Select an option (1-15): ")
@@ -480,35 +478,33 @@ def parse_arguments():
         if choice == "1":
             args.preprocessing = True
         elif choice == "2":
-            args.phasor = True
-        elif choice == "3":
             args.processing = True
-        elif choice == "4":
-            args.filter = True
-        elif choice == "5":
-            args.lifetime_images = True
-        elif choice == "6":
-            args.apply_mask = True
-        elif choice == "7":
+        elif choice == "3":
             args.visualize = True
-        elif choice == "8":
+        elif choice == "4":
+            args.lifetime_images = True
+        elif choice == "5":
+            args.apply_mask = True
+        elif choice == "6":
+            args.visualize = True
+        elif choice == "7":
             args.visualize_segmented = True
-        elif choice == "9":
+        elif choice == "8":
             args.segment = True
             args.interactive = True  # Automatically enable interactive mode for GMM segmentation
-        elif choice == "10":
+        elif choice == "9":
             args.manual_segment = True
-        elif choice == "11":
+        elif choice == "10":
             args.manual_segment_from_mask = True
-        elif choice == "12":
+        elif choice == "11":
             args.manual_segment_unfiltered = True
-        elif choice == "13":
+        elif choice == "12":
             args.manual_segment_unfiltered_from_mask = True
-        elif choice == "14":
+        elif choice == "13":
             args.average_lifetime = True
-        elif choice == "15":
+        elif choice == "14":
             args.all = True
-        elif choice == "16":
+        elif choice == "15":
             print("Exiting.")
             sys.exit(0)
         else:
@@ -719,7 +715,7 @@ def main():
 
 
     # --- Stage 2: Wavelet Filtering & NPZ Generation ---
-    if args.filter or args.processing or args.all:
+    if args.processing or args.all:
         logger.log_stage_start("Stage 2: Wavelet Filtering", "Apply complex wavelet filtering and generate NPZ files")
         if run_wavelet_filtering:
             try:
