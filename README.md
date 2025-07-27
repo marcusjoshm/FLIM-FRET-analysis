@@ -247,7 +247,8 @@ When the script finishes running, your preprocessed files will be in a folder ca
 
 - `GMMSegmentation_v2_6.py`: Performs GMM-based segmentation and analysis
 - `ManualSegmentation.py`: Interactive manual ellipse-based segmentation
-- `generate_lifetime_images.py`: Extracts lifetime data from NPZ files and saves as TIFF images
+- `lifetime_images.py`: Interactive lifetime image generation from NPZ files with file selection
+- `generate_lifetime_images.py`: Extracts lifetime data from NPZ files and saves as TIFF images *(DEPRECATED: Use lifetime_images.py instead)*
 - `phasor_transform.py`: Performs phasor transformation without GUI dependencies
 - `flim_fft_automated.py`: The main script that processes FLIM data using FFT
 - `organize_output_files.py`: Organizes processed files into the required directory structure

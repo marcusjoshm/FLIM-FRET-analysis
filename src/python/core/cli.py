@@ -86,17 +86,7 @@ Examples:
         parser.add_argument(
             "--segment", 
             action="store_true", 
-            help="Run GMM segmentation stage"
-        )
-        parser.add_argument(
-            "--manual-segment", 
-            action="store_true", 
-            help="Run manual segmentation stage"
-        )
-        parser.add_argument(
-            "--manual-segment-unfiltered", 
-            action="store_true", 
-            help="Run manual segmentation stage using unfiltered data (GU, SU)"
+            help="Run Stage 4: Interactive phasor segmentation (GMM or manual)"
         )
         parser.add_argument(
             "--lifetime-images", 
@@ -119,16 +109,7 @@ Examples:
             action="store_true", 
             help="Visualize segmented data from masked NPZ files"
         )
-        parser.add_argument(
-            "--manual-segment-from-mask", 
-            action="store_true", 
-            help="Manual segmentation from masked NPZ files (G*mask, S*mask)"
-        )
-        parser.add_argument(
-            "--manual-segment-unfiltered-from-mask", 
-            action="store_true", 
-            help="Manual segmentation from masked NPZ files using unfiltered data (GU*mask, SU*mask)"
-        )
+
         
         # Interactive mode
         parser.add_argument(
@@ -194,11 +175,9 @@ Examples:
         # Check if any stage is already selected
         stage_flags = [
             args.all, args.preprocessing, args.processing, 
-            args.visualize, args.segment, args.manual_segment, 
-            args.manual_segment_unfiltered, args.lifetime_images, 
+            args.visualize, args.segment, args.lifetime_images, 
             args.average_lifetime, args.apply_mask, 
-            args.visualize_segmented, args.manual_segment_from_mask, 
-            args.manual_segment_unfiltered_from_mask
+            args.visualize_segmented
         ]
         
         if any(stage_flags):
@@ -212,26 +191,25 @@ Examples:
         print("MENU:")
         print("1. Preprocessing (.bin to .tif)")
         print("2. Preprocessing + Processing (.bin to .npz)")
+        print("3. Processing (.tif to .npz)")
         print("4. Lifetime Images (generate lifetime images from NPZ files)")
         print("5. Apply Mask (apply binary masks to NPZ data)")
         print("6. Visualize (interactive phasor plots)")
         print("7. Visualize Segmented (visualize segmented data from masked NPZ files)")
-        print("8. Segment (GMM segmentation with interactive parameter selection)")
-        print("9. Manual Segment (interactive manual ellipse-based segmentation)")
-        print("10. Manual Segment From Mask (manual segmentation from masked NPZ files)")
-        print("11. Manual Segment Unfiltered (manual segmentation using unfiltered data)")
-        print("12. Manual Segment Unfiltered From Mask (manual segmentation from masked NPZ files using unfiltered data)")
-        print("13. Average Lifetime (calculate average lifetime from segmented data)")
-        print("14. _____All stages")
-        print("15. Exit")
+        print("8. Segment (interactive phasor segmentation - GMM or manual)")
+        print("9. Average Lifetime (calculate average lifetime from segmented data)")
+        print("10. _____All stages")
+        print("11. Exit")
         
         # Get user choice
-        choice = input("Select an option (1-15): ")
+        choice = input("Select an option (1-11): ")
         
         # Update args based on choice
         if choice == "1":
             args.preprocessing = True
         elif choice == "2":
+            args.processing = True
+        elif choice == "3":
             args.processing = True
         elif choice == "4":
             args.lifetime_images = True
@@ -243,20 +221,11 @@ Examples:
             args.visualize_segmented = True
         elif choice == "8":
             args.segment = True
-            args.interactive = True  # Automatically enable interactive mode for GMM segmentation
         elif choice == "9":
-            args.manual_segment = True
-        elif choice == "10":
-            args.manual_segment_from_mask = True
-        elif choice == "11":
-            args.manual_segment_unfiltered = True
-        elif choice == "12":
-            args.manual_segment_unfiltered_from_mask = True
-        elif choice == "13":
             args.average_lifetime = True
-        elif choice == "14":
+        elif choice == "10":
             args.all = True
-        elif choice == "15":
+        elif choice == "11":
             print("Exiting.")
             sys.exit(0)
         else:

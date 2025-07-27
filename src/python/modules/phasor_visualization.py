@@ -358,41 +358,34 @@ def save_plot(fig, output_dir, filename):
     Returns:
         str: Path to saved file
     """
-    # Create plots directory if it doesn't exist
-    plots_dir = os.path.join(output_dir, "plots")
-    os.makedirs(plots_dir, exist_ok=True)
+    # Create output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
     
     # Ensure filename has .pdf extension
     if not filename.endswith('.pdf'):
         filename += '.pdf'
         
     # Save figure
-    filepath = os.path.join(plots_dir, filename)
+    filepath = os.path.join(output_dir, filename)
     fig.savefig(filepath, format='pdf', dpi=300, bbox_inches='tight')
     print(f"Saved plot to {filepath}")
     
     return filepath
 
-def run_phasor_visualization(output_base_dir, select_files=True):
+def run_phasor_visualization(npz_dir, select_files=True):
     """
     Run the interactive phasor visualization stage
     
     Args:
-        output_base_dir (str): Base output directory
+        npz_dir (str): Directory containing NPZ files
         select_files (bool): Whether to prompt for file selection
-        
     Returns:
         bool: Success status
     """
     print("\n=== Stage 3: Phasor Visualization ===")
-    
-    # Initialize variables that will be used throughout the function
     threshold = 0
     auto_percentile = None
     individual_percentile = None
-    
-    # Define directories
-    npz_dir = os.path.join(output_base_dir, "npz_datasets")
     
     # Check if NPZ directory exists
     if not os.path.isdir(npz_dir):
@@ -413,10 +406,12 @@ def run_phasor_visualization(output_base_dir, select_files=True):
             selected_files = prompt_file_selection(npz_files)
             if not selected_files:
                 return False
+            file_selection = "partial_dataset"
         else:
             # Use all NPZ files if not prompting for selection
             selected_files = npz_files
             print(f"Using all {len(selected_files)} NPZ files for visualization.")
+            file_selection = "full_dataset"
         
         # Prompt for intensity threshold method before loading data
         print("\nThresholding options:")
@@ -438,10 +433,12 @@ def run_phasor_visualization(output_base_dir, select_files=True):
         individual_percentile = None
         threshold_desc = "0 (No threshold)"
         
+        
         if threshold_choice == '1':
             # No threshold, keep all data
             threshold = 0
             threshold_desc = "0 (No threshold)"
+            threshold_name = "no_threshold"
             
         elif threshold_choice == '2':
             # Manual threshold
@@ -453,6 +450,7 @@ def run_phasor_visualization(output_base_dir, select_files=True):
                         print("Threshold must be non-negative. Please try again.")
                         continue
                     threshold_desc = str(threshold)
+                    threshold_name = f"manual_threshold_{threshold}"
                     break
                 except ValueError:
                     print("Invalid input. Please enter a number.")
@@ -461,6 +459,7 @@ def run_phasor_visualization(output_base_dir, select_files=True):
             # Auto-threshold with default 90%
             auto_percentile = 90
             threshold_desc = f"Auto ({auto_percentile}%)"
+            threshold_name = "auto_threshold_90"
             
         elif threshold_choice == '4':
             # Custom auto-threshold on combined data
@@ -473,6 +472,7 @@ def run_phasor_visualization(output_base_dir, select_files=True):
                         continue
                     auto_percentile = percentile
                     threshold_desc = f"Auto combined ({auto_percentile}%)"
+                    threshold_name = f"auto_threshold_{auto_percentile}"
                     break
                 except ValueError:
                     print("Invalid input. Please enter a number.")
@@ -480,6 +480,7 @@ def run_phasor_visualization(output_base_dir, select_files=True):
             # Individual dataset auto-threshold (90%)
             individual_percentile = 90
             threshold_desc = f"Individual auto ({individual_percentile}%)"
+            threshold_name = "individual_percentile_90"
         elif threshold_choice == '6':
             # Custom individual dataset auto-threshold
             while True:
@@ -491,11 +492,13 @@ def run_phasor_visualization(output_base_dir, select_files=True):
                         continue
                     individual_percentile = percentile
                     threshold_desc = f"Individual auto ({individual_percentile}%)"
+                    threshold_name = f"individual_percentile_{individual_percentile}"
                     break
                 except ValueError:
                     print("Invalid input. Please enter a number.")
         else:
             print("Invalid choice. Using no threshold.")
+            threshold_name = "no_threshold"
             
         # Now that we've determined the thresholding approach, load the data accordingly
         if individual_percentile is not None:
@@ -524,7 +527,6 @@ def run_phasor_visualization(output_base_dir, select_files=True):
             f"Wavelet Filtered Phasor Plot (Threshold: {threshold_desc})",
             contour=True
         )
-        
         unfiltered_fig = generate_phasor_plot(
             filtered_data['GU'], filtered_data['SU'], filtered_data['A'],
             f"Unfiltered Phasor Plot (Threshold: {threshold_desc})",
@@ -547,12 +549,39 @@ def run_phasor_visualization(output_base_dir, select_files=True):
         choice = input("Your choice: ").strip().lower()
         
         if choice == '1':
-            # Save plots
+            # Save plots in 'plots' directory
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            save_plot(filtered_fig, output_base_dir, f"filtered_phasor_{timestamp}.pdf")
-            save_plot(unfiltered_fig, output_base_dir, f"unfiltered_phasor_{timestamp}.pdf")
+            # Create 'plots' directory in the main output directory
+            output_dir = os.path.abspath(os.path.join(npz_dir, os.pardir))
+            plots_dir = os.path.join(output_dir, 'phasor_plots')
+            os.makedirs(plots_dir, exist_ok=True)
+            
+            # Create log directory if it doesn't exist
+            logs_dir = os.path.join(output_dir, 'logs')
+            os.makedirs(logs_dir, exist_ok=True)
+            
+            # Save plots with file_selection in filename
+            filtered_filename = f"filtered_phasor_{file_selection}_{threshold_name}_{timestamp}.pdf"
+            unfiltered_filename = f"unfiltered_phasor_{file_selection}_{threshold_name}_{timestamp}.pdf"
+            
+            save_plot(filtered_fig, plots_dir, filtered_filename)
+            save_plot(unfiltered_fig, plots_dir, unfiltered_filename)
+            
+            # Create log file for partial dataset
+            if file_selection == "partial_dataset":
+                log_content = f"Dataset selection for {filtered_filename} and {unfiltered_filename}:\n"
+                log_content += f"Selected files: {', '.join(selected_files)}\n"
+                log_content += f"Total files selected: {len(selected_files)} out of {len(npz_files)} available files\n"
+                log_content += f"Timestamp: {timestamp}\n"
+                
+                log_filename = f"dataset_selection_for_{filtered_filename.replace('.pdf', '.txt')}"
+                log_filepath = os.path.join(logs_dir, log_filename)
+                
+                with open(log_filepath, 'w') as f:
+                    f.write(log_content)
+                print(f"Dataset selection log saved to: {log_filepath}")
             plt.close('all')  # Close all plots
-            print("\nVisualization complete.")
+            print(f"\nVisualization complete. Plots saved to {plots_dir}")
             return True
         elif choice == '2':
             plt.close('all')  # Close all plots

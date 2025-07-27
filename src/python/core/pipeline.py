@@ -96,13 +96,7 @@ class Pipeline:
                 stages.append('phasor_visualization')
                 
             if self.args.segment:
-                stages.append('gmm_segmentation')
-                
-            if self.args.manual_segment:
-                stages.append('manual_segmentation')
-                
-            if self.args.manual_segment_unfiltered:
-                stages.append('manual_segmentation_unfiltered')
+                stages.append('phasor_segmentation')
                 
             if self.args.lifetime_images:
                 stages.append('lifetime_images')
@@ -116,11 +110,7 @@ class Pipeline:
             if self.args.visualize_segmented:
                 stages.append('visualize_segmented')
                 
-            if self.args.manual_segment_from_mask:
-                stages.append('manual_segment_from_mask')
-                
-            if self.args.manual_segment_unfiltered_from_mask:
-                stages.append('manual_segment_unfiltered_from_mask')
+
         
         return stages
     

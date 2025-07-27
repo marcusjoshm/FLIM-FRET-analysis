@@ -29,7 +29,7 @@ if (endsWith(output_dir, "/")) {
 }
 
 // Print debug info
-print("FLIM_processing_macro_2.ijm starting");
+print("FLIM_processing_macro.ijm starting");
 print("Input directory: " + input_dir);
 print("Output directory: " + output_dir);
 if (use_file_list) {
@@ -124,7 +124,7 @@ function processFileList(fileListPath) {
     }
 }
 
-// Recursively process .bin files except FITC.bin which is handled by macro 1
+// Recursively process .bin files (excluding FITC.bin files)
 function scanDirectory(dir) {
     // Normalize directory path
     dir = normalizePath(dir);
@@ -223,7 +223,7 @@ if (use_file_list) {
     scanDirectory(input_dir);
 }
 
-print("FLIM_processing_macro_2.ijm finished.");
+print("FLIM_processing_macro.ijm finished.");
 print("Successfully processed: " + processed + " BIN files");
 print("Failed: " + failures + " BIN files");
 

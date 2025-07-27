@@ -4,10 +4,18 @@
 Generate Lifetime Images from NPZ Files
 ======================================
 
+DEPRECATED: This module has been replaced by lifetime_images.py which provides
+interactive file selection and better integration with the pipeline stages.
+
 This module extracts lifetime data from NPZ files and saves them as TIFF images.
 It can process both individual NPZ files and entire directories of NPZ datasets.
 
 Part of FLIM-FRET Analysis Pipeline
+
+DEPRECATION NOTICE:
+- This module is deprecated and will be removed in a future version
+- Use lifetime_images.py for new implementations
+- The functionality has been moved to the LifetimeImagesStage class
 """
 
 import os
@@ -219,6 +227,8 @@ def main(config=None, npz_dir=None, output_dir=None, create_preview=True):
     """
     Main execution function for generating lifetime images from NPZ files.
     
+    DEPRECATED: This function is deprecated. Use lifetime_images.py instead.
+    
     Args:
         config: Configuration dictionary (optional)
         npz_dir: Directory containing NPZ files
@@ -228,7 +238,14 @@ def main(config=None, npz_dir=None, output_dir=None, create_preview=True):
     Returns:
         bool: True if successful, False otherwise
     """
+    import warnings
+    warnings.warn(
+        "generate_lifetime_images.py is deprecated. Use lifetime_images.py instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
     print("=== Lifetime Image Generation from NPZ Files ===")
+    print("DEPRECATED: This module is deprecated. Use lifetime_images.py instead.")
     
     # Check if running as standalone script
     if config is None:

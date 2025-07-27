@@ -131,8 +131,6 @@ class PreprocessingStage(StageBase):
         )
         return success
 
-
-
 # --- Processing Stage ---
 class ProcessingStage(StageBase):
     """
@@ -207,100 +205,6 @@ class ProcessingStage(StageBase):
             self.logger.error(f"Error during processing: {str(e)}", e)
             return False
 
-# --- Lifetime Processing Stages ---
-class LifetimeImagesStage(StageBase):
-    """Lifetime images generation stage."""
-    def get_description(self) -> str:
-        return "Generate lifetime images from NPZ files"
-    def validate_inputs(self, **kwargs) -> bool:
-        return True
-    def run(self, **kwargs) -> bool:
-        self.logger.info("Lifetime images stage - placeholder implementation")
-        return True
-
-class AverageLifetimeStage(StageBase):
-    """Average lifetime calculation stage."""
-    def get_description(self) -> str:
-        return "Calculate average lifetime from segmented data"
-    def validate_inputs(self, **kwargs) -> bool:
-        return True
-    def run(self, **kwargs) -> bool:
-        self.logger.info("Average lifetime stage - placeholder implementation")
-        return True
-
-# --- Mask Processing Stage ---
-class ApplyMaskStage(StageBase):
-    """Apply mask stage."""
-    def get_description(self) -> str:
-        return "Apply binary masks to NPZ data and create masked NPZ files"
-    def validate_inputs(self, **kwargs) -> bool:
-        return True
-    def run(self, **kwargs) -> bool:
-        self.logger.info("Apply mask stage - placeholder implementation")
-        return True
-
-# --- Segmentation Stages ---
-class GMMSegmentationStage(StageBase):
-    """GMM segmentation stage."""
-    def get_description(self) -> str:
-        return "GMM segmentation with interactive parameter selection"
-    def validate_inputs(self, **kwargs) -> bool:
-        return True
-    def run(self, **kwargs) -> bool:
-        self.logger.info("GMM segmentation stage - placeholder implementation")
-        return True
-
-class ManualSegmentationStage(StageBase):
-    """Manual segmentation stage."""
-    def get_description(self) -> str:
-        return "Interactive manual ellipse-based segmentation"
-    def validate_inputs(self, **kwargs) -> bool:
-        return True
-    def run(self, **kwargs) -> bool:
-        self.logger.info("Manual segmentation stage - placeholder implementation")
-        return True
-
-class ManualSegmentationUnfilteredStage(StageBase):
-    """Manual segmentation stage using unfiltered data."""
-    def get_description(self) -> str:
-        return "Manual segmentation using unfiltered data (GU, SU)"
-    def validate_inputs(self, **kwargs) -> bool:
-        return True
-    def run(self, **kwargs) -> bool:
-        self.logger.info("Manual segmentation unfiltered stage - placeholder implementation")
-        return True
-
-class ManualSegmentFromMaskStage(StageBase):
-    """Manual segmentation from mask stage."""
-    def get_description(self) -> str:
-        return "Manual segmentation from masked NPZ files"
-    def validate_inputs(self, **kwargs) -> bool:
-        return True
-    def run(self, **kwargs) -> bool:
-        self.logger.info("Manual segment from mask stage - placeholder implementation")
-        return True
-
-class ManualSegmentUnfilteredFromMaskStage(StageBase):
-    """Manual segmentation unfiltered from mask stage."""
-    def get_description(self) -> str:
-        return "Manual segmentation from masked NPZ files using unfiltered data"
-    def validate_inputs(self, **kwargs) -> bool:
-        return True
-    def run(self, **kwargs) -> bool:
-        self.logger.info("Manual segment unfiltered from mask stage - placeholder implementation")
-        return True
-
-# --- Visualization Stages ---
-class VisualizeSegmentedStage(StageBase):
-    """Visualize segmented data stage."""
-    def get_description(self) -> str:
-        return "Visualize segmented data from masked NPZ files"
-    def validate_inputs(self, **kwargs) -> bool:
-        return True
-    def run(self, **kwargs) -> bool:
-        self.logger.info("Visualize segmented stage - placeholder implementation")
-        return True
-
 # --- Phasor Visualization Stage ---
 class PhasorVisualizationStage(StageBase):
     """Phasor visualization stage for interactive phasor plot generation."""
@@ -325,13 +229,8 @@ class PhasorVisualizationStage(StageBase):
             return False
         
         directories = kwargs.get('directories', {})
-        output_base_dir = directories.get('output')
-        if not output_base_dir:
-            self.logger.error("Output base directory not specified")
-            return False
-            
-        npz_dir = os.path.join(str(output_base_dir), "npz_datasets")
-        if not os.path.isdir(npz_dir):
+        npz_dir = directories.get('npz_datasets')
+        if not npz_dir or not npz_dir.exists():
             self.logger.error(f"NPZ directory does not exist: {npz_dir}")
             return False
             
@@ -345,13 +244,197 @@ class PhasorVisualizationStage(StageBase):
         if not self.phasor_visualization_available:
             self.logger.error("Phasor visualization module not available")
             return False
-            
         directories = kwargs.get('directories', {})
-        output_base_dir = str(directories.get('output'))
-        
+        npz_dir = str(directories.get('npz_datasets'))
         self.logger.info("Starting interactive phasor visualization...")
+        # Interactive file selection
+        select_files = True
+        print("\n=== Phasor Visualization File Selection ===")
+        print("Choose how to select NPZ files for visualization:")
+        print("  [1] Select specific NPZ files interactively (default)")
+        print("  [2] Use all NPZ files in the directory")
+        while True:
+            choice = input("Select option (1 or 2, default: 1): ").strip()
+            if choice == "" or choice == "1":
+                select_files = True
+                print("→ Interactive file selection enabled")
+                break
+            elif choice == "2":
+                select_files = False
+                print("→ Using all NPZ files in the directory")
+                break
+            else:
+                print("Please enter 1 or 2.")
         try:
-            return self.run_phasor_visualization(output_base_dir)
+            return self.run_phasor_visualization(npz_dir, select_files=select_files)
         except Exception as e:
             self.logger.error(f"Error during phasor visualization: {str(e)}", e)
             return False
+        
+# --- Lifetime Processing Stages ---
+class LifetimeImagesStage(StageBase):
+    """Lifetime images generation stage for interactive lifetime image generation."""
+    
+    def __init__(self, config: Config, logger: PipelineLogger, stage_name: str):
+        super().__init__(config, logger, stage_name)
+        try:
+            from .lifetime_images import run_lifetime_images
+            self.run_lifetime_images = run_lifetime_images
+            self.lifetime_images_available = True
+        except ImportError as e:
+            self.logger.error(f"Could not import lifetime_images module: {e}")
+            self.run_lifetime_images = None
+            self.lifetime_images_available = False
+
+    def get_description(self) -> str:
+        return "Generate lifetime images from NPZ files"
+
+    def validate_inputs(self, **kwargs) -> bool:
+        if not self.lifetime_images_available:
+            self.logger.error("Lifetime images module not available")
+            return False
+        
+        directories = kwargs.get('directories', {})
+        npz_dir = directories.get('npz_datasets')
+        if not npz_dir or not npz_dir.exists():
+            self.logger.error(f"NPZ directory does not exist: {npz_dir}")
+            return False
+            
+        if not any(f.endswith('.npz') for f in os.listdir(npz_dir)):
+            self.logger.error(f"No NPZ files found in directory: {npz_dir}")
+            return False
+            
+        return True
+
+    def run(self, **kwargs) -> bool:
+        if not self.lifetime_images_available:
+            self.logger.error("Lifetime images module not available")
+            return False
+        directories = kwargs.get('directories', {})
+        npz_dir = str(directories.get('npz_datasets'))
+        self.logger.info("Starting interactive lifetime images generation...")
+        
+        # Interactive file selection
+        select_files = True
+        print("\n=== Lifetime Images File Selection ===")
+        print("Choose how to select NPZ files for lifetime image generation:")
+        print("  [1] Select specific NPZ files interactively (default)")
+        print("  [2] Use all NPZ files in the directory")
+        while True:
+            choice = input("Select option (1 or 2, default: 1): ").strip()
+            if choice == "" or choice == "1":
+                select_files = True
+                print("→ Interactive file selection enabled")
+                break
+            elif choice == "2":
+                select_files = False
+                print("→ Using all NPZ files in the directory")
+                break
+            else:
+                print("Please enter 1 or 2.")
+        
+        try:
+            return self.run_lifetime_images(npz_dir, select_files=select_files)
+        except Exception as e:
+            self.logger.error(f"Error during lifetime images generation: {str(e)}", e)
+            return False
+
+# --- Segmentation Stages ---
+class PhasorSegmentationStage(StageBase):
+    """Unified phasor segmentation stage combining GMM and manual approaches."""
+    
+    def __init__(self, config: Config, logger: PipelineLogger, stage_name: str):
+        super().__init__(config, logger, stage_name)
+        try:
+            from .phasor_segmentation import run_phasor_segmentation
+            self.run_phasor_segmentation = run_phasor_segmentation
+            self.phasor_segmentation_available = True
+        except ImportError as e:
+            self.logger.error(f"Could not import phasor_segmentation module: {e}")
+            self.run_phasor_segmentation = None
+            self.phasor_segmentation_available = False
+
+    def get_description(self) -> str:
+        return "Interactive phasor segmentation (GMM or manual)"
+
+    def validate_inputs(self, **kwargs) -> bool:
+        if not self.phasor_segmentation_available:
+            self.logger.error("Phasor segmentation module not available")
+            return False
+        
+        directories = kwargs.get('directories', {})
+        npz_dir = directories.get('npz_datasets')
+        if not npz_dir or not npz_dir.exists():
+            self.logger.error(f"NPZ directory does not exist: {npz_dir}")
+            return False
+            
+        if not any(f.endswith('.npz') for f in os.listdir(npz_dir)):
+            self.logger.error(f"No NPZ files found in directory: {npz_dir}")
+            return False
+            
+        return True
+
+    def run(self, **kwargs) -> bool:
+        if not self.phasor_segmentation_available:
+            self.logger.error("Phasor segmentation module not available")
+            return False
+        directories = kwargs.get('directories', {})
+        npz_dir = str(directories.get('npz_datasets'))
+        self.logger.info("Starting interactive phasor segmentation...")
+        
+        # Interactive file selection
+        select_files = True
+        print("\n=== Phasor Segmentation File Selection ===")
+        print("Choose how to select NPZ files for segmentation:")
+        print("  [1] Select specific NPZ files interactively (default)")
+        print("  [2] Use all NPZ files in the directory")
+        while True:
+            choice = input("Select option (1 or 2, default: 1): ").strip()
+            if choice == "" or choice == "1":
+                select_files = True
+                print("→ Interactive file selection enabled")
+                break
+            elif choice == "2":
+                select_files = False
+                print("→ Using all NPZ files in the directory")
+                break
+            else:
+                print("Please enter 1 or 2.")
+        
+        try:
+            return self.run_phasor_segmentation(npz_dir, select_files=select_files)
+        except Exception as e:
+            self.logger.error(f"Error during phasor segmentation: {str(e)}", e)
+            return False
+
+class AverageLifetimeStage(StageBase):
+    """Average lifetime calculation stage."""
+    def get_description(self) -> str:
+        return "Calculate average lifetime from segmented data"
+    def validate_inputs(self, **kwargs) -> bool:
+        return True
+    def run(self, **kwargs) -> bool:
+        self.logger.info("Average lifetime stage - placeholder implementation")
+        return True
+
+# --- Mask Processing Stage ---
+class ApplyMaskStage(StageBase):
+    """Apply mask stage."""
+    def get_description(self) -> str:
+        return "Apply binary masks to NPZ data and create masked NPZ files"
+    def validate_inputs(self, **kwargs) -> bool:
+        return True
+    def run(self, **kwargs) -> bool:
+        self.logger.info("Apply mask stage - placeholder implementation")
+        return True
+
+# --- Visualization Stages ---
+class VisualizeSegmentedStage(StageBase):
+    """Visualize segmented data stage."""
+    def get_description(self) -> str:
+        return "Visualize segmented data from masked NPZ files"
+    def validate_inputs(self, **kwargs) -> bool:
+        return True
+    def run(self, **kwargs) -> bool:
+        self.logger.info("Visualize segmented stage - placeholder implementation")
+        return True

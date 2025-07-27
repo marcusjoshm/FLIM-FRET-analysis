@@ -1,8 +1,7 @@
 {
     "imagej_path": "/Applications/Fiji.app/Contents/MacOS/ImageJ-macosx",
     "macro_files": [
-        "src/scripts/imagej/FLIM_processing_macro_1.ijm",
-        "src/scripts/imagej/FLIM_processing_macro_2.ijm"
+        "src/scripts/imagej/FLIM_processing_macro.ijm"
     ],
     "microscope_params": {
         "bin_width_ns": 0.097,

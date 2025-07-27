@@ -400,7 +400,7 @@ def interactive_gmm_setup(npz_dir=None):
     
     return params
 
-def main(config=None, npz_dir=None, segmented_dir=None, plots_dir=None, lifetime_dir=None, interactive_mode=False):
+def main(config=None, npz_dir=None, segmented_dir=None, plots_dir=None, lifetime_dir=None, interactive_mode=False, naming_variables=None, selected_mask_name=None):
     """
     Main execution: Load params from config, find NPZ, run GMM, save outputs.
     
@@ -411,6 +411,8 @@ def main(config=None, npz_dir=None, segmented_dir=None, plots_dir=None, lifetime
         plots_dir: Plots output directory (optional if using command-line args)
         lifetime_dir: Lifetime output directory (optional if using command-line args)
         interactive_mode: Whether to run in interactive mode (for pipeline integration)
+        naming_variables: Dictionary containing naming variables for output files
+        selected_mask_name: Name of the selected mask to apply (if any)
     """
     # Check if running as standalone script
     if config is None:
@@ -517,9 +519,13 @@ def main(config=None, npz_dir=None, segmented_dir=None, plots_dir=None, lifetime
         return False # Indicate failure
         
     # Create output directories if they don't exist
-    os.makedirs(segmented_dir, exist_ok=True)
-    os.makedirs(plots_dir, exist_ok=True)
-    os.makedirs(lifetime_dir, exist_ok=True)
+    masks_dir = os.path.join(segmented_dir, 'masks')
+    phasor_plots_dir = os.path.join(segmented_dir, 'phasor_plots')
+    lifetime_images_dir = os.path.join(segmented_dir, 'lifetime_images')
+    
+    os.makedirs(masks_dir, exist_ok=True)
+    os.makedirs(phasor_plots_dir, exist_ok=True)
+    os.makedirs(lifetime_images_dir, exist_ok=True)
         
     processed_count = 0
     skipped_count = 0
@@ -556,7 +562,7 @@ def main(config=None, npz_dir=None, segmented_dir=None, plots_dir=None, lifetime
     if combine_datasets:
         # Process selected NPZ files as a single combined dataset
         tracker.log_info("Processing selected NPZ files as combined dataset")
-        success = process_combined_datasets_with_selection(config, npz_dir, segmented_dir, plots_dir, lifetime_dir, tracker, files_to_process)
+        success = process_combined_datasets_with_selection(config, npz_dir, segmented_dir, plots_dir, lifetime_dir, tracker, files_to_process, naming_variables, selected_mask_name)
         return success
     else:
         # Process files individually
@@ -590,14 +596,13 @@ def main(config=None, npz_dir=None, segmented_dir=None, plots_dir=None, lifetime
 
                     output_masks, phasor_plot_fig = perform_gmm_segmentation(npz_data, gmm_params, tracker)
 
-                    # Create output directories mirroring input structure
-                    output_segmented_dir = os.path.join(segmented_dir, relative_path)
-                    os.makedirs(output_segmented_dir, exist_ok=True)
+                    # Create output directories for masks, plots, and lifetime images
+                    output_masks_dir = os.path.join(masks_dir, relative_path)
+                    output_phasor_plots_dir = os.path.join(phasor_plots_dir, relative_path)
+                    output_lifetime_dir = os.path.join(lifetime_images_dir, relative_path)
                     
-                    output_plots_dir = os.path.join(plots_dir, relative_path)
-                    os.makedirs(output_plots_dir, exist_ok=True)
-                    
-                    output_lifetime_dir = os.path.join(lifetime_dir, relative_path)
+                    os.makedirs(output_masks_dir, exist_ok=True)
+                    os.makedirs(output_phasor_plots_dir, exist_ok=True)
                     os.makedirs(output_lifetime_dir, exist_ok=True)
 
                     # Get output options from config
@@ -607,14 +612,60 @@ def main(config=None, npz_dir=None, segmented_dir=None, plots_dir=None, lifetime
                     
                     # Save Masks
                     if output_masks is not None and save_individual_masks:
-                        tracker.log_info(f"Saving output masks to: {output_segmented_dir}")
+                        tracker.log_info(f"Saving output masks to: {output_masks_dir}")
                         for mask_type, mask_data in output_masks.items():
+                            # Save as TIFF file
                             mask_filename = f"{base_name}_{mask_type}_mask.tiff"
-                            mask_out_path = os.path.join(output_segmented_dir, mask_filename)
+                            mask_out_path = os.path.join(output_masks_dir, mask_filename)
                             if save_tiff(mask_out_path, mask_data, dtype=np.uint8):
                                 tracker.log_info(f"Saved {mask_filename}")
                             else:
                                 tracker.log_warning(f"Failed to save {mask_filename}")
+                            
+                            # Append to NPZ file
+                            try:
+                                # Load existing NPZ data
+                                existing_data = np.load(npz_file_path, allow_pickle=True)
+                                npz_data_dict = dict(existing_data)
+                                
+                                # Add GMM component masks to NPZ data
+                                # Ensure mask_data is properly formatted as uint8
+                                mask_data_uint8 = mask_data.astype(np.uint8)
+                                
+                                if mask_type == "ellipse_segmentation_component_1":
+                                    npz_data_dict['GMM_segmentation_component_1_mask'] = mask_data_uint8
+                                elif mask_type == "ellipse_segmentation_component_2":
+                                    npz_data_dict['GMM_segmentation_component_2_mask'] = mask_data_uint8
+                                elif mask_type == "ellipse_segmentation_combined":
+                                    npz_data_dict['GMM_segmentation_mask'] = mask_data_uint8
+                                
+                                # Add mask registry if it doesn't exist
+                                if 'mask_registry' not in npz_data_dict:
+                                    npz_data_dict['mask_registry'] = {}
+                                
+                                # Add metadata for this mask
+                                mask_key = None
+                                if mask_type == "ellipse_segmentation_component_1":
+                                    mask_key = 'GMM_segmentation_component_1_mask'
+                                elif mask_type == "ellipse_segmentation_component_2":
+                                    mask_key = 'GMM_segmentation_component_2_mask'
+                                elif mask_type == "ellipse_segmentation_combined":
+                                    mask_key = 'GMM_segmentation_mask'
+                                
+                                if mask_key:
+                                    npz_data_dict['mask_registry'][mask_key] = {
+                                        'type': 'binary',
+                                        'description': f'GMM segmentation {mask_type}',
+                                        'created_by': 'GMMSegmentation_v2_6',
+                                        'created_timestamp': datetime.datetime.now().isoformat()
+                                    }
+                                
+                                # Save updated NPZ file
+                                np.savez_compressed(npz_file_path, **npz_data_dict)
+                                tracker.log_info(f"Updated NPZ file with {mask_key}: {npz_file_path}")
+                                
+                            except Exception as e:
+                                tracker.log_error(e, f"Failed to update NPZ file {npz_file_path}")
                     elif output_masks is None:
                         tracker.log_warning("Skipping mask saving due to segmentation error")
                     else:
@@ -622,8 +673,12 @@ def main(config=None, npz_dir=None, segmented_dir=None, plots_dir=None, lifetime
                     
                     # Save Plot
                     if phasor_plot_fig is not None and save_individual_plots:
-                        plot_filename = f"{base_name}_phasor.png"
-                        plot_out_path = os.path.join(output_plots_dir, plot_filename)
+                        # Use naming variables if provided, otherwise use default naming
+                        if naming_variables:
+                            plot_filename = f"{base_name}_{naming_variables['file_selection']}_{naming_variables['method']}_{naming_variables['data_type']}_{naming_variables['mask_source']}_phasor.png"
+                        else:
+                            plot_filename = f"{base_name}_phasor.png"
+                        plot_out_path = os.path.join(output_phasor_plots_dir, plot_filename)
                         tracker.log_info(f"Saving phasor plot to: {plot_out_path}")
                         if save_plot(phasor_plot_fig, plot_out_path):
                             tracker.log_info(f"Saved {plot_filename}")
@@ -660,13 +715,22 @@ def main(config=None, npz_dir=None, segmented_dir=None, plots_dir=None, lifetime
         tracker.log_info(f"Skipped/failed: {skipped_count}")
         return True # Indicate success
 
-def process_combined_datasets_with_selection(config, npz_dir, segmented_dir, plots_dir, lifetime_dir, tracker, files_to_process):
+def process_combined_datasets_with_selection(config, npz_dir, segmented_dir, plots_dir, lifetime_dir, tracker, files_to_process, naming_variables=None, selected_mask_name=None):
     """
     Process selected NPZ files as a single combined dataset for GMM segmentation.
     """
     if not files_to_process:
         tracker.log_error(Exception("No NPZ files selected for processing"), "Combined dataset processing")
         return False
+    
+    # Create output directories for combined processing
+    masks_dir = os.path.join(segmented_dir, 'masks')
+    phasor_plots_dir = os.path.join(segmented_dir, 'phasor_plots')
+    lifetime_images_dir = os.path.join(segmented_dir, 'lifetime_images')
+    
+    os.makedirs(masks_dir, exist_ok=True)
+    os.makedirs(phasor_plots_dir, exist_ok=True)
+    os.makedirs(lifetime_images_dir, exist_ok=True)
     
     tracker.log_info(f"Processing {len(files_to_process)} selected NPZ files as combined dataset")
     
@@ -680,6 +744,18 @@ def process_combined_datasets_with_selection(config, npz_dir, segmented_dir, plo
             npz_data = load_npz_data(npz_file, tracker)
             if npz_data is None:
                 continue
+            
+            # Apply mask if selected
+            if selected_mask_name and selected_mask_name in npz_data:
+                tracker.log_info(f"Applying mask '{selected_mask_name}' to {os.path.basename(npz_file)}")
+                mask = npz_data[selected_mask_name]
+                
+                # Apply mask to all phasor data
+                for key in ['G', 'S', 'A', 'T', 'GU', 'SU', 'TU']:
+                    if key in npz_data:
+                        npz_data[key] = npz_data[key] * mask
+                
+                tracker.log_info(f"  Applied mask: {np.sum(mask)} pixels selected out of {mask.size} total")
             
             # Get the shape of this file for tracking
             g_data = npz_data.get('G', npz_data.get('GU'))
@@ -740,10 +816,10 @@ def process_combined_datasets_with_selection(config, npz_dir, segmented_dir, plo
     
     # Save combined masks
     if save_combined_masks:
-        tracker.log_info(f"Saving combined output masks to: {segmented_dir}")
+        tracker.log_info(f"Saving combined output masks to: {masks_dir}")
         for mask_type, mask_data in output_masks.items():
             mask_filename = f"{combined_base_name}_{mask_type}_mask.tiff"
-            mask_out_path = os.path.join(segmented_dir, mask_filename)
+            mask_out_path = os.path.join(masks_dir, mask_filename)
             if save_tiff(mask_out_path, mask_data, dtype=np.uint8):
                 tracker.log_info(f"Saved {mask_filename}")
             else:
@@ -753,8 +829,12 @@ def process_combined_datasets_with_selection(config, npz_dir, segmented_dir, plo
     
     # Save combined plot
     if save_combined_plot:
-        plot_filename = f"{combined_base_name}_phasor.png"
-        plot_out_path = os.path.join(plots_dir, plot_filename)
+        # Use naming variables if provided, otherwise use default naming
+        if naming_variables:
+            plot_filename = f"{combined_base_name}_{naming_variables['file_selection']}_{naming_variables['method']}_{naming_variables['data_type']}_{naming_variables['mask_source']}_phasor.png"
+        else:
+            plot_filename = f"{combined_base_name}_phasor.png"
+        plot_out_path = os.path.join(phasor_plots_dir, plot_filename)
         tracker.log_info(f"Saving combined phasor plot to: {plot_out_path}")
         if save_plot(phasor_plot_fig, plot_out_path):
             tracker.log_info(f"Saved {plot_filename}")
@@ -768,7 +848,7 @@ def process_combined_datasets_with_selection(config, npz_dir, segmented_dir, plo
         lifetime_keys = [key for key in ['T', 'TU'] if key in combined_data]
         for lifetime_key in lifetime_keys:
             lifetime_filename = f"{combined_base_name}_{lifetime_key}.tiff"
-            lifetime_out_path = os.path.join(lifetime_dir, lifetime_filename)
+            lifetime_out_path = os.path.join(lifetime_images_dir, lifetime_filename)
             tracker.log_info(f"Saving combined lifetime image {lifetime_key} to: {lifetime_out_path}")
             if save_tiff(lifetime_out_path, combined_data[lifetime_key], dtype=np.float32):
                 tracker.log_info(f"Saved {lifetime_filename}")
@@ -780,7 +860,7 @@ def process_combined_datasets_with_selection(config, npz_dir, segmented_dir, plo
     # Apply combined masks to individual files
     tracker.log_info("Applying combined segmentation to individual files...")
     for file_info_item in file_info:
-        apply_combined_mask_to_file(file_info_item, output_masks, segmented_dir, plots_dir, lifetime_dir, tracker)
+        apply_combined_mask_to_file(file_info_item, output_masks, masks_dir, phasor_plots_dir, lifetime_images_dir, tracker)
     
     tracker.log_info("Combined dataset processing completed successfully")
     return True
@@ -804,9 +884,9 @@ def process_combined_datasets(config, npz_dir, segmented_dir, plots_dir, lifetim
     tracker.log_info(f"Found {len(npz_files)} NPZ files for combined processing")
     
     # Use the new function with all files
-    return process_combined_datasets_with_selection(config, npz_dir, segmented_dir, plots_dir, lifetime_dir, tracker, npz_files)
+    return process_combined_datasets_with_selection(config, npz_dir, segmented_dir, plots_dir, lifetime_dir, tracker, npz_files, None, None)
 
-def apply_combined_mask_to_file(file_info_item, combined_masks, segmented_dir, plots_dir, lifetime_dir, tracker):
+def apply_combined_mask_to_file(file_info_item, combined_masks, masks_dir, phasor_plots_dir, lifetime_images_dir, tracker):
     """
     Apply the combined segmentation masks to individual files.
     """
@@ -836,14 +916,61 @@ def apply_combined_mask_to_file(file_info_item, combined_masks, segmented_dir, p
         else:
             tracker.log_warning(f"Combined mask too small for {base_name}: {combined_mask.shape[0]} < {end_idx}")
     
-    # Save individual masks
+    # Save individual masks and append to NPZ files
     for mask_type, mask_data in individual_masks.items():
+        # Save as TIFF file
         mask_filename = f"{base_name}_{mask_type}_from_combined.tiff"
-        mask_out_path = os.path.join(segmented_dir, mask_filename)
+        mask_out_path = os.path.join(masks_dir, mask_filename)
         if save_tiff(mask_out_path, mask_data, dtype=np.uint8):
             tracker.log_info(f"Saved individual mask: {mask_filename}")
         else:
             tracker.log_warning(f"Failed to save individual mask: {mask_filename}")
+        
+        # Append to NPZ file
+        npz_file_path = file_info_item['path']
+        try:
+            # Load existing NPZ data
+            existing_data = np.load(npz_file_path, allow_pickle=True)
+            npz_data_dict = dict(existing_data)
+            
+            # Add GMM component masks to NPZ data
+            # Ensure mask_data is properly formatted as uint8
+            mask_data_uint8 = mask_data.astype(np.uint8)
+            
+            if mask_type == "ellipse_segmentation_component_1":
+                npz_data_dict['GMM_segmentation_component_1_mask'] = mask_data_uint8
+            elif mask_type == "ellipse_segmentation_component_2":
+                npz_data_dict['GMM_segmentation_component_2_mask'] = mask_data_uint8
+            elif mask_type == "ellipse_segmentation_combined":
+                npz_data_dict['GMM_segmentation_mask'] = mask_data_uint8
+            
+            # Add mask registry if it doesn't exist
+            if 'mask_registry' not in npz_data_dict:
+                npz_data_dict['mask_registry'] = {}
+            
+            # Add metadata for this mask
+            mask_key = None
+            if mask_type == "ellipse_segmentation_component_1":
+                mask_key = 'GMM_segmentation_component_1_mask'
+            elif mask_type == "ellipse_segmentation_component_2":
+                mask_key = 'GMM_segmentation_component_2_mask'
+            elif mask_type == "ellipse_segmentation_combined":
+                mask_key = 'GMM_segmentation_mask'
+            
+            if mask_key:
+                npz_data_dict['mask_registry'][mask_key] = {
+                    'type': 'binary',
+                    'description': f'GMM segmentation {mask_type}',
+                    'created_by': 'GMMSegmentation_v2_6',
+                    'created_timestamp': datetime.datetime.now().isoformat()
+                }
+            
+            # Save updated NPZ file
+            np.savez_compressed(npz_file_path, **npz_data_dict)
+            tracker.log_info(f"Updated NPZ file with {mask_key}: {npz_file_path}")
+            
+        except Exception as e:
+            tracker.log_error(e, f"Failed to update NPZ file {npz_file_path}")
 
 def load_npz_data(npz_file_path, tracker=None):
     """Load NPZ file and return its contents as a dictionary"""
@@ -855,7 +982,7 @@ def load_npz_data(npz_file_path, tracker=None):
             return None
             
         # Load the NPZ file
-        data = np.load(npz_file_path)
+        data = np.load(npz_file_path, allow_pickle=True)
         
         # Convert to dictionary for easier access
         npz_dict = {}
@@ -1090,7 +1217,7 @@ def perform_gmm_segmentation(npz_data, gmm_params, tracker=None):
             combined_mask = np.maximum(combined_mask, masks[f"ellipse_segmentation_component_{i+1}"])
         
         masks["ellipse_segmentation_combined"] = combined_mask
-        masks["full"] = combined_mask  # For compatibility
+        masks["gmm_segmentation_mask"] = combined_mask  # Renamed for clarity
         
         if tracker:
             tracker.log_info(f"Created elliptical segmentation masks for {n_components} components")

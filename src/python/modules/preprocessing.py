@@ -793,9 +793,9 @@ def run_bin_to_tiff_conversion(config, input_dir, output_dir, calibration_file, 
             print(f"Created file list: {file_list_path}")
             print(f"Contains {len(selected_file_paths)} selected files")
             
-            # Run ImageJ Macro 2 with file list
-            print("Running ImageJ Macro 2 with selected files...")
-            macro2_success = run_imagej(imagej_path, macro_files[1], input_dir, output_dir, file_list_path)
+            # Run ImageJ Macro with file list
+            print("Running ImageJ Macro with selected files...")
+            macro_success = run_imagej(imagej_path, macro_files[0], input_dir, output_dir, file_list_path)
             
             # Clean up file list
             try:
@@ -808,19 +808,13 @@ def run_bin_to_tiff_conversion(config, input_dir, output_dir, calibration_file, 
         except Exception as e:
             print(f"Error creating file list for ImageJ: {e}")
             print("Falling back to processing all files...")
-            macro2_success = run_imagej(imagej_path, macro_files[1], input_dir, output_dir)
+            macro_success = run_imagej(imagej_path, macro_files[0], input_dir, output_dir)
         
-        macro1_success = True  # Skip macro 1 for interactive selection
     else:
-        print("Running ImageJ Macro 1 for FITC.bin...")
-        macro1_success = run_imagej(imagej_path, macro_files[0], input_dir, output_dir)
-        if not macro1_success:
-            print("Warning: ImageJ Macro 1 (FITC.bin) failed. Continuing anyway...")
-
-        print("Running ImageJ Macro 2 for all .bin files...")
-        macro2_success = run_imagej(imagej_path, macro_files[1], input_dir, output_dir)
-        if not macro2_success:
-            print("Warning: ImageJ Macro 2 (All BIN files) failed. Continuing anyway...")
+        print("Running ImageJ Macro for all .bin files...")
+        macro_success = run_imagej(imagej_path, macro_files[0], input_dir, output_dir)
+        if not macro_success:
+            print("Warning: ImageJ Macro failed. Continuing anyway...")
     
     # Check if any .tif files were created
     tif_files_exist = False

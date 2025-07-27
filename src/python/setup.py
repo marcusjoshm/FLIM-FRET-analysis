@@ -113,8 +113,7 @@ def check_macro_files():
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     
     macro_files = [
-        os.path.join(project_root, "src/scripts/imagej/FLIM_processing_macro_1.ijm"),
-        os.path.join(project_root, "src/scripts/imagej/FLIM_processing_macro_2.ijm")
+        os.path.join(project_root, "src/scripts/imagej/FLIM_processing_macro.ijm")
     ]
     
     missing_macros = []
@@ -151,8 +150,7 @@ def generate_config():
     
     # Macro files (these should be relative to the project)
     config["macro_files"] = [
-        "src/scripts/imagej/FLIM_processing_macro_1.ijm",
-        "src/scripts/imagej/FLIM_processing_macro_2.ijm"
+        "src/scripts/imagej/FLIM_processing_macro.ijm"
     ]
     print("✅ Using macro files from project directory")
     

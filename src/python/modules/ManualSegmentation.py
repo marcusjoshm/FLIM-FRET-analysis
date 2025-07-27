@@ -14,6 +14,7 @@ import os
 import sys
 import math
 import traceback
+import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, Button
@@ -82,149 +83,10 @@ def are_points_inside_ellipse(points_x, points_y, center_x, center_y, width, hei
     # Check which points are inside the ellipse
     return (normalized_x ** 2 + normalized_y ** 2) <= 1
 
-def select_npz_files(npz_files):
-    """
-    Allow user to select which NPZ files to include in the manual segmentation.
-    Uses tkinter GUI if available, otherwise falls back to command line interface.
-    
-    Args:
-        npz_files: List of NPZ file paths
-        
-    Returns:
-        List of selected NPZ file paths
-    """
-    try:
-        # Try to use tkinter if available
-        import tkinter as tk
-        from tkinter import ttk
-        
-        # Create tkinter window
-        root = tk.Tk()
-        root.title("Select NPZ Files for Manual Segmentation")
-        root.geometry("800x600")
-        
-        # Create frame for instructions
-        instruction_frame = ttk.Frame(root, padding="10")
-        instruction_frame.pack(fill="x")
-        
-        ttk.Label(instruction_frame, 
-                  text="Select files to include in combined manual segmentation", 
-                  font=("Arial", 12, "bold")).pack()
-        ttk.Label(instruction_frame, 
-                  text="All selected datasets will be combined into a single graph for segmentation", 
-                  font=("Arial", 10)).pack()
-        
-        # Create frame for file list
-        list_frame = ttk.Frame(root, padding="10")
-        list_frame.pack(fill="both", expand=True)
-        
-        # Add scrollbar
-        scrollbar = ttk.Scrollbar(list_frame)
-        scrollbar.pack(side="right", fill="y")
-        
-        # Create listbox with checkbuttons
-        listbox_frame = ttk.Frame(list_frame)
-        listbox_frame.pack(fill="both", expand=True)
-        
-        # Column headers
-        ttk.Label(listbox_frame, text="Select", width=10).grid(row=0, column=0, sticky="w")
-        ttk.Label(listbox_frame, text="File Path", width=70).grid(row=0, column=1, sticky="w")
-        
-        # Variables to track selections
-        selections = {}
-        
-        # Add each file with a checkbox
-        for i, npz_path in enumerate(npz_files):
-            # Create variable for checkbox
-            var = tk.BooleanVar(value=False)
-            selections[npz_path] = var
-            
-            # Add checkbox
-            cb = ttk.Checkbutton(listbox_frame, variable=var)
-            cb.grid(row=i+1, column=0, sticky="w")
-            
-            # Add label with file path
-            ttk.Label(listbox_frame, text=npz_path).grid(row=i+1, column=1, sticky="w")
-        
-        # Buttons frame
-        button_frame = ttk.Frame(root, padding="10")
-        button_frame.pack(fill="x")
-        
-        # Function to select all
-        def select_all():
-            for var in selections.values():
-                var.set(True)
-        
-        # Function to deselect all
-        def deselect_all():
-            for var in selections.values():
-                var.set(False)
-        
-        # Selected files variable
-        selected = []
-        
-        # Function to confirm selection and close window
-        def confirm_selection():
-            nonlocal selected
-            selected = [path for path, var in selections.items() if var.get()]
-            root.destroy()
-        
-        # Add buttons
-        ttk.Button(button_frame, text="Select All", command=select_all).pack(side="left", padx=5)
-        ttk.Button(button_frame, text="Deselect All", command=deselect_all).pack(side="left", padx=5)
-        ttk.Button(button_frame, text="Confirm Selection", command=confirm_selection).pack(side="right", padx=5)
-        
-        # Run the tkinter event loop
-        root.mainloop()
-        
-        return selected
-        
-    except ImportError:
-        # Fallback to command line interface if tkinter is not available
-        print("\ntkinter module not available. Using command line interface for file selection.")
-        print(f"Found {len(npz_files)} NPZ files. Select files to include in manual segmentation:")
-        
-        # Show list of files with indices
-        for i, path in enumerate(npz_files):
-            print(f"[{i+1}] {path}")
-        
-        print("\nEnter file numbers to select (comma-separated, e.g. '1,3,5-7'), or 'all' for all files:")
-        selection_input = input("> ").strip()
-        
-        selected = []
-        if selection_input.lower() == 'all':
-            selected = npz_files
-        else:
-            # Process comma-separated list with possible ranges (e.g., "1,3,5-7")
-            parts = selection_input.split(',')
-            for part in parts:
-                part = part.strip()
-                if '-' in part:
-                    # Handle range (e.g., "5-7")
-                    try:
-                        start, end = part.split('-')
-                        start_idx = int(start.strip()) - 1  # Convert to 0-based index
-                        end_idx = int(end.strip())          # Inclusive end
-                        for idx in range(start_idx, end_idx):
-                            if 0 <= idx < len(npz_files):
-                                selected.append(npz_files[idx])
-                    except (ValueError, IndexError):
-                        print(f"Warning: Invalid range '{part}', skipping")
-                else:
-                    # Handle single number
-                    try:
-                        idx = int(part) - 1  # Convert to 0-based index
-                        if 0 <= idx < len(npz_files):
-                            selected.append(npz_files[idx])
-                        else:
-                            print(f"Warning: Index {part} out of range, skipping")
-                    except ValueError:
-                        print(f"Warning: Invalid input '{part}', skipping")
-        
-        print(f"\nSelected {len(selected)} files for manual segmentation")
-        return selected
+# File selection is now handled by phasor_segmentation.py
+# This function has been removed to eliminate duplication
 
-def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, lifetime_dir=None):
+def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, lifetime_dir=None, data_type='filtered', naming_variables=None, selected_mask_name=None):
     """
     Process multiple NPZ files for combined manual segmentation.
     
@@ -234,6 +96,8 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
         masks_dir: Directory to save mask files
         plots_dir: Directory to save plots
         lifetime_dir: Directory to save lifetime images (optional)
+        data_type: Data type to use ('filtered' for G/S or 'unfiltered' for GU/SU)
+        naming_variables: Dictionary containing naming variables for output files
         
     Returns:
         bool: Success status
@@ -253,9 +117,18 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
             print(f"Warning: Could not load {npz_path}")
             continue
             
-        # Extract data
-        g_data = data.get('G', data.get('g_data', None))
-        s_data = data.get('S', data.get('s_data', None))
+        # Extract data based on data_type
+        if data_type == 'filtered':
+            g_data = data.get('G', data.get('g_data', None))
+            s_data = data.get('S', data.get('s_data', None))
+        elif data_type == 'unfiltered':
+            g_data = data.get('GU', data.get('gu_data', None))
+            s_data = data.get('SU', data.get('su_data', None))
+        else:
+            print(f"Warning: Unknown data_type '{data_type}', using filtered data")
+            g_data = data.get('G', data.get('g_data', None))
+            s_data = data.get('S', data.get('s_data', None))
+            
         intensity = data.get('A', data.get('intensity', None))
         lifetime = data.get('lifetime', None)
         
@@ -267,6 +140,23 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
         g_flat = g_data.flatten()
         s_flat = s_data.flatten()
         intensity_flat = intensity.flatten()
+        
+        # Apply mask if selected
+        if selected_mask_name and selected_mask_name in data:
+            print(f"Applying mask '{selected_mask_name}' to {os.path.basename(npz_path)}")
+            mask = data[selected_mask_name]
+            
+            # Apply mask to phasor data
+            g_data = g_data * mask
+            s_data = s_data * mask
+            intensity = intensity * mask
+            
+            # Re-flatten the masked data
+            g_flat = g_data.flatten()
+            s_flat = s_data.flatten()
+            intensity_flat = intensity.flatten()
+            
+            print(f"  Applied mask: {np.sum(mask)} pixels selected out of {mask.size} total")
         
         # Store data for this file
         file_data_mapping[npz_path] = {
@@ -605,7 +495,11 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
         angle_rad = np.radians(angle)
         
         # Save current state of the plot
-        plot_filename = f"manual_segmentation_combined_{len(npz_files)}_files.png"
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        if naming_variables:
+            plot_filename = f"segmentation_phasor_plot_{naming_variables['file_selection']}_{naming_variables['method']}_{naming_variables['data_type']}_{naming_variables['mask_source']}_{timestamp}.png"
+        else:
+            plot_filename = f"segmentation_phasor_plot_manual_combined_{timestamp}.png"
         plot_path = os.path.join(plots_dir, plot_filename)
         plt.savefig(plot_path, dpi=150, bbox_inches='tight')
         print(f"\nSaved combined plot to: {plot_path}")
@@ -671,14 +565,12 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
             ellipse_mask[mask_indices[0][inside_ellipse], mask_indices[1][inside_ellipse]] = True
             
             # Create binary mask (0 = background, 1 = selected region)
-            full_mask = np.zeros_like(g_data, dtype=np.int32)
-            full_mask[ellipse_mask] = 1  # Selected region = 1
+            manual_segmentation_mask = np.zeros_like(g_data, dtype=np.int32)
+            manual_segmentation_mask[ellipse_mask] = 1  # Selected region = 1
             
-            # Create output directories (no relative path structure for manual segmentation)
-            npz_output_dir = segmented_dir
+            # Create output directories
             mask_output_dir = masks_dir
             plot_output_dir = plots_dir
-            os.makedirs(npz_output_dir, exist_ok=True)
             os.makedirs(mask_output_dir, exist_ok=True)
             os.makedirs(plot_output_dir, exist_ok=True)
             
@@ -686,23 +578,19 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
                 lifetime_output_dir = lifetime_dir
                 os.makedirs(lifetime_output_dir, exist_ok=True)
             
-            # Save the data to a segmented NPZ file
+            # Append mask data to the existing NPZ file
             base_name = os.path.basename(npz_path)
-            seg_name = os.path.splitext(base_name)[0] + '_manually_segmented.npz'
-            seg_path = os.path.join(npz_output_dir, seg_name)
             
-            # Combine all data for NPZ file
-            save_data = {}
-            for key, value in npz_data.items():
-                save_data[key] = value
+            # Convert NPZ data to regular dictionary for modification
+            npz_data_dict = dict(npz_data)
             
-            # Add segmentation data
-            save_data['mask_component_0'] = ~ellipse_mask  # Background (not selected)
-            save_data['mask_component_1'] = ellipse_mask   # Selected region
-            save_data['full_mask'] = full_mask
+            # Add segmentation data to existing NPZ data
+            npz_data_dict['mask_component_0'] = ~ellipse_mask  # Background (not selected)
+            npz_data_dict['mask_component_1'] = ellipse_mask   # Selected region
+            npz_data_dict['manual_segmentation_mask'] = manual_segmentation_mask
             
             # Add metadata
-            save_data['metadata'] = {
+            npz_data_dict['segmentation_metadata'] = {
                 **common_metadata,
                 'source_file': npz_path,
                 'pixels_selected': np.sum(ellipse_mask),
@@ -711,24 +599,44 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
                 'mask_type': 'binary'
             }
             
-            # Save NPZ file
-            np.savez_compressed(seg_path, **save_data)
-            print(f"  Saved segmented NPZ: {seg_path}")
+            # Add mask registry to track available masks
+            if 'mask_registry' not in npz_data_dict:
+                npz_data_dict['mask_registry'] = {}
+            elif not isinstance(npz_data_dict['mask_registry'], dict):
+                # If mask_registry exists but is not a dict (e.g., it's a numpy array), replace it
+                npz_data_dict['mask_registry'] = {}
+            
+            npz_data_dict['mask_registry']['manual_segmentation_mask'] = {
+                'type': 'binary',
+                'description': 'Manual ellipse-based segmentation mask',
+                'created_by': 'ManualSegmentation',
+                'created_timestamp': datetime.datetime.now().isoformat()
+            }
+            
+            # Save updated NPZ file (overwrite the original)
+            np.savez_compressed(npz_path, **npz_data_dict)
+            print(f"  Updated NPZ file with mask data: {npz_path}")
             
             # Save mask as TIFF
-            mask_name = os.path.splitext(base_name)[0] + '_manually_segmented_mask.tiff'
+            if naming_variables:
+                mask_name = f"{os.path.splitext(base_name)[0]}_segmentation_mask_{naming_variables['file_selection']}_{naming_variables['method']}_{naming_variables['data_type']}_{naming_variables['mask_source']}_{timestamp}.tiff"
+            else:
+                mask_name = f"{os.path.splitext(base_name)[0]}_segmentation_mask_manual_{timestamp}.tiff"
             mask_path = os.path.join(mask_output_dir, mask_name)
-            save_tiff(mask_path, full_mask)
+            save_tiff(mask_path, manual_segmentation_mask)
             print(f"  Saved mask: {mask_path}")
             
             # Save lifetime image if available
             if lifetime_dir and lifetime is not None:
-                lifetime_name = os.path.splitext(base_name)[0] + '_manually_segmented_lifetime.tiff'
+                if naming_variables:
+                    lifetime_name = f"{os.path.splitext(base_name)[0]}_segmentation_lifetime_{naming_variables['file_selection']}_{naming_variables['method']}_{naming_variables['data_type']}_{naming_variables['mask_source']}_{timestamp}.tiff"
+                else:
+                    lifetime_name = f"{os.path.splitext(base_name)[0]}_segmentation_lifetime_manual_{timestamp}.tiff"
                 lifetime_path = os.path.join(lifetime_output_dir, lifetime_name)
                 
                 # Apply mask to lifetime
                 masked_lifetime = lifetime.copy()
-                masked_lifetime[full_mask == 0] = 0  # Background (not selected)
+                masked_lifetime[manual_segmentation_mask == 0] = 0  # Background (not selected)
                 # Keep original values for selected region (mask == 1)
                 
                 save_tiff(lifetime_path, masked_lifetime)
@@ -756,17 +664,21 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
     
     return True
 
-def main(config, npz_dir, segmented_dir, plots_dir, lifetime_dir=None, interactive=True):
+def main(config, npz_dir, output_dir, plots_dir, lifetime_dir=None, interactive=True, selected_files=None, data_type='filtered', naming_variables=None, selected_mask_name=None):
     """
     Main execution function for manual ellipse-based phasor segmentation.
     
     Args:
         config: Configuration dictionary
         npz_dir: Directory containing NPZ files
-        segmented_dir: Directory to save segmented masks
-        plots_dir: Directory to save plots
+        output_dir: Main output directory (e.g., 2025-07-11_analysis_TEST)
+        plots_dir: Directory to save plots (unused, kept for compatibility)
         lifetime_dir: Directory to save lifetime images (optional)
         interactive: Whether to prompt for user input (default: True)
+        selected_files: List of selected NPZ file paths (if None, will find all NPZ files)
+        data_type: Data type to use ('filtered' for G/S or 'unfiltered' for GU/SU)
+        naming_variables: Dictionary containing naming variables for output files
+        selected_mask_name: Name of the selected mask to apply (if any)
         
     Returns:
         True if successful, False otherwise
@@ -774,52 +686,39 @@ def main(config, npz_dir, segmented_dir, plots_dir, lifetime_dir=None, interacti
     print(f"Starting Manual Segmentation, Plotting, and Lifetime Saving")
     print(f"Input NPZ directory: {npz_dir}")
     
-    # Create manual segmentation directory structure
-    manual_segmentation_dir = os.path.join(os.path.dirname(segmented_dir), "manual_segmentation")
-    manual_npz_dir = os.path.join(os.path.dirname(segmented_dir), "segmented_npz_datasets")  # Save to segmented_npz_datasets
-    manual_masks_dir = segmented_dir  # Use the existing segmented directory for masks
-    manual_plots_dir = os.path.join(manual_segmentation_dir, "plots")
+    # Create simplified output directory structure
+    masks_dir = os.path.join(output_dir, "masks")
+    phasor_plots_dir = os.path.join(output_dir, "phasor_plots")
     
-    if lifetime_dir:
-        manual_lifetime_dir = os.path.join(manual_segmentation_dir, "lifetime_images")
-    else:
-        manual_lifetime_dir = None
-    
-    print(f"Output Manual Segmentation Directory: {manual_segmentation_dir}")
-    print(f"Output Segmented NPZ Files: {manual_npz_dir}")
-    print(f"Output Binary Masks: {manual_masks_dir}")
-    print(f"Output Plots: {manual_plots_dir}")
-    if manual_lifetime_dir:
-        print(f"Output Lifetime Images: {manual_lifetime_dir}")
+    print(f"Output Masks Directory: {masks_dir}")
+    print(f"Output Phasor Plots Directory: {phasor_plots_dir}")
     
     if not os.path.isdir(npz_dir): 
         print(f"Error: NPZ dir not found: {npz_dir}", file=sys.stderr)
         return False
         
     # Create necessary output directories
-    os.makedirs(manual_segmentation_dir, exist_ok=True)
-    os.makedirs(manual_npz_dir, exist_ok=True)
-    os.makedirs(manual_masks_dir, exist_ok=True)  # This will create/use the existing segmented directory
-    os.makedirs(manual_plots_dir, exist_ok=True)
-    if manual_lifetime_dir:
-        os.makedirs(manual_lifetime_dir, exist_ok=True)
-        
-    # Find NPZ files
-    npz_files = []
-    for root, _, files in os.walk(npz_dir):
-        for file in files:
-            if file.endswith('.npz') and not file.endswith('_segmented.npz'):
-                npz_path = os.path.join(root, file)
-                npz_files.append(npz_path)
-                
-    if not npz_files:
-        print(f"No NPZ files found in {npz_dir}")
-        return False
-        
-    print(f"Found {len(npz_files)} NPZ files for possible manual segmentation")
+    os.makedirs(masks_dir, exist_ok=True)
+    os.makedirs(phasor_plots_dir, exist_ok=True)
     
-    # Let user select which files to use
-    selected_files = select_npz_files(npz_files)
+    # Use provided selected_files or find all NPZ files
+    if selected_files is None:
+        # Find NPZ files
+        npz_files = []
+        for root, _, files in os.walk(npz_dir):
+            for file in files:
+                if file.endswith('.npz') and not file.endswith('_segmented.npz'):
+                    npz_path = os.path.join(root, file)
+                    npz_files.append(npz_path)
+                    
+        if not npz_files:
+            print(f"No NPZ files found in {npz_dir}")
+            return False
+            
+        print(f"Found {len(npz_files)} NPZ files for possible manual segmentation")
+        selected_files = npz_files
+    else:
+        print(f"Using {len(selected_files)} pre-selected files for manual segmentation")
     
     if not selected_files:
         print("No files selected for manual segmentation")
@@ -828,7 +727,7 @@ def main(config, npz_dir, segmented_dir, plots_dir, lifetime_dir=None, interacti
     print(f"Selected {len(selected_files)} files for combined manual segmentation")
     
     # Process selected NPZ files as a combined dataset
-    success = process_combined_npz_files(selected_files, manual_npz_dir, manual_masks_dir, manual_plots_dir, manual_lifetime_dir)
+    success = process_combined_npz_files(selected_files, npz_dir, masks_dir, phasor_plots_dir, lifetime_dir, data_type, naming_variables, selected_mask_name)
     
     return success
 
