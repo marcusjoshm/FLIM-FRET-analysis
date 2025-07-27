@@ -5,6 +5,39 @@ This document provides step-by-step instructions for running our FLIM-FRET analy
 
 **Note:** Terminal is Mac's command-line interface where you can type commands to interact with your computer.
 
+## Preview
+
+When you run the FLIM-FRET analysis tool, you'll see a colorful interactive menu like this:
+
+```
+
+      ███████╗██╗     ██╗███╗   ███╗    ███████╗██████╗ ███████╗████████╗ 
+      ██╔════╝██║     ██║████╗ ████║    ██╔════╝██╔══██╗██╔════╝╚══██╔══╝ 
+      █████╗  ██║     ██║██╔████╔██║    █████╗  ██████╔╝█████╗     ██║    
+      ██╔══╝  ██║     ██║██║╚██╔╝██║    ██╔══╝  ██╔══██╗██╔══╝     ██║    
+      ██║     ███████╗██║██║ ╚═╝ ██║    ██║     ██║  ██║███████╗   ██║    
+      ╚═╝     ╚══════╝╚═╝╚═╝     ╚═╝    ╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝    
+
+  🔬 Welcome to my FLIM-FRET analysis tool! 🔬
+
+MENU:
+1. Preprocessing (.bin to .tif)
+2. Preprocessing + Processing (.bin to .npz)
+3. Processing (.tif to .npz)
+4. Lifetime Images (generate lifetime images from NPZ files)
+5. Apply Mask (apply binary masks to NPZ data)
+6. Visualize (interactive phasor plots)
+7. Visualize Segmented (visualize segmented data from masked NPZ files)
+8. Segment (interactive phasor segmentation - GMM or manual)
+9. Average Lifetime (calculate average lifetime from segmented data)
+10. _____All stages
+11. Exit
+
+Select an option (1-11):
+```
+
+*Note: In the actual terminal, the FLIM text appears in green and the FRET text appears in red, with all menu options displayed in yellow for better visibility.*
+
 ## Table of Contents
 1. [Getting Started](#getting-started)
 2. [Step 1: Remove Spaces from File Names](#step-1-remove-spaces-from-file-names)

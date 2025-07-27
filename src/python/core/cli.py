@@ -10,6 +10,67 @@ import os
 from typing import Dict, Any, Optional
 from pathlib import Path
 
+# ANSI color codes for rainbow effect
+class Colors:
+    red = '\033[31m'
+    orange = '\033[38;5;208m'
+    yellow = '\033[33m'
+    green = '\033[32m'
+    blue = '\033[34m'
+    indigo = '\033[38;5;54m'
+    violet = '\033[35m'
+    reset = '\033[0m'
+    bold = '\033[1m'
+
+def colorize(text: str, color: str) -> str:
+    """Apply color to text"""
+    return f"{Colors.bold}{color}{text}{Colors.reset}"
+
+def show_header() -> None:
+    """Display colorful FLIM ASCII art header"""
+    header = [
+        "  ",
+        "                                                                          ",
+        "      ███████╗██╗     ██╗███╗   ███╗    ███████╗██████╗ ███████╗████████╗ ",
+        "      ██╔════╝██║     ██║████╗ ████║    ██╔════╝██╔══██╗██╔════╝╚══██╔══╝ ",
+        "      █████╗  ██║     ██║██╔████╔██║    █████╗  ██████╔╝█████╗     ██║    ",
+        "      ██╔══╝  ██║     ██║██║╚██╔╝██║    ██╔══╝  ██╔══██╗██╔══╝     ██║    ",
+        "      ██║     ███████╗██║██║ ╚═╝ ██║    ██║     ██║  ██║███████╗   ██║    ",
+        "      ╚═╝     ╚══════╝╚═╝╚═╝     ╚═╝    ╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝    ",
+        "                                                                          ",
+        "  ",
+        ""
+    ]
+
+    rainbow_colors = [
+        Colors.red,
+        Colors.orange, 
+        Colors.yellow,
+        Colors.green,
+        Colors.blue,
+        Colors.indigo,
+        Colors.violet
+    ]
+
+    print('')  # Empty line at start
+    
+    for i, line in enumerate(header):
+        if i < 2 or i > 7:  # Empty lines
+            print(line)
+        else:
+            # Split the line to color FLIM and FRET separately
+            # The line contains both FLIM and FRET ASCII art
+            # Split at the middle to separate FLIM (left) and FRET (right)
+            line_length = len(line)
+            mid_point = line_length // 2
+            
+            # Color the left half (FLIM) in green and right half (FRET) in red
+            flim_part = line[:mid_point]
+            fret_part = line[mid_point:]
+            
+            colored_line = colorize(flim_part, Colors.green) + colorize(fret_part, Colors.red)
+            print(colored_line)
+
 
 class CLIError(Exception):
     """Custom exception for CLI-related errors."""
@@ -184,22 +245,21 @@ Examples:
             return args  # Stage already selected, no need for menu
         
         # Show menu
-        print("\n")
-        print("=" * 30)
-        print("      FLIM-FRET Analysis")
-        print("=" * 30)
-        print("MENU:")
-        print("1. Preprocessing (.bin to .tif)")
-        print("2. Preprocessing + Processing (.bin to .npz)")
-        print("3. Processing (.tif to .npz)")
-        print("4. Lifetime Images (generate lifetime images from NPZ files)")
-        print("5. Apply Mask (apply binary masks to NPZ data)")
-        print("6. Visualize (interactive phasor plots)")
-        print("7. Visualize Segmented (visualize segmented data from masked NPZ files)")
-        print("8. Segment (interactive phasor segmentation - GMM or manual)")
-        print("9. Average Lifetime (calculate average lifetime from segmented data)")
-        print("10. _____All stages")
-        print("11. Exit")
+        show_header()
+        print(colorize("  🔬 Welcome to my FLIM-FRET analysis tool! 🔬", Colors.bold))
+        print("")
+        print(colorize("MENU:", Colors.bold))
+        print(colorize("1. Preprocessing (.bin to .tif)", Colors.yellow))
+        print(colorize("2. Preprocessing + Processing (.bin to .npz)", Colors.yellow))
+        print(colorize("3. Processing (.tif to .npz)", Colors.yellow))
+        print(colorize("4. Lifetime Images (generate lifetime images from NPZ files)", Colors.yellow))
+        print(colorize("5. Apply Mask (apply binary masks to NPZ data)", Colors.yellow))
+        print(colorize("6. Visualize (interactive phasor plots)", Colors.yellow))
+        print(colorize("7. Visualize Segmented (visualize segmented data from masked NPZ files)", Colors.yellow))
+        print(colorize("8. Segment (interactive phasor segmentation - GMM or manual)", Colors.yellow))
+        print(colorize("9. Average Lifetime (calculate average lifetime from segmented data)", Colors.yellow))
+        print(colorize("10. _____All stages", Colors.yellow))
+        print(colorize("11. Exit", Colors.red))
         
         # Get user choice
         choice = input("Select an option (1-11): ")
