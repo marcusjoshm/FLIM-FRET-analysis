@@ -21,18 +21,19 @@ When you run the FLIM-FRET analysis tool, you'll see a colorful interactive menu
   🔬 Welcome to my FLIM-FRET analysis tool! 🔬
 
 MENU:
-1. Preprocessing (.bin to .tif)
-2. Preprocessing + Processing (.bin to .npz)
-3. Visualize (interactive phasor plots)
-4. Segment (interactive phasor segmentation - GMM or manual)
-5. Average Lifetime (calculate average lifetime from segmented data)
-6. Lifetime Images (generate lifetime images from NPZ files)
-7. Exit
+1. Set Input/Output Directories
+2. Preprocessing (.bin to .tif)
+3. Preprocessing + Processing (.bin to .npz)
+4. Visualization (interactive phasor plots)
+5. Segmentation (interactive phasor segmentation - GMM or manual)
+6. Average Lifetime (calculate average lifetime from segmented data)
+7. Lifetime Images (generate lifetime images from NPZ files)
+8. Exit
 
-Select an option (1-7):
+Select an option (1-8):
 ```
 
-*Note: In the actual terminal, the FLIM text appears in green and the FRET text appears in red, with all menu options displayed in yellow for better visibility.*
+*Note: In the actual terminal, the FLIM text appears in green and the FRET text appears in red, with all menu options displayed in yellow for better visibility. The menu now includes 8 options instead of 7.*
 
 ## Table of Contents
 1. [Getting Started](#getting-started)
@@ -151,37 +152,50 @@ file_path,phi_cal,m_cal
 
 ## Step 5: Run FLIM-FRET Analysis
 
-Now you'll run the complete FLIM-FRET processing pipeline:
+Now you'll run the FLIM-FRET analysis using the interactive menu system:
 
-1. Copy and paste the following into Terminal:
+1. Simply run the main script:
    ```bash
-   python run_pipeline.py --input
+   python main.py
    ```
 
-2. After typing the above, press **Space**.
+2. You'll see the colorful FLIM-FRET menu with options:
+   ```
+   MENU:
+   1. Set Input/Output Directories
+   2. Preprocessing (.bin to .tif)
+   3. Preprocessing + Processing (.bin to .npz)
+   4. Visualization (interactive phasor plots)
+   5. Segmentation (interactive phasor segmentation - GMM or manual)
+   6. Average Lifetime (calculate average lifetime from segmented data)
+   7. Lifetime Images (generate lifetime images from NPZ files)
+   8. Exit
+   ```
 
-3. Drag your input directory (the one containing your .bin files, FITC.bin, and calibration.csv) from Finder into the Terminal window. The absolute file path will appear.
+3. **For first-time setup**, start with option 1 to set your input and output directories.
 
-4. Press **Space** and type `--output` followed by another **Space**.
+4. **For complete processing**, use option 3 which will:
+   - Convert .bin files to .tif files using ImageJ
+   - Perform phasor transformation to generate G, S, and intensity maps
+   - Apply complex wavelet filtering for noise reduction
+   - Create NPZ datasets with both filtered and unfiltered lifetime data
 
-5. Drag the **parent directory** where you want your analysis results to be saved into Terminal.
+5. **For analysis**, use options 4-7 to:
+   - Visualize your data with interactive phasor plots
+   - Perform segmentation (GMM or manual)
+   - Calculate average lifetime from segmented data
+   - Generate lifetime images from NPZ files
 
-6. At the end of the output path, add `_ANALYSIS` or another descriptive suffix (no spaces!).
+### What Each Option Does:
 
-7. Finally, add ` --processing` at the end to run the complete processing pipeline.
-
-### Your final command should look like this:
-```bash
-python run_pipeline.py --input /Volumes/Data/My_Experiment --output /Volumes/Data/My_Experiment_ANALYSIS --processing
-```
-
-8. Press **Enter** to start the analysis.
-
-### What the Script Does:
-- **Stage 1:** Converts .bin files to .tif files using ImageJ
-- **Stage 2:** Performs phasor transformation to generate G, S, and intensity maps
-- **Stage 3:** Applies complex wavelet filtering for noise reduction
-- **Stage 4:** Creates NPZ datasets with both filtered and unfiltered lifetime data
+- **Option 1:** Set input/output directories (required for first-time setup)
+- **Option 2:** Preprocessing only (.bin to .tif conversion and organization)
+- **Option 3:** Complete processing pipeline (.bin to .npz with wavelet filtering)
+- **Option 4:** Interactive phasor visualization
+- **Option 5:** Interactive segmentation (GMM clustering or manual ellipse selection)
+- **Option 6:** Calculate average lifetime from segmented NPZ files
+- **Option 7:** Generate lifetime images from NPZ files
+- **Option 8:** Exit the program
 
 The analysis will create an output folder with the following structure:
 ```
@@ -189,6 +203,10 @@ Your_Output_Directory/
 ├── output/                     # Raw converted files
 ├── preprocessed/              # Organized G, S, intensity files
 ├── npz_datasets/             # Final processed datasets
+├── segmented/                 # Segmentation results
+├── segmented_npz_datasets/   # NPZ files with segmentation masks
+├── average_lifetime_results/  # Average lifetime calculations
+├── lifetime_images/           # Generated lifetime images
 └── logs/                     # Analysis logs and reports
 ```
 
@@ -495,9 +513,28 @@ file_path,phi_cal,m_cal
 
 ## Usage
 
-### Currently Implemented Workflow Options
+### Interactive Menu System (Recommended)
 
-The following workflow flags are fully implemented and tested:
+The easiest way to use the FLIM-FRET analysis pipeline is through the interactive menu system:
+
+```bash
+python main.py
+```
+
+This will launch the interactive menu with 8 options:
+
+1. **Set Input/Output Directories** - Configure paths for your data
+2. **Preprocessing (.bin to .tif)** - Convert and organize files
+3. **Preprocessing + Processing (.bin to .npz)** - Complete pipeline with wavelet filtering
+4. **Visualization (interactive phasor plots)** - Interactive data visualization
+5. **Segmentation (interactive phasor segmentation)** - GMM or manual segmentation
+6. **Average Lifetime** - Calculate average lifetime from segmented data
+7. **Lifetime Images** - Generate lifetime images from NPZ files
+8. **Exit** - Close the program
+
+### Command Line Options (Legacy)
+
+For advanced users, the following command-line options are still available:
 
 ```bash
 # OPTION 1: Run preprocessing only (Stages 1-2A) - Convert files and organize them
@@ -505,8 +542,6 @@ python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /pat
 
 # OPTION 2: Run complete processing pipeline (Stages 1-2B) - Preprocessing + wavelet filtering and lifetime calculation
 python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --processing
-
-
 
 # OPTION 3: Run only wavelet filtering (Stage 2) - For already preprocessed data
 python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --filter
@@ -518,9 +553,7 @@ python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /pat
 python run_pipeline.py --input-dir /path/to/raw/bin/files --output-base-dir /path/to/output/directory --average-lifetime
 ```
 
-### Additional Options
-
-You can still run all stages or use the legacy flags:
+### Additional Legacy Options
 
 ```bash
 # Run complete workflow (all implemented stages)
