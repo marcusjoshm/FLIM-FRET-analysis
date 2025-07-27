@@ -3,6 +3,12 @@
     "macro_files": [
         "src/scripts/imagej/FLIM_processing_macro.ijm"
     ],
+    "directories": {
+        "input": "",
+        "output": "",
+        "recent_inputs": [],
+        "recent_outputs": []
+    },
     "microscope_params": {
         "bin_width_ns": 0.097,
         "freq_mhz": 78.0,

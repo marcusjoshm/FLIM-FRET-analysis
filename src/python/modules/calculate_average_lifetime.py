@@ -234,12 +234,13 @@ def apply_mask_to_data(npz_file, mask_name, data_type='filtered'):
         print(f"Error applying mask to {npz_file}: {e}")
         return None
 
-def load_segmented_npz(npz_file_path):
+def load_segmented_npz(npz_file_path, use_full_mask=True):
     """
-    Load segmented NPZ file and extract TU and full_mask data.
+    Load segmented NPZ file and extract TU and mask data.
     
     Args:
         npz_file_path (str): Path to segmented NPZ file
+        use_full_mask (bool): Whether to look for full_mask key or create full mask
         
     Returns:
         dict: Dictionary containing TU data, mask, and metadata, or None if failed
@@ -252,15 +253,22 @@ def load_segmented_npz(npz_file_path):
             print(f"Warning: No TU data found in {os.path.basename(npz_file_path)}")
             print(f"Available keys: {list(data.keys())}")
             return None
-            
-        if 'full_mask' not in data:
-            print(f"Warning: No full_mask data found in {os.path.basename(npz_file_path)}")
-            print(f"Available keys: {list(data.keys())}")
-            return None
+        
+        # Handle mask creation
+        if use_full_mask and 'full_mask' in data:
+            # Use existing full_mask
+            mask = data['full_mask']
+        elif use_full_mask and 'full_mask' not in data:
+            # Create full mask (all pixels selected) when no mask is available
+            print(f"Creating full mask for {os.path.basename(npz_file_path)} (no mask data found)")
+            mask = np.ones_like(data['TU'], dtype=bool)
+        else:
+            # Use full mask (all pixels selected)
+            mask = np.ones_like(data['TU'], dtype=bool)
         
         return {
             'tu_data': data['TU'],
-            'mask': data['full_mask'],
+            'mask': mask,
             'file_path': npz_file_path,
             'metadata': data.get('metadata', {}),
             'all_data': dict(data)
@@ -325,19 +333,20 @@ def calculate_masked_lifetime_average(tu_data, mask):
         print(f"Error calculating masked lifetime average: {e}")
         return None
 
-def process_segmented_npz_file(npz_file_path, output_dir):
+def process_segmented_npz_file(npz_file_path, output_dir, use_full_mask=True):
     """
     Process a single segmented NPZ file and calculate average lifetime.
     
     Args:
         npz_file_path (str): Path to segmented NPZ file
         output_dir (str): Directory to save results
+        use_full_mask (bool): Whether to use full_mask from file or create full mask
         
     Returns:
         dict: Results dictionary with filename and statistics, or None if failed
     """
     # Load segmented NPZ data
-    data = load_segmented_npz(npz_file_path)
+    data = load_segmented_npz(npz_file_path, use_full_mask)
     if data is None:
         return None
     
@@ -400,7 +409,7 @@ def process_segmented_npz_directory(npz_dir, output_dir):
         print(f"\nProcessing file {i+1}/{len(npz_files)}: {os.path.basename(npz_file)}")
         
         # Process the file
-        result = process_segmented_npz_file(npz_file, output_dir)
+        result = process_segmented_npz_file(npz_file, output_dir, use_full_mask=True)
         
         if result is not None:
             results_list.append(result)
@@ -595,7 +604,9 @@ def main(config=None, segmented_npz_dir=None, output_dir=None, select_files=True
                 process_file = npz_file
             
             # Process the file
-            result = process_segmented_npz_file(process_file, output_dir)
+            # Determine whether to use full_mask based on mask source
+            use_full_mask = (mask_source == 'masked')
+            result = process_segmented_npz_file(process_file, output_dir, use_full_mask)
             if result:
                 results_list.append(result)
                 success_count += 1

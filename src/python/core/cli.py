@@ -107,16 +107,14 @@ Examples:
             """
         )
 
-        # Required arguments
+        # Directory arguments (optional, will prompt if not provided)
         parser.add_argument(
             "--input", 
-            required=True, 
-            help="Input directory containing raw FLIM-FRET .bin files"
+            help="Input directory containing raw FLIM-FRET .bin files (will prompt if not provided)"
         )
         parser.add_argument(
             "--output", 
-            required=True, 
-            help="Base output directory for all pipeline stages"
+            help="Base output directory for all pipeline stages (will prompt if not provided)"
         )
         
 
@@ -134,6 +132,11 @@ Examples:
         )
         
         # Individual stages
+        parser.add_argument(
+            "--set-directories", 
+            action="store_true", 
+            help="Set default input and output directories"
+        )
         parser.add_argument(
             "--visualize", 
             action="store_true", 
@@ -203,8 +206,8 @@ Examples:
         Raises:
             CLIError: If arguments are invalid
         """
-        # Validate input directory
-        if not os.path.isdir(args.input):
+        # Validate input directory if provided
+        if args.input and not os.path.isdir(args.input):
             raise CLIError(f"Input directory '{args.input}' does not exist or is not a directory")
         
     def show_interactive_menu(self, args: argparse.Namespace) -> argparse.Namespace:
@@ -219,7 +222,7 @@ Examples:
         """
         # Check if any stage is already selected
         stage_flags = [
-            args.preprocessing, args.processing, 
+            args.set_directories, args.preprocessing, args.processing, 
             args.visualize, args.segment, args.lifetime_images, 
             args.average_lifetime
         ]
@@ -229,39 +232,42 @@ Examples:
         
         # Show menu
         show_header()
-        print(colorize("  🔬 Welcome to my FLIM-FRET analysis tool! 🔬", Colors.bold))
+        print(colorize("  🔬 Welcome FLIM-FRET analysis user! 🔬", Colors.bold))
         print("")
         print(colorize("MENU:", Colors.bold))
-        print(colorize("1. Preprocessing (.bin to .tif)", Colors.yellow))
-        print(colorize("2. Preprocessing + Processing (.bin to .npz)", Colors.yellow))
-        print(colorize("3. Visualize (interactive phasor plots)", Colors.yellow))
-        print(colorize("4. Segment (interactive phasor segmentation - GMM or manual)", Colors.yellow))
-        print(colorize("5. Average Lifetime (calculate average lifetime from segmented data)", Colors.yellow))
-        print(colorize("6. Lifetime Images (generate lifetime images from NPZ files)", Colors.yellow))
-        print(colorize("7. Exit", Colors.red))
+        print(colorize("1. Set Input/Output Directories", Colors.green))
+        print(colorize("2. Preprocessing (.bin to .tif)", Colors.yellow))
+        print(colorize("3. Preprocessing + Processing (.bin to .npz)", Colors.yellow))
+        print(colorize("4. Visualization (interactive phasor plots)", Colors.yellow))
+        print(colorize("5. Segmentation (interactive phasor segmentation - GMM or manual)", Colors.yellow))
+        print(colorize("6. Average Lifetime (calculate average lifetime from segmented data)", Colors.yellow))
+        print(colorize("7. Lifetime Images (generate lifetime images from NPZ files)", Colors.yellow))
+        print(colorize("8. Exit", Colors.red))
         
         # Get user choice
-        choice = input("Select an option (1-7): ")
+        choice = input("Select an option (1-8): ").strip().lower()
         
         # Update args based on choice
         if choice == "1":
-            args.preprocessing = True
+            args.set_directories = True
         elif choice == "2":
-            args.processing = True
+            args.preprocessing = True
         elif choice == "3":
-            args.visualize = True
+            args.processing = True
         elif choice == "4":
-            args.segment = True
+            args.visualize = True
         elif choice == "5":
-            args.average_lifetime = True
+            args.segment = True
         elif choice == "6":
-            args.lifetime_images = True
+            args.average_lifetime = True
         elif choice == "7":
+            args.lifetime_images = True
+        elif choice == "8" or choice == "q" or choice == "quit":
             print("Exiting.")
-            sys.exit(0)
+            return None  # Signal to exit
         else:
-            print("Invalid choice. Exiting.")
-            sys.exit(1)
+            print("Invalid choice. Please enter a number between 1-8 or 'q' to quit.")
+            return args  # Return current args to continue loop
         
         return args
     
