@@ -104,12 +104,6 @@ class Pipeline:
             if self.args.average_lifetime:
                 stages.append('average_lifetime')
                 
-            if self.args.apply_mask:
-                stages.append('apply_mask')
-                
-            if self.args.visualize_segmented:
-                stages.append('visualize_segmented')
-                
 
         
         return stages

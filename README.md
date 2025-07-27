@@ -23,17 +23,14 @@ When you run the FLIM-FRET analysis tool, you'll see a colorful interactive menu
 MENU:
 1. Preprocessing (.bin to .tif)
 2. Preprocessing + Processing (.bin to .npz)
-3. Processing (.tif to .npz)
-4. Lifetime Images (generate lifetime images from NPZ files)
-5. Apply Mask (apply binary masks to NPZ data)
-6. Visualize (interactive phasor plots)
-7. Visualize Segmented (visualize segmented data from masked NPZ files)
-8. Segment (interactive phasor segmentation - GMM or manual)
-9. Average Lifetime (calculate average lifetime from segmented data)
-10. _____All stages
-11. Exit
+3. Visualize (interactive phasor plots)
+4. Segment (interactive phasor segmentation - GMM or manual)
+5. Average Lifetime (calculate average lifetime from segmented data)
+6. Lifetime Images (generate lifetime images from NPZ files)
+7. _____All stages
+8. Exit
 
-Select an option (1-11):
+Select an option (1-8):
 ```
 
 *Note: In the actual terminal, the FLIM text appears in green and the FRET text appears in red, with all menu options displayed in yellow for better visibility.*

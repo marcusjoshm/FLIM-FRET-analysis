@@ -160,17 +160,6 @@ Examples:
             help="Calculate average lifetime from segmented data"
         )
 
-        parser.add_argument(
-            "--apply-mask", 
-            action="store_true", 
-            help="Apply binary masks to NPZ data and create masked NPZ files"
-        )
-        parser.add_argument(
-            "--visualize-segmented", 
-            action="store_true", 
-            help="Visualize segmented data from masked NPZ files"
-        )
-
         
         # Interactive mode
         parser.add_argument(
@@ -237,8 +226,7 @@ Examples:
         stage_flags = [
             args.all, args.preprocessing, args.processing, 
             args.visualize, args.segment, args.lifetime_images, 
-            args.average_lifetime, args.apply_mask, 
-            args.visualize_segmented
+            args.average_lifetime
         ]
         
         if any(stage_flags):
@@ -251,18 +239,15 @@ Examples:
         print(colorize("MENU:", Colors.bold))
         print(colorize("1. Preprocessing (.bin to .tif)", Colors.yellow))
         print(colorize("2. Preprocessing + Processing (.bin to .npz)", Colors.yellow))
-        print(colorize("3. Processing (.tif to .npz)", Colors.yellow))
-        print(colorize("4. Lifetime Images (generate lifetime images from NPZ files)", Colors.yellow))
-        print(colorize("5. Apply Mask (apply binary masks to NPZ data)", Colors.yellow))
-        print(colorize("6. Visualize (interactive phasor plots)", Colors.yellow))
-        print(colorize("7. Visualize Segmented (visualize segmented data from masked NPZ files)", Colors.yellow))
-        print(colorize("8. Segment (interactive phasor segmentation - GMM or manual)", Colors.yellow))
-        print(colorize("9. Average Lifetime (calculate average lifetime from segmented data)", Colors.yellow))
-        print(colorize("10. _____All stages", Colors.yellow))
-        print(colorize("11. Exit", Colors.red))
+        print(colorize("3. Visualize (interactive phasor plots)", Colors.yellow))
+        print(colorize("4. Segment (interactive phasor segmentation - GMM or manual)", Colors.yellow))
+        print(colorize("5. Average Lifetime (calculate average lifetime from segmented data)", Colors.yellow))
+        print(colorize("6. Lifetime Images (generate lifetime images from NPZ files)", Colors.yellow))
+        print(colorize("7. _____All stages", Colors.yellow))
+        print(colorize("8. Exit", Colors.red))
         
         # Get user choice
-        choice = input("Select an option (1-11): ")
+        choice = input("Select an option (1-8): ")
         
         # Update args based on choice
         if choice == "1":
@@ -270,22 +255,16 @@ Examples:
         elif choice == "2":
             args.processing = True
         elif choice == "3":
-            args.processing = True
-        elif choice == "4":
-            args.lifetime_images = True
-        elif choice == "5":
-            args.apply_mask = True
-        elif choice == "6":
             args.visualize = True
-        elif choice == "7":
-            args.visualize_segmented = True
-        elif choice == "8":
+        elif choice == "4":
             args.segment = True
-        elif choice == "9":
+        elif choice == "5":
             args.average_lifetime = True
-        elif choice == "10":
+        elif choice == "6":
+            args.lifetime_images = True
+        elif choice == "7":
             args.all = True
-        elif choice == "11":
+        elif choice == "8":
             print("Exiting.")
             sys.exit(0)
         else:

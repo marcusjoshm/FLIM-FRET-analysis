@@ -417,24 +417,4 @@ class AverageLifetimeStage(StageBase):
         self.logger.info("Average lifetime stage - placeholder implementation")
         return True
 
-# --- Mask Processing Stage ---
-class ApplyMaskStage(StageBase):
-    """Apply mask stage."""
-    def get_description(self) -> str:
-        return "Apply binary masks to NPZ data and create masked NPZ files"
-    def validate_inputs(self, **kwargs) -> bool:
-        return True
-    def run(self, **kwargs) -> bool:
-        self.logger.info("Apply mask stage - placeholder implementation")
-        return True
 
-# --- Visualization Stages ---
-class VisualizeSegmentedStage(StageBase):
-    """Visualize segmented data stage."""
-    def get_description(self) -> str:
-        return "Visualize segmented data from masked NPZ files"
-    def validate_inputs(self, **kwargs) -> bool:
-        return True
-    def run(self, **kwargs) -> bool:
-        self.logger.info("Visualize segmented stage - placeholder implementation")
-        return True
