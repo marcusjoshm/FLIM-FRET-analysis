@@ -232,75 +232,155 @@ Your_Output_Directory/
 
 # Technical Documentation
 
-This repository contains tools for automating Fluorescence Lifetime Imaging Microscopy (FLIM) and Förster Resonance Energy Transfer (FRET) analysis without requiring a GUI. It provides an end-to-end workflow from raw .bin files to complete FLIM-FRET analysis.
+This repository contains a comprehensive, modular FLIM-FRET analysis pipeline that automates Fluorescence Lifetime Imaging Microscopy (FLIM) and Förster Resonance Energy Transfer (FRET) analysis. The system provides an end-to-end workflow from raw .bin files to complete FLIM-FRET analysis with an interactive menu system.
 
+## Architecture Overview
 
+The FLIM-FRET analysis pipeline has been refactored into a modular, stage-based architecture:
 
+### Core Components
 
-## --LF-preprocessed Workflow
+- **`main.py`**: Interactive menu system and entry point
+- **`src/python/core/`**: Core pipeline infrastructure
+  - `pipeline.py`: Main pipeline orchestrator
+  - `stages.py`: Stage execution and management
+  - `cli.py`: Command-line interface
+  - `config.py`: Configuration management
+  - `logger.py`: Logging and error tracking
 
-For Noah and Leyla, if you would like to process raw .bin files from LASX without having to use FLUTE, here is a workflow that will work seemlessly with your FFF python scripts. All you need to do is set up your input directory following the instructions below and run the script from ther Terminal app.
+### Processing Modules
 
-### Setting up the Input Directory
+- **`src/python/modules/`**: Individual processing modules
+  - `preprocessing.py`: ImageJ-based .bin to .tif conversion
+  - `phasor_segmentation.py`: Interactive phasor segmentation
+  - `GMMSegmentation.py`: Gaussian Mixture Model clustering
+  - `ManualSegmentation.py`: Manual ellipse-based segmentation
+  - `lifetime_images.py`: Lifetime image generation
+  - `calculate_average_lifetime.py`: Average lifetime calculations
+  - `phasor_visualization.py`: Interactive phasor plots
+  - `wavelet_filter.py`: Advanced DTCWT noise reduction
 
-- **All `.bin` files must be in subdirectories** within the input directory - they cannot be placed directly in the root directory
-- You can organize these subdirectories however you want - by experimental condition, sample type, region, etc.
-- **`FITC.bin`** can be placed anywhere in the directory tree (root or subdirectories)
-- **`calibration.csv`** must be in the root input directory with the phi and modulation values entered for every `.bin` file
+### Key Features
 
-## Creating the Calibration File
-
-Enter the file absolute file path, phi, and modulation values for every file that needs to be preprocessed. You can find the absolute file path by dragging a file from a finder window into an open terminal, then copy and paste it into the spreadsheet. Use the same phi and modulation values for every file from the same tile-scan. Convert the phi angles from degrees to radians (must be negative).
-
-## Running the Script
-
-Open a new terminal and enter:
-```bash
-cd ~/FLIM-FRET-analysis
-source venv/bin/activate
-```
-
-To run the script enter the following in the terminal:
-```bash
-python run_pipeline.py --input-dir {/path/to/input/dir} --output-base-dir {/path/to/output/dir} --preprocessing
-```
-
-Change `{/path/to/input/dir}` to the actual path of your input directory that contains the raw data `.bin` files, `FITC.bin` file, and `calibration.csv` file. Change `{/path/to/output/dir}` to a location you want the output to go. It doesn't have to exist, the script will create the directory and save the output files to that location.
-
-When the script finishes running, your preprocessed files will be in a folder called "preprocessed" in your output folder. You can then use those files with your current FFF python scripts. Simply copy preprocessed from your output directory to `~/FLIM_processing_dir/`
-
-
-
-
-## Key Features
-
-- Complete end-to-end workflow from raw .bin files to processed analysis
-- Extracts and automates the Fast Fourier Transform (FFT) functionality from FLUTE
-- Works with calibration files to properly process FLIM data
-- Replicates all output files and naming conventions from the FLUTE GUI
-- Performs median filtering, thresholding, and angle/circle range filtering
-- Smart calibration matching between different file structures
-- Python-based file organization for robust file handling
-- Phasor transformation and visualization
+- **Interactive Menu System**: User-friendly interface for all operations
+- **Modular Architecture**: Each processing stage is a separate, testable module
+- **Advanced Wavelet Filtering**: DTCWT-based noise reduction with Anscombe transform
+- **Interactive Segmentation**: Both GMM clustering and manual ellipse selection
+- **Comprehensive Error Handling**: Detailed logging and error tracking
+- **Flexible Configuration**: JSON-based configuration system
+- **Stage-Based Processing**: Modular pipeline with individual stage execution
 
 ## Main Components
 
-- `run_pipeline.py`: The main pipeline orchestrator for end-to-end workflow
-- `TCSPC_preprocessing_AUTOcal_v2_0.py`: Handles the preprocessing stage (ImageJ + FLUTE)
-- `ComplexWaveletFilter_v2_0.py`: Performs advanced wavelet filtering with DTCWT and creates NPZ datasets
-  - Uses the **dtcwt** Python package for sophisticated noise reduction
-  - Implements Anscombe transform for variance stabilization
-  - Produces both filtered and unfiltered lifetime calculations
+### Core Pipeline (`src/python/core/`)
 
-- `GMMSegmentation_v2_6.py`: Performs GMM-based segmentation and analysis
-- `ManualSegmentation.py`: Interactive manual ellipse-based segmentation
-- `lifetime_images.py`: Interactive lifetime image generation from NPZ files with file selection
-- `generate_lifetime_images.py`: Extracts lifetime data from NPZ files and saves as TIFF images *(DEPRECATED: Use lifetime_images.py instead)*
-- `phasor_transform.py`: Performs phasor transformation without GUI dependencies
-- `flim_fft_automated.py`: The main script that processes FLIM data using FFT
-- `organize_output_files.py`: Organizes processed files into the required directory structure
-- `calibration.csv`: Contains phi_cal and m_cal calibration values for data files
-- ImageJ macros (`.ijm` files): Used for converting .bin files to .tif files
+- **`pipeline.py`**: Orchestrates the complete analysis workflow
+- **`stages.py`**: Manages individual processing stages
+- **`cli.py`**: Command-line interface for advanced users
+- **`config.py`**: Configuration management and validation
+- **`logger.py`**: Comprehensive logging and error tracking
+
+### Processing Modules (`src/python/modules/`)
+
+- **`preprocessing.py`**: Converts .bin files to .tif using ImageJ
+- **`phasor_segmentation.py`**: Interactive phasor-based segmentation
+- **`GMMSegmentation.py`**: Gaussian Mixture Model clustering for automated segmentation
+- **`ManualSegmentation.py`**: Manual ellipse-based segmentation tools
+- **`lifetime_images.py`**: Generates lifetime images from NPZ files
+- **`calculate_average_lifetime.py`**: Calculates average lifetime from segmented data
+- **`phasor_visualization.py`**: Interactive phasor plot visualization
+- **`wavelet_filter.py`**: Advanced DTCWT wavelet filtering for noise reduction
+- **`organize_output_files.py`**: Organizes processed files into directory structure
+
+### Configuration and Setup
+
+- **`config/config.template.json`**: Template configuration file
+- **`src/python/setup.py`**: Automated setup and configuration
+- **`src/scripts/`**: Supporting scripts and ImageJ macros
+  - `imagej/FLIM_processing_macro.ijm`: ImageJ macro for .bin conversion
+  - `stitched_directory_setup.sh`: Directory setup script
+
+### Legacy Support
+
+- **`run_pipeline.py`**: Legacy command-line interface (still functional)
+- **`flim_fft_automated.py`**: Direct FFT processing script
+- **`src/python/modules/phasor_transform.py`**: Legacy phasor transformation
+
+## Processing Stages
+
+The pipeline is organized into distinct processing stages:
+
+### Stage 1: Preprocessing
+- **Input**: Raw .bin files from FLIM microscope
+- **Process**: ImageJ-based conversion to .tif files
+- **Output**: Organized .tif files in output directory
+
+### Stage 2: Phasor Transformation
+- **Input**: .tif files from preprocessing
+- **Process**: FFT-based phasor transformation
+- **Output**: G, S coordinates and intensity maps
+
+### Stage 3: Wavelet Filtering
+- **Input**: G, S coordinates from phasor transformation
+- **Process**: DTCWT-based noise reduction
+- **Output**: Filtered NPZ datasets with both filtered and unfiltered data
+
+### Stage 4: Segmentation
+- **Input**: NPZ datasets from wavelet filtering
+- **Process**: Interactive segmentation (GMM or manual)
+- **Output**: Segmentation masks and segmented NPZ files
+
+### Stage 5: Analysis
+- **Input**: Segmented NPZ files
+- **Process**: Average lifetime calculation, lifetime image generation
+- **Output**: Statistical results and lifetime images
+
+## Data Flow
+
+```
+Raw .bin files
+    ↓ (Stage 1)
+.tif files (ImageJ conversion)
+    ↓ (Stage 2)
+G, S coordinates (Phasor transformation)
+    ↓ (Stage 3)
+NPZ datasets (Wavelet filtering)
+    ↓ (Stage 4)
+Segmented data (GMM/Manual segmentation)
+    ↓ (Stage 5)
+Analysis results (Lifetime images, statistics)
+```
+
+## Configuration System
+
+The pipeline uses a JSON-based configuration system:
+
+```json
+{
+  "imagej": {
+    "path": "/Applications/Fiji.app/Contents/MacOS/ImageJ-macosx"
+  },
+  "wavelet_params": {
+    "filter_level": 9,
+    "reference_g": 0.30227996721890404,
+    "reference_s": 0.4592458920992018
+  },
+  "microscope_params": {
+    "frequency": 78.0,
+    "harmonic": 1
+  }
+}
+```
+
+## Error Handling and Logging
+
+The pipeline includes comprehensive error handling:
+
+- **Stage-level error tracking**: Each stage reports success/failure
+- **Detailed logging**: All operations are logged with timestamps
+- **Error reports**: Automatic generation of error reports
+- **Graceful failure**: Pipeline continues even if individual files fail
+- **Debug information**: Detailed debug output for troubleshooting
 
 ## Installation
 
@@ -366,20 +446,21 @@ This will install the following dependencies:
 
 ### Step 4: Configure the Pipeline
 
-Run the automated setup script to configure the pipeline:
+The pipeline uses a configuration system that can be set up in two ways:
+
+#### Option A: Interactive Setup (Recommended)
+
+Run the main script and use the interactive menu to set up directories:
 
 ```bash
-python setup.py
+python main.py
 ```
 
-This script will:
-- ✅ Check your Python version and required packages
-- 🔍 Automatically detect ImageJ/Fiji and FLUTE installations
-- 📝 Guide you through configuration parameters
-- 🧪 Test the ImageJ connection
-- 💾 Generate a `config.json` file with your settings
+Then select option 1 to set your input and output directories.
 
-Alternatively, you can manually create a `config.json` file using the template:
+#### Option B: Manual Configuration
+
+Create a configuration file manually:
 
 ```bash
 cp config/config.template.json config/config.json
@@ -389,87 +470,25 @@ Then edit `config/config.json` with your specific paths and parameters.
 
 ### Step 5: Verify Installation
 
-Run the test mode to verify that all components are working properly:
+Test the installation by running the main script:
 
 ```bash
-python run_pipeline.py --test
+python main.py
 ```
+
+This will launch the interactive menu system. You can test individual components by selecting different options from the menu.
 
 ### Troubleshooting
 
 - **Import Errors**: Make sure your virtual environment is activated (`source venv/bin/activate` or `venv\Scripts\activate`)
-- **ImageJ/FLUTE Path Errors**: Check that your `config.json` has the correct paths
+- **Menu Not Appearing**: Ensure you're running `python main.py` from the project root directory
+- **Directory Setup Issues**: Use option 1 in the menu to properly set input/output directories
+- **ImageJ Path Errors**: Check that ImageJ/Fiji is properly installed and accessible
 - **Missing Dependencies**: If you encounter errors about missing packages, try installing them individually with `pip install package_name`
 - **Permission Issues**: Make sure ImageJ/Fiji and macro files have execution permissions on Unix systems (`chmod +x /path/to/file`)
+- **Interactive Selection Issues**: For average lifetime calculations, ensure NPZ files contain the expected data keys
 
-
-## Data Preparation Guide
-
-To successfully run the FLIM-FRET analysis pipeline, your input data must be structured correctly. Follow these guidelines to ensure proper processing:
-
-### Required Files
-
-1. **FLIM .bin Files**: Your microscope acquisition data files
-2. **FITC.bin**: Calibration reference file that must be present in your input directory
-3. **calibration.csv**: Contains calibration values for each .bin file
-
-### Directory Structure Requirements
-
-**⚠️ IMPORTANT:** .bin files **CANNOT** be placed directly in the root of the input directory. They **MUST** be organized in at least one level of subdirectories within the input folder.
-
-The pipeline supports flexible directory structures for organizing your .bin files, as long as they follow this basic rule:
-
-#### ✅ Supported Directory Organizations
-
-**1. Hierarchical Structure (Recommended)**
-```
-Input-Directory/
-├── FITC.bin                    # Can be in root or subdirectories
-├── calibration.csv             # Must be in root directory
-└── Dish_1_Post-Rapa/           # At least one subdirectory required
-    ├── R1/
-    │   ├── R_1_s1.bin
-    │   ├── R_1_s2.bin
-    │   ├── R_1_s3.bin
-    │   └── R_1_s4.bin
-    ├── R2/
-    │   ├── R_2_s1.bin
-    │   └── ...
-    └── R3/
-        ├── R_3_s1.bin
-        └── ...
-```
-
-**2. Flat Structure**
-```
-Input-Directory/
-├── FITC.bin                    # Can be in root or subdirectories
-├── calibration.csv             # Must be in root directory
-└── Experiment_Data/            # At least one subdirectory required
-    ├── R_1_s1.bin
-    ├── R_1_s2.bin
-    ├── R_1_s3.bin
-    ├── R_1_s4.bin
-    ├── R_2_s1.bin
-    └── ...
-```
-
-**3. Multiple Experiment Folders**
-```
-Input-Directory/
-├── FITC.bin
-├── calibration.csv
-├── Experiment_A/
-│   ├── sample1.bin
-│   └── sample2.bin
-├── Experiment_B/
-│   ├── sample3.bin
-│   └── sample4.bin
-└── Control_Group/
-    ├── control1.bin
-    └── control2.bin
-```
-
+### Common Directory Structure Issues
 #### ❌ Invalid Directory Structure
 
 ```
@@ -480,14 +499,6 @@ Input-Directory/
 ├── R_1_s2.bin              # ❌ WRONG: .bin files cannot be in root
 └── R_1_s3.bin              # ❌ WRONG: .bin files cannot be in root
 ```
-
-#### Key Rules
-
-1. **Subdirectory Requirement**: All .bin files (except FITC.bin) must be in at least one subdirectory
-2. **Flexible Organization**: You can organize subdirectories however you want - by experiment, by sample, by region, etc.
-3. **Multiple Levels**: You can have multiple levels of subdirectories (e.g., `Experiment/Region/Sample/`)
-4. **FITC.bin Placement**: FITC.bin can be placed anywhere in the directory tree (root or subdirectories)
-5. **Calibration File**: calibration.csv must be in the root input directory
 
 ### Calibration File Format
 
@@ -509,7 +520,6 @@ file_path,phi_cal,m_cal
 - **Calibration File**: The `calibration.csv` file can be placed in either the project directory or the input directory, with input directory taking precedence if both exist
 - **Flexible Organization**: You can organize your subdirectories however makes sense for your workflow - by experiment, condition, sample, region, etc.
 - **File Naming**: While there's no strict naming requirement, consistent patterns help (e.g., R_1_s2.bin where 1 is the region number and 2 is the sample number)
-- **Filename Simplification**: When using the `--simplify-filenames` option, the script automatically detects your directory structure and handles naming accordingly
 
 ## Usage
 
