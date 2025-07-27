@@ -337,7 +337,7 @@ def run_gmm_segmentation(selected_files, data_type, mask_source, output_dir, npz
         bool: Success status
     """
     try:
-        from .GMMSegmentation_v2_6 import main as gmm_main
+        from .GMMSegmentation import main as gmm_main
         
         print(f"\nRunning GMM segmentation on {len(selected_files)} files...")
         print(f"Data type: {data_type}")

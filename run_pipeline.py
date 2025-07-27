@@ -313,9 +313,9 @@ import shutil
 
 try:
     # Stage 3: GMM Segmentation, Plotting, Lifetime Saving
-    from src.python.modules.GMMSegmentation_v2_6 import main as run_gmm_segmentation
+    from src.python.modules.GMMSegmentation import main as run_gmm_segmentation
 except ImportError as e:
-    store_import_error("GMMSegmentation_v2_6", 
+    store_import_error("GMMSegmentation", 
                       f"Could not import main (as run_gmm_segmentation): {e}",
                       "Ensure the script is in the same directory or accessible via PYTHONPATH.")
     run_gmm_segmentation = None # Placeholder
@@ -826,7 +826,7 @@ def main():
                         success = False
                     else:
                         # Load config file using GMM module's config loader
-                        from src.python.modules.GMMSegmentation_v2_6 import load_gmm_config
+                        from src.python.modules.GMMSegmentation import load_gmm_config
                         gmm_params = load_gmm_config(gmm_config_path)
                         if not gmm_params:
                             logger.log_error(Exception("Failed to load GMM config parameters"), "Config loading", "Stage 4: GMM Segmentation")

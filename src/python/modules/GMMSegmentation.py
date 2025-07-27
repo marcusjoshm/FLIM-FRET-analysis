@@ -656,7 +656,7 @@ def main(config=None, npz_dir=None, segmented_dir=None, plots_dir=None, lifetime
                                     npz_data_dict['mask_registry'][mask_key] = {
                                         'type': 'binary',
                                         'description': f'GMM segmentation {mask_type}',
-                                        'created_by': 'GMMSegmentation_v2_6',
+                                        'created_by': 'GMMSegmentation',
                                         'created_timestamp': datetime.datetime.now().isoformat()
                                     }
                                 
@@ -961,7 +961,7 @@ def apply_combined_mask_to_file(file_info_item, combined_masks, masks_dir, phaso
                 npz_data_dict['mask_registry'][mask_key] = {
                     'type': 'binary',
                     'description': f'GMM segmentation {mask_type}',
-                    'created_by': 'GMMSegmentation_v2_6',
+                    'created_by': 'GMMSegmentation',
                     'created_timestamp': datetime.datetime.now().isoformat()
                 }
             
