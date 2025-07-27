@@ -409,12 +409,83 @@ class PhasorSegmentationStage(StageBase):
 
 class AverageLifetimeStage(StageBase):
     """Average lifetime calculation stage."""
+    
+    def __init__(self, config: Config, logger: PipelineLogger, stage_name: str):
+        super().__init__(config, logger, stage_name)
+        try:
+            from .calculate_average_lifetime import main as run_average_lifetime
+            self.run_average_lifetime = run_average_lifetime
+            self.average_lifetime_available = True
+        except ImportError as e:
+            self.logger.error(f"Could not import calculate_average_lifetime module: {e}")
+            self.run_average_lifetime = None
+            self.average_lifetime_available = False
+    
     def get_description(self) -> str:
         return "Calculate average lifetime from segmented data"
+    
     def validate_inputs(self, **kwargs) -> bool:
+        if not self.average_lifetime_available:
+            self.logger.error("Average lifetime module not available")
+            return False
+        
+        directories = kwargs.get('directories', {})
+        npz_dir = directories.get('npz_datasets')
+        if not npz_dir or not npz_dir.exists():
+            self.logger.error(f"NPZ directory does not exist: {npz_dir}")
+            return False
+            
+        if not any(f.endswith('.npz') for f in os.listdir(npz_dir)):
+            self.logger.error(f"No NPZ files found in directory: {npz_dir}")
+            return False
+            
         return True
+    
     def run(self, **kwargs) -> bool:
-        self.logger.info("Average lifetime stage - placeholder implementation")
-        return True
+        if not self.average_lifetime_available:
+            self.logger.error("Average lifetime module not available")
+            return False
+        
+        directories = kwargs.get('directories', {})
+        npz_dir = str(directories.get('npz_datasets'))
+        output_dir = str(directories.get('output'))
+        
+        self.logger.info("Starting average lifetime calculation...")
+        
+        # Interactive file selection
+        select_files = True
+        print("\n=== Average Lifetime File Selection ===")
+        print("Choose how to select NPZ files for average lifetime calculation:")
+        print("  [1] Select specific NPZ files interactively (default)")
+        print("  [2] Use all NPZ files in the directory")
+        while True:
+            choice = input("Select option (1 or 2, default: 1): ").strip()
+            if choice == "" or choice == "1":
+                select_files = True
+                print("→ Interactive file selection enabled")
+                break
+            elif choice == "2":
+                select_files = False
+                print("→ Using all NPZ files in the directory")
+                break
+            else:
+                print("Please enter 1 or 2.")
+        
+        try:
+            # Create output directory for average lifetime results
+            avg_lifetime_dir = Path(output_dir).parent / 'average_lifetime_results'
+            avg_lifetime_dir.mkdir(parents=True, exist_ok=True)
+            
+            return self.run_average_lifetime(
+                config=self.config.to_dict(),
+                segmented_npz_dir=npz_dir,
+                output_dir=str(avg_lifetime_dir),
+                select_files=select_files,
+                mask_source=None,  # Will be handled interactively in main function
+                selected_mask_name=None  # Will be handled interactively in main function
+            )
+        except Exception as e:
+            self.logger.error(f"Error during average lifetime calculation: {str(e)}", e)
+            return False
 
 

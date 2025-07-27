@@ -7,7 +7,7 @@ and Förster Resonance Energy Transfer (FRET) analysis.
 
 __version__ = "2.0.0"
 __author__ = "Joshua Marcus"
-__email__ = "your.email@example.com"
+__email__ = "joshua.marcus@bcm.edu"
 
 # Package information
 __title__ = "FLIM-FRET Analysis Pipeline"
