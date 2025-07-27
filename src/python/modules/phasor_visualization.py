@@ -22,6 +22,21 @@ from matplotlib import colors
 import datetime
 import re
 
+# Import mask selection functions from phasor_segmentation module
+try:
+    from .phasor_segmentation import read_mask_registries, prompt_mask_selection
+except ImportError:
+    # Fallback if phasor_segmentation module is not available
+    def read_mask_registries(npz_files):
+        """Fallback function for reading mask registries"""
+        print("Warning: Mask registry reading not available")
+        return {}
+    
+    def prompt_mask_selection(available_masks):
+        """Fallback function for mask selection"""
+        print("Warning: Mask selection not available")
+        return None, None
+
 def list_npz_files(npz_dir):
     """
     List all NPZ files in the specified directory
@@ -87,13 +102,14 @@ def prompt_file_selection(npz_files):
         print("Invalid input format. Please try again.")
         return prompt_file_selection(npz_files)
 
-def load_npz_data(selected_files, individual_threshold=None):
+def load_npz_data(selected_files, individual_threshold=None, selected_mask_name=None):
     """
     Load and combine data from selected NPZ files
     
     Args:
         selected_files (list): List of selected NPZ file paths
         individual_threshold (float): Percentile threshold to apply to each dataset individually before combining
+        selected_mask_name (str): Name of the selected mask to apply (if any)
         
     Returns:
         dict: Combined data with G, S, GU, SU, and A arrays
@@ -112,7 +128,7 @@ def load_npz_data(selected_files, individual_threshold=None):
     
     for file_path in selected_files:
         try:
-            data = np.load(file_path)
+            data = np.load(file_path, allow_pickle=True)
             
             # Check if all required keys are present
             required_keys = ['G', 'S', 'GU', 'SU', 'A']
@@ -122,6 +138,24 @@ def load_npz_data(selected_files, individual_threshold=None):
                 print(f"Warning: File {os.path.basename(file_path)} is missing keys: {', '.join(missing_keys)}")
                 print("This file will be skipped.")
                 continue
+            
+            # Apply mask if selected
+            if selected_mask_name and selected_mask_name in data:
+                print(f"Applying mask '{selected_mask_name}' to {os.path.basename(file_path)}")
+                mask = data[selected_mask_name]
+                
+                # Convert NpzFile to regular dictionary for modification
+                data_dict = dict(data)
+                
+                # Apply mask to all phasor data
+                for key in required_keys:
+                    if key in data_dict:
+                        data_dict[key] = data_dict[key] * mask
+                
+                print(f"  Applied mask: {np.sum(mask)} pixels selected out of {mask.size} total")
+                
+                # Use the modified data dictionary
+                data = data_dict
             
             # Apply individual thresholding if requested
             if individual_threshold is not None:
@@ -413,6 +447,43 @@ def run_phasor_visualization(npz_dir, select_files=True):
             print(f"Using all {len(selected_files)} NPZ files for visualization.")
             file_selection = "full_dataset"
         
+        # Prompt for mask source selection
+        print("\n=== Mask Source Selection ===")
+        print("Choose mask source for visualization:")
+        print("  [1] No mask (use original data)")
+        print("  [2] Use masked NPZ files")
+        print("  [q] Quit")
+        
+        mask_source_choice = input("\nSelect option (1, 2, or q): ").strip().lower()
+        
+        if mask_source_choice == 'q':
+            return False
+        elif mask_source_choice == '1':
+            selected_mask_name = None
+            mask_source_name = "no-mask"
+            print("Using original data without masks.")
+        elif mask_source_choice == '2':
+            # Read available masks from NPZ files
+            available_masks = read_mask_registries(selected_files)
+            
+            # Prompt user to select a mask
+            selected_mask_name, selected_mask_info = prompt_mask_selection(available_masks)
+            if selected_mask_name is None:
+                print("No mask selected. Exiting.")
+                return False
+            
+            print(f"Selected mask: {selected_mask_name}")
+            print(f"Description: {selected_mask_info['description']}")
+            print(f"Type: {selected_mask_info['type']}")
+            print(f"Created by: {selected_mask_info['created_by']}")
+            
+            # Update mask_source_name to include the selected mask
+            mask_source_name = f"masked_{selected_mask_name}"
+        else:
+            print("Invalid choice. Using original data without masks.")
+            selected_mask_name = None
+            mask_source_name = "no-mask"
+        
         # Prompt for intensity threshold method before loading data
         print("\nThresholding options:")
         print("  [1] No threshold (use all data)")
@@ -503,12 +574,12 @@ def run_phasor_visualization(npz_dir, select_files=True):
         # Now that we've determined the thresholding approach, load the data accordingly
         if individual_percentile is not None:
             # Load NPZ data with individual thresholding
-            data = load_npz_data(selected_files, individual_percentile)
+            data = load_npz_data(selected_files, individual_percentile, selected_mask_name)
             # No further thresholding needed
             filtered_data = data
         else:
             # Load and combine data from selected files without thresholding
-            data = load_npz_data(selected_files)
+            data = load_npz_data(selected_files, selected_mask_name=selected_mask_name)
         
         # Check if any data was loaded
         if not data['G'].size or not data['GU'].size:
@@ -560,9 +631,9 @@ def run_phasor_visualization(npz_dir, select_files=True):
             logs_dir = os.path.join(output_dir, 'logs')
             os.makedirs(logs_dir, exist_ok=True)
             
-            # Save plots with file_selection in filename
-            filtered_filename = f"filtered_phasor_{file_selection}_{threshold_name}_{timestamp}.pdf"
-            unfiltered_filename = f"unfiltered_phasor_{file_selection}_{threshold_name}_{timestamp}.pdf"
+            # Save plots with file_selection, threshold, and mask source in filename
+            filtered_filename = f"filtered_phasor_{file_selection}_{threshold_name}_{mask_source_name}_{timestamp}.pdf"
+            unfiltered_filename = f"unfiltered_phasor_{file_selection}_{threshold_name}_{mask_source_name}_{timestamp}.pdf"
             
             save_plot(filtered_fig, plots_dir, filtered_filename)
             save_plot(unfiltered_fig, plots_dir, unfiltered_filename)
@@ -572,6 +643,9 @@ def run_phasor_visualization(npz_dir, select_files=True):
                 log_content = f"Dataset selection for {filtered_filename} and {unfiltered_filename}:\n"
                 log_content += f"Selected files: {', '.join(selected_files)}\n"
                 log_content += f"Total files selected: {len(selected_files)} out of {len(npz_files)} available files\n"
+                log_content += f"Mask source: {mask_source_name}\n"
+                if selected_mask_name:
+                    log_content += f"Selected mask: {selected_mask_name}\n"
                 log_content += f"Timestamp: {timestamp}\n"
                 
                 log_filename = f"dataset_selection_for_{filtered_filename.replace('.pdf', '.txt')}"
