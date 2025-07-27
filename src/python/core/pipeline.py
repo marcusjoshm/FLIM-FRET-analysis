@@ -79,33 +79,29 @@ class Pipeline:
         """
         stages = []
         
-        if self.args.all:
-            # Run all stages in order
-            stages = self.registry.get_stage_order()
-        else:
-            # Add stages based on flags
-            if self.args.preprocessing or self.args.processing:
-                stages.append('preprocessing')
+        # Add stages based on flags
+        if self.args.preprocessing or self.args.processing:
+            stages.append('preprocessing')
+        
+
+            
+        if self.args.processing:
+            stages.append('processing')
+            
+        if self.args.visualize:
+            stages.append('phasor_visualization')
+            
+        if self.args.segment:
+            stages.append('phasor_segmentation')
+            
+        if self.args.lifetime_images:
+            stages.append('lifetime_images')
+            
+        if self.args.average_lifetime:
+            stages.append('average_lifetime')
             
 
-                
-            if self.args.processing:
-                stages.append('processing')
-                
-            if self.args.visualize:
-                stages.append('phasor_visualization')
-                
-            if self.args.segment:
-                stages.append('phasor_segmentation')
-                
-            if self.args.lifetime_images:
-                stages.append('lifetime_images')
-                
-            if self.args.average_lifetime:
-                stages.append('average_lifetime')
-                
-
-        
+    
         return stages
     
     def get_calibration_file_path(self) -> str:
@@ -153,8 +149,7 @@ class Pipeline:
             'output_dir': self.args.output,
             'directories': self.directories,
             'calibration_file': self.get_calibration_file_path(),
-            'interactive': getattr(self.args, 'interactive', False),
-            'process_all': getattr(self.args, 'all', False)
+            'interactive': getattr(self.args, 'interactive', False)
         }
         
         # Execute stages

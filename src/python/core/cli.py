@@ -119,12 +119,7 @@ Examples:
             help="Base output directory for all pipeline stages"
         )
         
-        # Pipeline stage control
-        parser.add_argument(
-            "--all", 
-            action="store_true", 
-            help="Run all pipeline stages"
-        )
+
         
         # Workflow groupings
         parser.add_argument(
@@ -224,7 +219,7 @@ Examples:
         """
         # Check if any stage is already selected
         stage_flags = [
-            args.all, args.preprocessing, args.processing, 
+            args.preprocessing, args.processing, 
             args.visualize, args.segment, args.lifetime_images, 
             args.average_lifetime
         ]
@@ -243,11 +238,10 @@ Examples:
         print(colorize("4. Segment (interactive phasor segmentation - GMM or manual)", Colors.yellow))
         print(colorize("5. Average Lifetime (calculate average lifetime from segmented data)", Colors.yellow))
         print(colorize("6. Lifetime Images (generate lifetime images from NPZ files)", Colors.yellow))
-        print(colorize("7. _____All stages", Colors.yellow))
-        print(colorize("8. Exit", Colors.red))
+        print(colorize("7. Exit", Colors.red))
         
         # Get user choice
-        choice = input("Select an option (1-8): ")
+        choice = input("Select an option (1-7): ")
         
         # Update args based on choice
         if choice == "1":
@@ -263,8 +257,6 @@ Examples:
         elif choice == "6":
             args.lifetime_images = True
         elif choice == "7":
-            args.all = True
-        elif choice == "8":
             print("Exiting.")
             sys.exit(0)
         else:

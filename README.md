@@ -27,10 +27,9 @@ MENU:
 4. Segment (interactive phasor segmentation - GMM or manual)
 5. Average Lifetime (calculate average lifetime from segmented data)
 6. Lifetime Images (generate lifetime images from NPZ files)
-7. _____All stages
-8. Exit
+7. Exit
 
-Select an option (1-8):
+Select an option (1-7):
 ```
 
 *Note: In the actual terminal, the FLIM text appears in green and the FRET text appears in red, with all menu options displayed in yellow for better visibility.*
