@@ -280,9 +280,6 @@ def create_interactive_exploration_plot(file_data, data_type, threshold_desc):
     ax_intensity.set_xlabel('X pixels')
     ax_intensity.set_ylabel('Y pixels')
     
-    # Add colorbar for intensity image
-    fig.colorbar(intensity_display, ax=ax_intensity, label='Intensity')
-    
     # Create sliders
     plt.subplots_adjust(bottom=0.25)
     
@@ -360,19 +357,16 @@ def create_interactive_exploration_plot(file_data, data_type, threshold_desc):
         # Set mask values
         roi_mask[mask_indices[0][inside_ellipse], mask_indices[1][inside_ellipse]] = True
         
-        # Create overlay image
-        overlay = intensity.copy()
-        
-        # Create a colored overlay for the ROI
+        # Create a colored overlay for the ROI - use bright red for visibility
         overlay_colored = np.zeros((*intensity.shape, 4))  # RGBA
-        overlay_colored[:, :, 0] = intensity / intensity.max()  # Red channel (intensity)
-        overlay_colored[:, :, 1] = 0  # Green channel
-        overlay_colored[:, :, 2] = 0  # Blue channel
-        overlay_colored[:, :, 3] = 0.3  # Alpha (transparency)
+        overlay_colored[:, :, 0] = 1.0  # Red channel (bright red)
+        overlay_colored[:, :, 1] = 0.0  # Green channel
+        overlay_colored[:, :, 2] = 0.0  # Blue channel
+        overlay_colored[:, :, 3] = 0.0  # Alpha (transparent by default)
         
-        # Add ROI mask as green overlay
-        overlay_colored[roi_mask, 1] = 0.8  # Green for ROI
-        overlay_colored[roi_mask, 3] = 0.7  # Higher alpha for ROI
+        # Add ROI mask as bright red overlay
+        overlay_colored[roi_mask, 0] = 1.0  # Bright red for ROI
+        overlay_colored[roi_mask, 3] = 0.6  # Semi-transparent red for ROI
         
         # Update intensity image with overlay
         ax_intensity.clear()
@@ -381,10 +375,6 @@ def create_interactive_exploration_plot(file_data, data_type, threshold_desc):
         ax_intensity.set_title(f"Intensity Image with ROI Overlay\n{os.path.basename(file_data['npz_data'].get('filename', 'Unknown'))}")
         ax_intensity.set_xlabel('X pixels')
         ax_intensity.set_ylabel('Y pixels')
-        
-        # Add colorbar for intensity image
-        intensity_display = ax_intensity.imshow(intensity, cmap='gray', interpolation='nearest')
-        fig.colorbar(intensity_display, ax=ax_intensity, label='Intensity')
         
         # Print statistics
         total_pixels = roi_mask.size
