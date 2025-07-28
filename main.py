@@ -16,7 +16,7 @@ from src.python.core.config import Config, ConfigError
 from src.python.core.logger import PipelineLogger
 from src.python.core.cli import parse_arguments, CLIError
 from src.python.core.pipeline import Pipeline
-from src.python.modules.directory_setup import get_paths_interactively, save_config
+from src.python.modules.directory_setup import get_paths_interactively, save_config, validate_directory_path, add_recent_directory
 from src.python.modules.set_directories import set_default_directories, check_default_directories, get_default_directories
 
 
@@ -51,6 +51,9 @@ def main():
             # Check if default directories are set and valid
             are_valid, default_input, default_output = check_default_directories(config.to_dict())
             
+            # Track if config needs to be updated
+            config_modified = False
+            
             if are_valid and not input_path and not output_path:
                 # Use default directories
                 input_path = default_input
@@ -65,10 +68,52 @@ def main():
                     input_path, 
                     output_path
                 )
-                
-                # Save config if it was modified
-                if config_modified:
-                    save_config(config.to_dict(), config_path)
+            else:
+                # Both input_path and output_path are provided via command line flags
+                # Validate the provided paths
+                if not validate_directory_path(input_path, create_if_missing=False):
+                    print(f"Warning: Input directory '{input_path}' does not exist or is not accessible")
+                    # Fall back to interactive selection
+                    input_path, output_path, config_modified = get_paths_interactively(
+                        config.to_dict(), 
+                        input_path, 
+                        output_path
+                    )
+                elif not validate_directory_path(output_path, create_if_missing=True):
+                    print(f"Warning: Cannot create or access output directory '{output_path}'")
+                    # Fall back to interactive selection
+                    input_path, output_path, config_modified = get_paths_interactively(
+                        config.to_dict(), 
+                        input_path, 
+                        output_path
+                    )
+                else:
+                    # Both paths are valid, update config with new defaults
+                    print(f"Using command line directories:")
+                    print(f"  Input: {input_path}")
+                    print(f"  Output: {output_path}")
+                    
+                    # Ask if user wants to save as defaults
+                    save_defaults = input("\nSave these paths as defaults? (y/n): ").strip().lower()
+                    if save_defaults in ['y', 'yes']:
+                        config_dict = config.to_dict()
+                        if 'directories' not in config_dict:
+                            config_dict['directories'] = {}
+                        config_dict['directories']['input'] = input_path
+                        config_dict['directories']['output'] = output_path
+                        
+                        # Add to recent directories
+                        add_recent_directory(config_dict, 'input', input_path)
+                        add_recent_directory(config_dict, 'output', output_path)
+                        
+                        # Update the config object
+                        config.update(config_dict)
+                        config_modified = True
+                        print("Paths saved as defaults!")
+            
+            # Save config if it was modified
+            if config_modified:
+                save_config(config.to_dict(), config_path)
             
             # Update args with the selected paths
             args.input = input_path
@@ -93,7 +138,7 @@ def main():
                 logger.error("Pipeline completed with errors. Check error report for details.")
             
             # Check if this was an interactive module that blocks
-            interactive_modules = ['segment', 'visualize']
+            interactive_modules = ['segment', 'visualize', 'data_exploration']
             is_interactive = any(getattr(args, module, False) for module in interactive_modules)
             
             if is_interactive:

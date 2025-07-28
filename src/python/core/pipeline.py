@@ -94,6 +94,9 @@ class Pipeline:
         if self.args.segment:
             stages.append('phasor_segmentation')
             
+        if getattr(self.args, 'data_exploration', False):
+            stages.append('data_exploration')
+            
         if self.args.lifetime_images:
             stages.append('lifetime_images')
             

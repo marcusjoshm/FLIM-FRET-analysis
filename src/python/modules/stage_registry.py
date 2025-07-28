@@ -11,7 +11,8 @@ from .stage_classes import (
     PhasorVisualizationStage,
     PhasorSegmentationStage,
     LifetimeImagesStage,
-    AverageLifetimeStage
+    AverageLifetimeStage,
+    DataExplorationStage
 )
 
 
@@ -30,4 +31,7 @@ def register_all_stages():
     
     # Lifetime processing
     register_stage('lifetime_images', order=10)(LifetimeImagesStage)
-    register_stage('average_lifetime', order=12)(AverageLifetimeStage) 
+    register_stage('average_lifetime', order=12)(AverageLifetimeStage)
+    
+    # Data exploration
+    register_stage('data_exploration', order=5)(DataExplorationStage) 

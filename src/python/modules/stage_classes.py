@@ -489,3 +489,79 @@ class AverageLifetimeStage(StageBase):
             return False
 
 
+class DataExplorationStage(StageBase):
+    """Interactive data exploration stage for ROI visualization."""
+    
+    def __init__(self, config: Config, logger: PipelineLogger, stage_name: str):
+        super().__init__(config, logger, stage_name)
+        try:
+            from .data_exploration import main as run_data_exploration
+            self.run_data_exploration = run_data_exploration
+            self.data_exploration_available = True
+        except ImportError as e:
+            self.logger.error(f"Could not import data_exploration module: {e}")
+            self.run_data_exploration = None
+            self.data_exploration_available = False
+
+    def get_description(self) -> str:
+        return "Interactive data exploration with ROI visualization"
+
+    def validate_inputs(self, **kwargs) -> bool:
+        if not self.data_exploration_available:
+            self.logger.error("Data exploration module not available")
+            return False
+        
+        directories = kwargs.get('directories', {})
+        npz_dir = directories.get('npz_datasets')
+        if not npz_dir or not npz_dir.exists():
+            self.logger.error(f"NPZ directory does not exist: {npz_dir}")
+            return False
+            
+        if not any(f.endswith('.npz') for f in os.listdir(npz_dir)):
+            self.logger.error(f"No NPZ files found in directory: {npz_dir}")
+            return False
+            
+        return True
+
+    def run(self, **kwargs) -> bool:
+        if not self.data_exploration_available:
+            self.logger.error("Data exploration module not available")
+            return False
+        directories = kwargs.get('directories', {})
+        npz_dir = str(directories.get('npz_datasets'))
+        self.logger.info("Starting interactive data exploration...")
+        
+        # Interactive file selection
+        select_files = True
+        print("\n=== Data Exploration File Selection ===")
+        print("Choose how to select NPZ files for data exploration:")
+        print("  [1] Select specific NPZ files interactively (default)")
+        print("  [2] Use all NPZ files in the directory")
+        while True:
+            choice = input("Select option (1 or 2, default: 1): ").strip()
+            if choice == "" or choice == "1":
+                select_files = True
+                print("→ Interactive file selection enabled")
+                break
+            elif choice == "2":
+                select_files = False
+                print("→ Using all NPZ files in the directory")
+                break
+            else:
+                print("Please enter 1 or 2.")
+        
+        try:
+            return self.run_data_exploration(
+                config=self.config.to_dict(),
+                npz_dir=npz_dir,
+                output_dir=None,  # Not needed for exploration
+                interactive=True,
+                selected_files=None,  # Will be handled by select_files parameter
+                data_type='filtered',  # Default to filtered data
+                naming_variables=None,  # Not needed for exploration
+                selected_mask_name=None  # Will be handled interactively
+            )
+        except Exception as e:
+            self.logger.error(f"Error during data exploration: {str(e)}", e)
+            return False
+

@@ -148,6 +148,11 @@ Examples:
             help="Run Stage 4: Interactive phasor segmentation (GMM or manual)"
         )
         parser.add_argument(
+            "--data-exploration", 
+            action="store_true", 
+            help="Run Stage 5: Interactive data exploration with ROI visualization"
+        )
+        parser.add_argument(
             "--lifetime-images", 
             action="store_true", 
             help="Run lifetime image generation from NPZ files"
@@ -223,7 +228,7 @@ Examples:
         # Check if any stage is already selected
         stage_flags = [
             args.set_directories, args.preprocessing, args.processing, 
-            args.visualize, args.segment, args.lifetime_images, 
+            args.visualize, args.segment, args.data_exploration, args.lifetime_images, 
             args.average_lifetime
         ]
         
@@ -240,12 +245,13 @@ Examples:
         print(colorize("3. Preprocessing + Processing (.bin to .npz)", Colors.yellow))
         print(colorize("4. Visualization (interactive phasor plots)", Colors.yellow))
         print(colorize("5. Segmentation (interactive phasor segmentation - GMM or manual)", Colors.yellow))
-        print(colorize("6. Average Lifetime (calculate average lifetime from segmented data)", Colors.yellow))
-        print(colorize("7. Lifetime Images (generate lifetime images from NPZ files)", Colors.yellow))
-        print(colorize("8. Exit", Colors.red))
+        print(colorize("6. Data Exploration (interactive ROI visualization)", Colors.yellow))
+        print(colorize("7. Average Lifetime (calculate average lifetime from segmented data)", Colors.yellow))
+        print(colorize("8. Lifetime Images (generate lifetime images from NPZ files)", Colors.yellow))
+        print(colorize("9. Exit", Colors.red))
         
         # Get user choice
-        choice = input("Select an option (1-8): ").strip().lower()
+        choice = input("Select an option (1-9): ").strip().lower()
         
         # Update args based on choice
         if choice == "1":
@@ -259,14 +265,16 @@ Examples:
         elif choice == "5":
             args.segment = True
         elif choice == "6":
-            args.average_lifetime = True
+            args.data_exploration = True
         elif choice == "7":
+            args.average_lifetime = True
+        elif choice == "8":
             args.lifetime_images = True
-        elif choice == "8" or choice == "q" or choice == "quit":
+        elif choice == "9" or choice == "q" or choice == "quit":
             print("Exiting.")
             return None  # Signal to exit
         else:
-            print("Invalid choice. Please enter a number between 1-8 or 'q' to quit.")
+            print("Invalid choice. Please enter a number between 1-9 or 'q' to quit.")
             return args  # Return current args to continue loop
         
         return args
