@@ -78,8 +78,8 @@ def test_resolution_consistency():
         'noisy_dataset': generate_test_data(15000, 0.2)
     }
     
-    # Test different resolution settings
-    resolutions = [50, 100, 200]
+    # Test different resolution settings - much higher for better quality
+    resolutions = [200, 400, 600]
     
     for resolution in resolutions:
         print(f"\n--- Testing Resolution: {resolution} pixels per unit ---")

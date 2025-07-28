@@ -28,7 +28,7 @@ from matplotlib import colors
 def create_phasor_plot(g_data, s_data, intensity, title, figsize=(8, 6), 
                       ax=None, show_colorbar=True, show_universal_circle=True,
                       timestamp=True, return_histogram_data=False,
-                      target_pixels_per_unit=100):
+                      target_pixels_per_unit=300):
     """
     Create a standardized phasor plot from G and S coordinates.
     
@@ -108,9 +108,9 @@ def create_phasor_plot(g_data, s_data, intensity, title, figsize=(8, 6),
     num_bins_x = min(iqr_bins_x, target_bins_x)
     num_bins_y = min(iqr_bins_y, target_bins_y)
     
-    # Ensure reasonable bin counts
-    num_bins_x = max(20, min(300, num_bins_x))
-    num_bins_y = max(15, min(200, num_bins_y))
+    # Ensure reasonable bin counts - much higher limits for better resolution
+    num_bins_x = max(50, min(800, num_bins_x))
+    num_bins_y = max(35, min(560, num_bins_y))
     
     # Calculate actual bin sizes for information
     actual_bin_size_x = data_range_x / num_bins_x if num_bins_x > 0 else 0
@@ -188,7 +188,7 @@ def create_phasor_plot(g_data, s_data, intensity, title, figsize=(8, 6),
 
 def create_phasor_plot_with_ellipse(g_data, s_data, intensity, title, 
                                    ellipse_params=None, figsize=(10, 8),
-                                   target_pixels_per_unit=100):
+                                   target_pixels_per_unit=300):
     """
     Create a phasor plot with an interactive ellipse overlay.
     
@@ -329,7 +329,7 @@ def are_points_inside_ellipse(points_x, points_y, center_x, center_y, width, hei
     return calculate_ellipse_mask(points_x, points_y, center_x, center_y, width, height, angle_deg)
 
 
-def get_phasor_plot_resolution_info(target_pixels_per_unit=100):
+def get_phasor_plot_resolution_info(target_pixels_per_unit=300):
     """
     Get information about the pixel resolution for phasor plots.
     
@@ -347,9 +347,9 @@ def get_phasor_plot_resolution_info(target_pixels_per_unit=100):
     target_bins_x = int(g_range * target_pixels_per_unit)
     target_bins_y = int(s_range * target_pixels_per_unit)
     
-    # Apply reasonable limits
-    target_bins_x = max(50, min(500, target_bins_x))
-    target_bins_y = max(35, min(350, target_bins_y))
+    # Apply much higher limits for better resolution
+    target_bins_x = max(100, min(1000, target_bins_x))
+    target_bins_y = max(70, min(700, target_bins_y))
     
     # Calculate target bin sizes
     target_bin_size_x = g_range / target_bins_x
@@ -379,23 +379,23 @@ def get_preset_resolutions():
     """
     return {
         'low': {
-            'target_pixels_per_unit': 50,
-            'description': 'Low resolution, fast rendering',
-            'total_bins': 3535  # 50 * 1.01 * 50 * 0.7
-        },
-        'medium': {
             'target_pixels_per_unit': 100,
-            'description': 'Medium resolution, balanced performance',
+            'description': 'Low resolution, fast rendering',
             'total_bins': 7070  # 100 * 1.01 * 100 * 0.7
         },
+        'medium': {
+            'target_pixels_per_unit': 300,
+            'description': 'Medium resolution, balanced performance',
+            'total_bins': 63630  # 300 * 1.01 * 300 * 0.7
+        },
         'high': {
-            'target_pixels_per_unit': 200,
+            'target_pixels_per_unit': 500,
             'description': 'High resolution, detailed visualization',
-            'total_bins': 28280  # 200 * 1.01 * 200 * 0.7
+            'total_bins': 176750  # 500 * 1.01 * 500 * 0.7
         },
         'ultra': {
-            'target_pixels_per_unit': 300,
+            'target_pixels_per_unit': 800,
             'description': 'Ultra high resolution, maximum detail',
-            'total_bins': 63630  # 300 * 1.01 * 300 * 0.7
+            'total_bins': 452480  # 800 * 1.01 * 800 * 0.7
         }
     } 
