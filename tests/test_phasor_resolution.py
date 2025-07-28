@@ -12,13 +12,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Add the src directory to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src', 'python'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src', 'python', 'modules'))
 
-from modules.phasor_plot_utils import (
-    create_phasor_plot, 
-    get_phasor_plot_resolution_info, 
-    get_preset_resolutions
-)
+# Import directly to avoid complex import structure
+import phasor_plot_utils
 
 
 def generate_test_data(n_points=10000, noise_level=0.1):
@@ -85,7 +82,7 @@ def test_resolution_consistency():
         print(f"\n--- Testing Resolution: {resolution} pixels per unit ---")
         
         # Get resolution info
-        info = get_phasor_plot_resolution_info(resolution)
+        info = phasor_plot_utils.get_phasor_plot_resolution_info(resolution)
         print(f"Target G bins: {info['target_g_bins']}, Target S bins: {info['target_s_bins']}")
         print(f"Target total bins: {info['target_total_bins']}")
         print(f"Target bin size G: {info['target_bin_size_g']:.6f}, Target bin size S: {info['target_bin_size_s']:.6f}")
@@ -101,8 +98,8 @@ def test_resolution_consistency():
             
             # Create phasor plot with consistent resolution
             title = f"{name.replace('_', ' ').title()}\n({len(g_data)} points)"
-            create_phasor_plot(g_data, s_data, intensity, title, 
-                             ax=ax, pixels_per_unit=resolution, show_colorbar=False)
+            phasor_plot_utils.create_phasor_plot(g_data, s_data, intensity, title, 
+                                                 ax=ax, target_pixels_per_unit=resolution, show_colorbar=False)
             
             # Add dataset info
             ax.text(0.02, 0.98, f"Points: {len(g_data)}", 
@@ -121,16 +118,16 @@ def demonstrate_preset_resolutions():
     """
     print("\n=== Preset Resolution Configurations ===\n")
     
-    presets = get_preset_resolutions()
+    presets = phasor_plot_utils.get_preset_resolutions()
     
     for name, config in presets.items():
         print(f"{name.upper()} RESOLUTION:")
-        print(f"  Pixels per unit: {config['pixels_per_unit']}")
+        print(f"  Pixels per unit: {config['target_pixels_per_unit']}")
         print(f"  Description: {config['description']}")
         print(f"  Total bins: {config['total_bins']:,}")
         
         # Get detailed info
-        info = get_phasor_plot_resolution_info(config['target_pixels_per_unit'])
+        info = phasor_plot_utils.get_phasor_plot_resolution_info(config['target_pixels_per_unit'])
         print(f"  Target G bins: {info['target_g_bins']}, Target S bins: {info['target_s_bins']}")
         print(f"  Target bin size G: {info['target_bin_size_g']:.6f}, Target bin size S: {info['target_bin_size_s']:.6f}")
         print(f"  Target pixels per unit - G: {info['target_pixels_per_unit_g']:.1f}, S: {info['target_pixels_per_unit_s']:.1f}")
@@ -147,7 +144,7 @@ def test_performance_comparison():
     # Generate a standard dataset
     g_data, s_data, intensity = generate_test_data(15000, 0.1)
     
-    presets = get_preset_resolutions()
+    presets = phasor_plot_utils.get_preset_resolutions()
     
     import time
     
@@ -157,9 +154,9 @@ def test_performance_comparison():
         start_time = time.time()
         
         # Create plot
-        fig, ax = create_phasor_plot(g_data, s_data, intensity, 
-                                    f"Performance Test - {name.title()}", 
-                                    target_pixels_per_unit=config['target_pixels_per_unit'])
+        fig, ax = phasor_plot_utils.create_phasor_plot(g_data, s_data, intensity, 
+                                                       f"Performance Test - {name.title()}", 
+                                                       target_pixels_per_unit=config['target_pixels_per_unit'])
         
         end_time = time.time()
         

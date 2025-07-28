@@ -104,9 +104,20 @@ def create_phasor_plot(g_data, s_data, intensity, title, figsize=(8, 6),
     target_bins_x = int(data_range_x * target_pixels_per_unit)
     target_bins_y = int(data_range_y * target_pixels_per_unit)
     
-    # Use the smaller of the two to avoid over-binning
-    num_bins_x = min(iqr_bins_x, target_bins_x)
-    num_bins_y = min(iqr_bins_y, target_bins_y)
+    # For smaller datasets, be more aggressive with binning to achieve consistent pixel sizes
+    # Use a dataset size factor to adjust the IQR calculation
+    dataset_size_factor = min(1.0, len(g_data) / 1000000)  # Normalize to 1M points
+    adjusted_iqr_bins_x = int(iqr_bins_x * (1 + (1 - dataset_size_factor) * 2.0))  # More bins for smaller datasets
+    adjusted_iqr_bins_y = int(iqr_bins_y * (1 + (1 - dataset_size_factor) * 2.0))
+    
+    # For very small datasets, prioritize target resolution over IQR
+    if len(g_data) < 500000:  # Less than 500K points
+        num_bins_x = min(adjusted_iqr_bins_x, target_bins_x)
+        num_bins_y = min(adjusted_iqr_bins_y, target_bins_y)
+    else:
+        # For larger datasets, use the more conservative approach
+        num_bins_x = min(iqr_bins_x, target_bins_x)
+        num_bins_y = min(iqr_bins_y, target_bins_y)
     
     # Ensure reasonable bin counts - much higher limits for better resolution
     num_bins_x = max(50, min(800, num_bins_x))
