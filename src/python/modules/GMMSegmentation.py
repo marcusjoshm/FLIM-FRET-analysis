@@ -12,6 +12,9 @@ import glob
 import argparse
 import datetime
 
+# Import centralized phasor plot utilities
+from .phasor_plot_utils import create_phasor_plot
+
 # Import error tracking
 try:
     from error_tracker import create_error_tracker
@@ -1222,65 +1225,9 @@ def perform_gmm_segmentation(npz_data, gmm_params, tracker=None):
         if tracker:
             tracker.log_info(f"Created elliptical segmentation masks for {n_components} components")
         
-        # Create phasor plot using improved formatting from phasor_visualization.py
-        fig, ax = plt.subplots(figsize=(8, 6))
-        
-        # Create a universal circle for reference
-        x = np.linspace(0, 1.0, 100)
-        y = np.linspace(0, 0.7, 100)
-        X, Y = np.meshgrid(x, y)
-        F = (X**2 + Y**2 - X)  # Universal circle equation
-        
-        # Set plot limits
-        x_scale = [-0.005, 1.005]
-        y_scale = [0, 0.7]
-        
-        # Calculate bin widths using IQR or use fixed bins
-        iqr_x = np.percentile(g_flat, 75) - np.percentile(g_flat, 25)
-        bin_width_x = 2 * iqr_x * (len(g_flat) ** (-1/3))
-        bin_width_x = np.nan_to_num(bin_width_x)
-
-        iqr_y = np.percentile(s_flat, 75) - np.percentile(s_flat, 25)
-        bin_width_y = 2 * iqr_y * (len(s_flat) ** (-1/3))
-        bin_width_y = np.nan_to_num(bin_width_y)
-        
-        # Set a small threshold for bin width to detect impractical values
-        min_bin_width = np.finfo(float).eps
-        
-        # Calculate number of bins, or set manually if bin widths are too small
-        if bin_width_x <= min_bin_width or bin_width_y <= min_bin_width:
-            num_bins_x = 100  # Default number of bins
-            num_bins_y = 100
-        else:
-            num_bins_x = int(np.ceil((np.max(g_flat) - np.min(g_flat)) / bin_width_x)) // 2
-            num_bins_y = int(np.ceil((np.max(s_flat) - np.min(s_flat)) / bin_width_y)) // 2
-            # Ensure a reasonable number of bins
-            num_bins_x = max(50, min(200, num_bins_x))
-            num_bins_y = max(50, min(200, num_bins_y))
-        
-        # Create 2D histogram
-        hist_vals, _, _ = np.histogram2d(g_flat, s_flat, bins=(num_bins_x, num_bins_y), weights=intensity_flat)
-        vmax = hist_vals.max()
-        vmin = hist_vals.min()
-        
-        # Generate the 2D histogram
-        h = ax.hist2d(g_flat, s_flat, 
-                    bins=(num_bins_x, num_bins_y), 
-                    weights=intensity_flat,
-                    cmap='nipy_spectral', 
-                    norm=colors.SymLogNorm(linthresh=50, linscale=1, vmax=vmax, vmin=vmin), 
-                    zorder=1, 
-                    cmin=0.01)
-        
-        # Set plot properties
-        ax.set_facecolor('white')
-        ax.set_xlabel('\n$G$')
-        ax.set_ylabel('$S$\n')
-        ax.set_xlim(x_scale)
-        ax.set_ylim(y_scale)
-        
-        # Add the universal circle contour
-        ax.contour(X, Y, F, [0], colors='black', linewidths=1, zorder=2)
+        # Create phasor plot using centralized utilities
+        title = f"Phasor Plot with GMM Ellipse Segmentation ({data_source} Data)"
+        fig, ax = create_phasor_plot(g_flat, s_flat, intensity_flat, title, figsize=(8, 6), show_colorbar=False)
         
         # Plot GMM components
         for i, (mean, covar) in enumerate(zip(gmm.means_, gmm.covariances_)):
@@ -1364,14 +1311,17 @@ def perform_gmm_segmentation(npz_data, gmm_params, tracker=None):
         
         # Add the colorbar with custom formatting
         near_zero = 0.1
-        cbar = fig.colorbar(h[3], ax=ax, format=LogFormatter(10, labelOnlyBase=True))
+        h = ax.get_children()[0]  # Get the histogram object
+        cbar = fig.colorbar(h, ax=ax, format=LogFormatter(10, labelOnlyBase=True))
         
         # Calculate appropriate ticks for the colorbar
-        if vmax > 1:
-            ticks = [near_zero] + [10**i for i in range(1, int(np.log10(vmax)) + 1)]
-            tick_labels = ['0'] + [f'$10^{i}$' for i in range(1, int(np.log10(vmax)) + 1)]
-            cbar.set_ticks(ticks)
-            cbar.set_ticklabels(tick_labels)
+        if hasattr(h, 'get_array') and h.get_array() is not None:
+            vmax = h.get_array().max()
+            if vmax > 1:
+                ticks = [near_zero] + [10**i for i in range(1, int(np.log10(vmax)) + 1)]
+                tick_labels = ['0'] + [f'$10^{i}$' for i in range(1, int(np.log10(vmax)) + 1)]
+                cbar.set_ticks(ticks)
+                cbar.set_ticklabels(tick_labels)
         
         cbar.set_label('Frequency')
         

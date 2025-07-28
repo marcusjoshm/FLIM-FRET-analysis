@@ -29,6 +29,9 @@ from matplotlib.ticker import LogFormatter
 from matplotlib import colors
 from tifffile import imwrite as save_tiff
 
+# Import centralized phasor plot utilities
+from .phasor_plot_utils import create_phasor_plot, calculate_ellipse_mask
+
 def load_npz_data(npz_file_path):
     """
     Load NPZ data from file.
@@ -61,32 +64,9 @@ def are_points_inside_ellipse(points_x, points_y, center_x, center_y, width, hei
     Returns:
         Boolean array indicating which points are inside the ellipse
     """
-    # For vectorized operations
-    points_x = np.asarray(points_x)
-    points_y = np.asarray(points_y)
-    
-    # Calculate semi-axes
-    semi_width = width / 2
-    semi_height = height / 2
-    
-    # Pre-compute trig functions
-    cos_a = math.cos(angle_rad)
-    sin_a = math.sin(angle_rad)
-    
-    # Translate points
-    translated_x = points_x - center_x
-    translated_y = points_y - center_y
-    
-    # Apply rotation transformation
-    rotated_x = cos_a * translated_x + sin_a * translated_y
-    rotated_y = -sin_a * translated_x + cos_a * translated_y
-    
-    # Normalize coordinates
-    normalized_x = rotated_x / semi_width
-    normalized_y = rotated_y / semi_height
-    
-    # Check which points are inside the ellipse
-    return (normalized_x ** 2 + normalized_y ** 2) <= 1
+    # Use centralized ellipse calculation function
+    angle_deg = np.degrees(angle_rad)
+    return calculate_ellipse_mask(points_x, points_y, center_x, center_y, width, height, angle_deg)
 
 def process_npz_file_for_exploration(npz_file_path, data_type='filtered', selected_mask_name=None):
     """
@@ -177,82 +157,12 @@ def create_interactive_exploration_plot(file_data, data_type, threshold_desc):
         print("Warning: No valid data points after filtering")
         return False
     
-    # Create a universal circle for reference
-    x = np.linspace(0, 1.0, 100)
-    y = np.linspace(0, 0.7, 100)
-    X, Y = np.meshgrid(x, y)
-    F = (X**2 + Y**2 - X)  # Universal circle equation
-    
-    # Set plot limits
-    x_scale = [-0.005, 1.005]
-    y_scale = [0, 0.7]
-    
-    # Calculate bin widths using IQR or use fixed bins
-    iqr_x = np.percentile(g_flat, 75) - np.percentile(g_flat, 25)
-    bin_width_x = 2 * iqr_x * (len(g_flat) ** (-1/3))
-    bin_width_x = np.nan_to_num(bin_width_x)
-
-    iqr_y = np.percentile(s_flat, 75) - np.percentile(s_flat, 25)
-    bin_width_y = 2 * iqr_y * (len(s_flat) ** (-1/3))
-    bin_width_y = np.nan_to_num(bin_width_y)
-    
-    # Set a small threshold for bin width to detect impractical values
-    min_bin_width = np.finfo(float).eps
-    
-    # Calculate number of bins, or set manually if bin widths are too small
-    if bin_width_x <= min_bin_width or bin_width_y <= min_bin_width:
-        num_bins_x = 100  # Default number of bins
-        num_bins_y = 100
-    else:
-        num_bins_x = int(np.ceil((np.max(g_flat) - np.min(g_flat)) / bin_width_x)) // 2
-        num_bins_y = int(np.ceil((np.max(s_flat) - np.min(s_flat)) / bin_width_y)) // 2
-        # Ensure a reasonable number of bins
-        num_bins_x = max(50, min(200, num_bins_x))
-        num_bins_y = max(50, min(200, num_bins_y))
-    
-    # Create 2D histogram
-    hist_vals, _, _ = np.histogram2d(g_flat, s_flat, bins=(num_bins_x, num_bins_y), weights=intensity_flat)
-    vmax = hist_vals.max()
-    vmin = hist_vals.min()
-    
     # Create the figure with two subplots
     fig, (ax_phasor, ax_intensity) = plt.subplots(1, 2, figsize=(16, 8))
     
-    # Generate the 2D histogram for phasor plot
-    h = ax_phasor.hist2d(g_flat, s_flat, 
-                        bins=(num_bins_x, num_bins_y), 
-                        weights=intensity_flat, 
-                        cmap='nipy_spectral', 
-                        norm=colors.SymLogNorm(linthresh=50, linscale=1, vmax=vmax, vmin=vmin), 
-                        zorder=1, 
-                        cmin=0.01)
-    
-    # Set phasor plot properties
-    ax_phasor.set_facecolor('white')
-    ax_phasor.set_xlabel('\n$G$')
-    ax_phasor.set_ylabel('$S$\n')
-    ax_phasor.set_xlim(x_scale)
-    ax_phasor.set_ylim(y_scale)
-    
-    # Add the universal circle contour
-    ax_phasor.contour(X, Y, F, [0], colors='black', linewidths=1, zorder=2)
-    
-    # Add the colorbar with custom formatting
-    near_zero = 0.1
-    cbar = fig.colorbar(h[3], ax=ax_phasor, format=LogFormatter(10, labelOnlyBase=True))
-    
-    # Calculate appropriate ticks for the colorbar
-    if vmax > 1:
-        ticks = [near_zero] + [10**i for i in range(1, int(np.log10(vmax)) + 1)]
-        tick_labels = ['0'] + [f'$10^{i}$' for i in range(1, int(np.log10(vmax)) + 1)]
-        cbar.set_ticks(ticks)
-        cbar.set_ticklabels(tick_labels)
-    
-    cbar.set_label('Frequency')
-    
-    # Set phasor plot title
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    ax_phasor.set_title(f"Data Exploration - Phasor Plot ({data_type} data)\n{threshold_desc}\n({timestamp})")
+    # Create the phasor plot using centralized utilities
+    title = f"Data Exploration - Phasor Plot ({data_type} data)\n{threshold_desc}"
+    create_phasor_plot(g_flat, s_flat, intensity_flat, title, ax=ax_phasor, show_colorbar=True)
     
     # Initial ellipse parameters
     center_x, center_y = 0.5, 0.25
