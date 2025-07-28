@@ -27,7 +27,8 @@ from matplotlib import colors
 
 def create_phasor_plot(g_data, s_data, intensity, title, figsize=(8, 6), 
                       ax=None, show_colorbar=True, show_universal_circle=True,
-                      timestamp=True, return_histogram_data=False):
+                      timestamp=True, return_histogram_data=False,
+                      target_pixels_per_unit=100):
     """
     Create a standardized phasor plot from G and S coordinates.
     
@@ -42,6 +43,7 @@ def create_phasor_plot(g_data, s_data, intensity, title, figsize=(8, 6),
         show_universal_circle (bool): Whether to show universal circle
         timestamp (bool): Whether to add timestamp to title
         return_histogram_data (bool): Whether to return histogram data for further processing
+        target_pixels_per_unit (int): Target number of pixels per unit for consistent resolution
         
     Returns:
         tuple: (fig, ax, histogram_data) where histogram_data is None unless return_histogram_data=True
@@ -70,35 +72,55 @@ def create_phasor_plot(g_data, s_data, intensity, title, figsize=(8, 6),
     X, Y = np.meshgrid(x, y)
     F = (X**2 + Y**2 - X)  # Universal circle equation
     
-    # Set plot limits
+    # Set plot limits (fixed for all phasor plots)
     x_scale = [-0.005, 1.005]
     y_scale = [0, 0.7]
     
-    # Calculate bin widths using IQR or use fixed bins
+    # Calculate adaptive bin widths using IQR (data-driven approach)
     iqr_x = np.percentile(g_data, 75) - np.percentile(g_data, 25)
-    bin_width_x = 2 * iqr_x * (len(g_data) ** (-1/3))
-    bin_width_x = np.nan_to_num(bin_width_x)
-
     iqr_y = np.percentile(s_data, 75) - np.percentile(s_data, 25)
+    
+    # Use IQR-based bin widths but normalize to achieve consistent pixel resolution
+    # This adapts to data distribution while maintaining consistent pixel sizes
+    bin_width_x = 2 * iqr_x * (len(g_data) ** (-1/3))
     bin_width_y = 2 * iqr_y * (len(s_data) ** (-1/3))
-    bin_width_y = np.nan_to_num(bin_width_y)
     
-    # Set a small threshold for bin width to detect impractical values
+    # Handle edge cases where IQR is too small
     min_bin_width = np.finfo(float).eps
+    if bin_width_x <= min_bin_width:
+        bin_width_x = (x_scale[1] - x_scale[0]) / 100  # Default to 100 bins
+    if bin_width_y <= min_bin_width:
+        bin_width_y = (y_scale[1] - y_scale[0]) / 70   # Default to 70 bins
     
-    # Calculate number of bins, or set manually if bin widths are too small
-    if bin_width_x <= min_bin_width or bin_width_y <= min_bin_width:
-        num_bins_x = 100  # Default number of bins
-        num_bins_y = 100
-    else:
-        num_bins_x = int(np.ceil((np.max(g_data) - np.min(g_data)) / bin_width_x)) // 2
-        num_bins_y = int(np.ceil((np.max(s_data) - np.min(s_data)) / bin_width_y)) // 2
-        # Ensure a reasonable number of bins
-        num_bins_x = max(50, min(200, num_bins_x))
-        num_bins_y = max(50, min(200, num_bins_y))
+    # Calculate number of bins based on data range and target resolution
+    data_range_x = np.max(g_data) - np.min(g_data)
+    data_range_y = np.max(s_data) - np.min(s_data)
     
-    # Create 2D histogram
-    hist_vals, _, _ = np.histogram2d(g_data, s_data, bins=(num_bins_x, num_bins_y), weights=intensity)
+    # Use the larger of IQR-based or target-resolution-based bin counts
+    iqr_bins_x = max(1, int(data_range_x / bin_width_x))
+    iqr_bins_y = max(1, int(data_range_y / bin_width_y))
+    
+    # Target resolution bins (for consistent pixel size)
+    target_bins_x = int(data_range_x * target_pixels_per_unit)
+    target_bins_y = int(data_range_y * target_pixels_per_unit)
+    
+    # Use the smaller of the two to avoid over-binning
+    num_bins_x = min(iqr_bins_x, target_bins_x)
+    num_bins_y = min(iqr_bins_y, target_bins_y)
+    
+    # Ensure reasonable bin counts
+    num_bins_x = max(20, min(300, num_bins_x))
+    num_bins_y = max(15, min(200, num_bins_y))
+    
+    # Calculate actual bin sizes for information
+    actual_bin_size_x = data_range_x / num_bins_x if num_bins_x > 0 else 0
+    actual_bin_size_y = data_range_y / num_bins_y if num_bins_y > 0 else 0
+    
+    # Create 2D histogram with data-adaptive bins
+    # This adapts to the data distribution while maintaining reasonable pixel sizes
+    hist_vals, _, _ = np.histogram2d(g_data, s_data, 
+                                     bins=[num_bins_x, num_bins_y],
+                                     weights=intensity)
     vmax = hist_vals.max()
     vmin = hist_vals.min()
     
@@ -108,9 +130,9 @@ def create_phasor_plot(g_data, s_data, intensity, title, figsize=(8, 6),
     else:
         fig = ax.figure
     
-    # Generate the 2D histogram
+    # Generate the 2D histogram with data-adaptive bins
     h = ax.hist2d(g_data, s_data, 
-                bins=(num_bins_x, num_bins_y), 
+                bins=[num_bins_x, num_bins_y],
                 weights=intensity, 
                 cmap='nipy_spectral', 
                 norm=colors.SymLogNorm(linthresh=50, linscale=1, vmax=vmax, vmin=vmin), 
@@ -165,7 +187,8 @@ def create_phasor_plot(g_data, s_data, intensity, title, figsize=(8, 6),
 
 
 def create_phasor_plot_with_ellipse(g_data, s_data, intensity, title, 
-                                   ellipse_params=None, figsize=(10, 8)):
+                                   ellipse_params=None, figsize=(10, 8),
+                                   target_pixels_per_unit=100):
     """
     Create a phasor plot with an interactive ellipse overlay.
     
@@ -176,6 +199,7 @@ def create_phasor_plot_with_ellipse(g_data, s_data, intensity, title,
         title (str): Plot title
         ellipse_params (dict): Ellipse parameters {'center_x', 'center_y', 'width', 'height', 'angle'}
         figsize (tuple): Figure size
+        target_pixels_per_unit (int): Target number of pixels per unit for consistent resolution
         
     Returns:
         tuple: (fig, ax, ellipse) where ellipse is the matplotlib Ellipse object
@@ -183,7 +207,8 @@ def create_phasor_plot_with_ellipse(g_data, s_data, intensity, title,
     from matplotlib.patches import Ellipse
     
     # Create the base phasor plot
-    fig, ax = create_phasor_plot(g_data, s_data, intensity, title, figsize=figsize)
+    fig, ax = create_phasor_plot(g_data, s_data, intensity, title, figsize=figsize, 
+                                 target_pixels_per_unit=target_pixels_per_unit)
     
     # Default ellipse parameters if not provided
     if ellipse_params is None:
@@ -301,4 +326,76 @@ def are_points_inside_ellipse(points_x, points_y, center_x, center_y, width, hei
     """
     # Convert angle to degrees for the new function
     angle_deg = np.degrees(angle_rad)
-    return calculate_ellipse_mask(points_x, points_y, center_x, center_y, width, height, angle_deg) 
+    return calculate_ellipse_mask(points_x, points_y, center_x, center_y, width, height, angle_deg)
+
+
+def get_phasor_plot_resolution_info(target_pixels_per_unit=100):
+    """
+    Get information about the pixel resolution for phasor plots.
+    
+    Args:
+        target_pixels_per_unit (int): Target number of pixels per unit in G/S space
+        
+    Returns:
+        dict: Information about the resolution settings
+    """
+    # Phasor plot dimensions (fixed for all plots)
+    g_range = 1.01  # -0.005 to 1.005
+    s_range = 0.7   # 0 to 0.7
+    
+    # Calculate target bin counts for consistent pixel sizes
+    target_bins_x = int(g_range * target_pixels_per_unit)
+    target_bins_y = int(s_range * target_pixels_per_unit)
+    
+    # Apply reasonable limits
+    target_bins_x = max(50, min(500, target_bins_x))
+    target_bins_y = max(35, min(350, target_bins_y))
+    
+    # Calculate target bin sizes
+    target_bin_size_x = g_range / target_bins_x
+    target_bin_size_y = s_range / target_bins_y
+    
+    return {
+        'target_pixels_per_unit': target_pixels_per_unit,
+        'target_g_bins': target_bins_x,
+        'target_s_bins': target_bins_y,
+        'target_total_bins': target_bins_x * target_bins_y,
+        'target_bin_size_g': target_bin_size_x,
+        'target_bin_size_s': target_bin_size_y,
+        'g_range': g_range,
+        's_range': s_range,
+        'target_pixels_per_unit_g': target_bins_x / g_range,
+        'target_pixels_per_unit_s': target_bins_y / s_range,
+        'description': 'Hybrid approach: IQR-based binning with target resolution limits'
+    }
+
+
+def get_preset_resolutions():
+    """
+    Get preset resolution configurations for different use cases.
+    
+    Returns:
+        dict: Dictionary of preset configurations
+    """
+    return {
+        'low': {
+            'target_pixels_per_unit': 50,
+            'description': 'Low resolution, fast rendering',
+            'total_bins': 3535  # 50 * 1.01 * 50 * 0.7
+        },
+        'medium': {
+            'target_pixels_per_unit': 100,
+            'description': 'Medium resolution, balanced performance',
+            'total_bins': 7070  # 100 * 1.01 * 100 * 0.7
+        },
+        'high': {
+            'target_pixels_per_unit': 200,
+            'description': 'High resolution, detailed visualization',
+            'total_bins': 28280  # 200 * 1.01 * 200 * 0.7
+        },
+        'ultra': {
+            'target_pixels_per_unit': 300,
+            'description': 'Ultra high resolution, maximum detail',
+            'total_bins': 63630  # 300 * 1.01 * 300 * 0.7
+        }
+    } 
