@@ -16,6 +16,15 @@ import math
 import traceback
 import datetime
 import numpy as np
+import matplotlib
+# Set matplotlib backend to ensure interactive plots work properly
+try:
+    matplotlib.use('TkAgg')  # Try TkAgg backend first
+except ImportError:
+    try:
+        matplotlib.use('Qt5Agg')  # Fallback to Qt5Agg
+    except ImportError:
+        matplotlib.use('MacOSX')  # Fallback to MacOSX backend
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, Button
 from matplotlib.patches import Ellipse
@@ -659,8 +668,8 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
     
     button_cancel.on_clicked(cancel_segmentation)
     
-    # Show the plot
-    plt.show()
+    # Show the plot and wait for user interaction
+    plt.show(block=True)
     
     return True
 
