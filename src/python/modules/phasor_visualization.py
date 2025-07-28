@@ -15,15 +15,11 @@ import os
 import sys
 import glob
 import numpy as np
+
+# Set matplotlib backend before any matplotlib imports
+os.environ['MPLBACKEND'] = 'MacOSX'  # Use MacOSX backend which is more reliable on macOS
+
 import matplotlib
-# Set matplotlib backend to ensure interactive plots work properly
-try:
-    matplotlib.use('TkAgg')  # Try TkAgg backend first
-except ImportError:
-    try:
-        matplotlib.use('Qt5Agg')  # Fallback to Qt5Agg
-    except ImportError:
-        matplotlib.use('MacOSX')  # Fallback to MacOSX backend
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from matplotlib.ticker import LogFormatter
