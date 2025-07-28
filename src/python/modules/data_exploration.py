@@ -397,14 +397,15 @@ def create_interactive_exploration_plot(file_data, data_type, threshold_desc):
     button_apply = Button(ax_apply, 'Apply ROI')
     button_apply.on_clicked(apply_roi)
     
-    # Create close button
-    ax_close = plt.axes([0.65, 0.02, 0.1, 0.04])
-    button_close = Button(ax_close, 'Close')
+    # Add keyboard shortcut for closing
+    def on_key(event):
+        if event.key == 'escape':
+            plt.close('all')
     
-    def close_exploration(event):
-        plt.close()
+    fig.canvas.mpl_connect('key_press_event', on_key)
     
-    button_close.on_clicked(close_exploration)
+    # Note: Use the window's close button (X) or press Escape to close
+    # Removed close button to avoid matplotlib widget conflicts
     
     # Show the plot
     plt.show(block=True)
