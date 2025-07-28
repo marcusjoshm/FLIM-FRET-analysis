@@ -18,7 +18,7 @@ When you run the FLIM-FRET analysis tool, you'll see a colorful interactive menu
       ██║     ███████╗██║██║ ╚═╝ ██║    ██║     ██║  ██║███████╗   ██║    
       ╚═╝     ╚══════╝╚═╝╚═╝     ╚═╝    ╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝    
 
-  🔬 Welcome to my FLIM-FRET analysis tool! 🔬
+  🔬 Welcome FLIM-FRET analysis user! 🔬
 
 MENU:
 1. Set Input/Output Directories
