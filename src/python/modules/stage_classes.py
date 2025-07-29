@@ -495,12 +495,14 @@ class DataExplorationStage(StageBase):
     def __init__(self, config: Config, logger: PipelineLogger, stage_name: str):
         super().__init__(config, logger, stage_name)
         try:
-            from .data_exploration import main as run_data_exploration
+            from .data_exploration import main as run_data_exploration, interactive_file_selection
             self.run_data_exploration = run_data_exploration
+            self.interactive_file_selection = interactive_file_selection
             self.data_exploration_available = True
         except ImportError as e:
             self.logger.error(f"Could not import data_exploration module: {e}")
             self.run_data_exploration = None
+            self.interactive_file_selection = None
             self.data_exploration_available = False
 
     def get_description(self) -> str:
@@ -551,12 +553,24 @@ class DataExplorationStage(StageBase):
                 print("Please enter 1 or 2.")
         
         try:
+            # Handle file selection
+            selected_files = None
+            if select_files:
+                # Use interactive file selection
+                selected_files = self.interactive_file_selection(npz_dir)
+                if not selected_files:
+                    print("No files selected. Exiting data exploration.")
+                    return True  # Not an error, user chose to quit
+            else:
+                # Use all files (will be handled by main function)
+                selected_files = None
+            
             return self.run_data_exploration(
                 config=self.config.to_dict(),
                 npz_dir=npz_dir,
                 output_dir=None,  # Not needed for exploration
                 interactive=True,
-                selected_files=None,  # Will be handled by select_files parameter
+                selected_files=selected_files,  # Pass selected files
                 data_type='filtered',  # Default to filtered data
                 naming_variables=None,  # Not needed for exploration
                 selected_mask_name=None  # Will be handled interactively

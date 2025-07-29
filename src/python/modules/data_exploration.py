@@ -32,6 +32,66 @@ from tifffile import imwrite as save_tiff
 # Import centralized phasor plot utilities
 from .phasor_plot_utils import create_phasor_plot, calculate_ellipse_mask
 
+
+def interactive_file_selection(npz_dir):
+    """
+    Interactive file selection for NPZ files.
+    
+    Args:
+        npz_dir: Directory containing NPZ files
+        
+    Returns:
+        list: List of selected NPZ file paths
+    """
+    # Find all NPZ files
+    npz_files = []
+    for root, _, files in os.walk(npz_dir):
+        for file in files:
+            if file.endswith('.npz') and not file.endswith('_segmented.npz'):
+                npz_path = os.path.join(root, file)
+                npz_files.append(npz_path)
+    
+    if not npz_files:
+        print(f"No NPZ files found in {npz_dir}")
+        return []
+    
+    print(f"\nFound {len(npz_files)} NPZ files:")
+    for i, file_path in enumerate(npz_files, 1):
+        print(f"  {i}. {os.path.basename(file_path)}")
+    
+    print("\nSelect files to process:")
+    print("  [all] Process all files")
+    print("  [q] Quit")
+    print("  Or enter file numbers separated by spaces (e.g., 1 3 5)")
+    
+    while True:
+        choice = input("\nYour choice: ").strip().lower()
+        
+        if choice == 'q':
+            return []
+        elif choice == 'all':
+            return npz_files
+        else:
+            try:
+                # Parse space-separated numbers
+                indices = [int(x.strip()) - 1 for x in choice.split()]
+                
+                # Validate indices
+                if any(i < 0 or i >= len(npz_files) for i in indices):
+                    print("Invalid file number. Please try again.")
+                    continue
+                
+                selected_files = [npz_files[i] for i in indices]
+                print(f"\nSelected {len(selected_files)} files:")
+                for file_path in selected_files:
+                    print(f"  - {os.path.basename(file_path)}")
+                
+                return selected_files
+                
+            except ValueError:
+                print("Invalid input. Please enter numbers separated by spaces, 'all', or 'q'.")
+
+
 def load_npz_data(npz_file_path):
     """
     Load NPZ data from file.
@@ -99,21 +159,22 @@ def process_npz_file_for_exploration(npz_file_path, data_type='filtered', select
     intensity = data.get('A', data.get('intensity', None))
     lifetime = data.get('lifetime', None)
     
+    # Check if required data is available
     if g_data is None or s_data is None or intensity is None:
-        print(f"Warning: Missing required data in {npz_file_path}")
+        print(f"Missing required data in {os.path.basename(npz_file_path)}")
+        print(f"  G data: {'Available' if g_data is not None else 'Missing'}")
+        print(f"  S data: {'Available' if s_data is not None else 'Missing'}")
+        print(f"  Intensity data: {'Available' if intensity is not None else 'Missing'}")
         return None
-        
-    # Apply mask if selected
+    
+    # Apply mask if specified
     if selected_mask_name and selected_mask_name in data:
-        print(f"Applying mask '{selected_mask_name}' to {os.path.basename(npz_file_path)}")
         mask = data[selected_mask_name]
-        
-        # Apply mask to phasor data
         g_data = g_data * mask
         s_data = s_data * mask
         intensity = intensity * mask
-        
-        print(f"  Applied mask: {np.sum(mask)} pixels selected out of {mask.size} total")
+        if lifetime is not None:
+            lifetime = lifetime * mask
     
     return {
         'npz_data': data,
@@ -121,7 +182,8 @@ def process_npz_file_for_exploration(npz_file_path, data_type='filtered', select
         's_data': s_data,
         'intensity': intensity,
         'lifetime': lifetime,
-        'original_shape': g_data.shape
+        'data_type': data_type,
+        'original_shape': intensity.shape
     }
 
 def create_interactive_exploration_plot(file_data, data_type, threshold_desc):
@@ -139,7 +201,12 @@ def create_interactive_exploration_plot(file_data, data_type, threshold_desc):
     g_data = file_data['g_data']
     s_data = file_data['s_data']
     intensity = file_data['intensity']
-    original_shape = file_data['original_shape']
+    
+    # Get original shape from intensity data if not available
+    if 'original_shape' in file_data:
+        original_shape = file_data['original_shape']
+    else:
+        original_shape = intensity.shape
     
     # Flatten arrays for processing
     g_flat = g_data.flatten()
@@ -345,10 +412,11 @@ def main(config=None, npz_dir=None, output_dir=None, interactive=True, selected_
     if not os.path.isdir(npz_dir): 
         print(f"Error: NPZ dir not found: {npz_dir}", file=sys.stderr)
         return False
-        
-    # Use provided selected_files or find all NPZ files
+    
+    # Handle file selection based on the select_files parameter
+    # This parameter is passed from the stage class
     if selected_files is None:
-        # Find NPZ files
+        # Find all NPZ files
         npz_files = []
         for root, _, files in os.walk(npz_dir):
             for file in files:
@@ -361,15 +429,16 @@ def main(config=None, npz_dir=None, output_dir=None, interactive=True, selected_
             return False
             
         print(f"Found {len(npz_files)} NPZ files for data exploration")
+        
+        # Use all files by default (option 2 behavior)
         selected_files = npz_files
+        print(f"Selected {len(selected_files)} files for data exploration")
     else:
         print(f"Using {len(selected_files)} pre-selected files for data exploration")
     
     if not selected_files:
         print("No files selected for data exploration")
         return False
-    
-    print(f"Selected {len(selected_files)} files for data exploration")
     
     # Process each NPZ file individually
     for npz_path in selected_files:
