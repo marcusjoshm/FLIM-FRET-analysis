@@ -94,16 +94,13 @@ class PipelineCLI:
             epilog="""
 Examples:
   # Run complete processing pipeline
-  python run_pipeline.py --input /path/to/data --output /path/to/output --processing
+  python main.py --input /path/to/data --output /path/to/output --processing
   
   # Run only preprocessing
-  python run_pipeline.py --input /path/to/data --output /path/to/output --preprocessing
-  
-  # Run only wavelet filtering (requires preprocessed data)
-  python run_pipeline.py --input /path/to/data --output /path/to/output --filter
+  python main.py --input /path/to/data --output /path/to/output --preprocessing
   
   # Interactive mode (shows menu)
-  python run_pipeline.py --input /path/to/data --output /path/to/output
+  python main.py --input /path/to/data --output /path/to/output
             """
         )
 

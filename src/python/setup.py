@@ -276,7 +276,7 @@ def main():
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     
     # Check if we're in the right directory
-    if not os.path.exists(os.path.join(project_root, "run_pipeline.py")):
+    if not os.path.exists(os.path.join(project_root, "main.py")):
         print("❌ Error: Please run this script from the FLIM-FRET-analysis directory")
         print("Current directory:", os.getcwd())
         print("Project root:", project_root)
@@ -311,8 +311,10 @@ def main():
         print("✅ FLIM-FRET Analysis Pipeline is ready to use!")
         print(f"📁 Configuration saved to: config/config.json")
         print("\nNext steps:")
-        print("1. Test the pipeline with: python run_pipeline.py --help")
-        print("2. Run preprocessing with: python run_pipeline.py --preprocess --input <data_dir> --output <output_dir>")
+        print("1. Test the pipeline with: python main.py --help")
+        print("2. Run preprocessing with: python main.py --preprocessing --input <data_dir> --output <output_dir>")
+        print("3. Run complete processing with: python main.py --processing --input <data_dir> --output <output_dir>")
+        print("4. Interactive mode: python main.py")
     else:
         print("❌ Setup failed. Please check the error messages above.")
         sys.exit(1)
