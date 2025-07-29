@@ -15,9 +15,11 @@ output_dir = args[1];
 // Check if a file list is provided (third argument)
 file_list_path = "";
 use_file_list = false;
-if (args.length > 2 && args[2] != "") {
-    file_list_path = args[2];
-    use_file_list = true;
+if (args.length > 2) {
+    if (args[2] != "") {
+        file_list_path = args[2];
+        use_file_list = true;
+    }
 }
 
 // Normalize input/output paths (remove trailing slashes)

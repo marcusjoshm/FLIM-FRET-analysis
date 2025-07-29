@@ -258,22 +258,22 @@ def run_imagej(imagej_path, macro_file, *args):
         '-macro', macro_file, ",".join(args)
     ]
     
-    print(f"Attempting ImageJ in batch mode: {' '.join(command_headless)}")
+    print(f"Attempting ImageJ in regular mode: {' '.join(command_regular)}")
     
     try:
-        # Try batch mode first
-        result = subprocess.run(command_headless, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=300)
-        print(f"ImageJ Command Output (batch mode): {result.stdout}")
+        # Try regular mode first (works better with large files)
+        result = subprocess.run(command_regular, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=600)
+        print(f"ImageJ Command Output (regular mode): {result.stdout}")
         return True
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
-        print(f"Batch mode failed: {e}")
-        print(f"Falling back to regular mode...")
+        print(f"Regular mode failed: {e}")
+        print(f"Falling back to batch mode...")
         
         try:
-            # Fall back to regular mode
-            print(f"Running ImageJ in regular mode: {' '.join(command_regular)}")
-            result = subprocess.run(command_regular, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=600)
-            print(f"ImageJ Command Output (regular mode): {result.stdout}")
+            # Fall back to batch mode
+            print(f"Running ImageJ in batch mode: {' '.join(command_headless)}")
+            result = subprocess.run(command_headless, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=300)
+            print(f"ImageJ Command Output (batch mode): {result.stdout}")
             return True
         except subprocess.CalledProcessError as e:
             print(f"An error occurred while running the macro: {e}")
