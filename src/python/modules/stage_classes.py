@@ -574,7 +574,7 @@ class DataExplorationStage(StageBase):
             return self.run_data_exploration(
                 config=self.config.to_dict(),
                 npz_dir=npz_dir,
-                output_dir=None,  # Not needed for exploration
+                output_dir=str(directories.get('output')),  # Pass output directory for mask saving
                 interactive=True,
                 selected_files=selected_files,  # Pass selected files
                 data_type='filtered',  # Will be handled interactively

@@ -186,7 +186,7 @@ def process_npz_file_for_exploration(npz_file_path, data_type='filtered', select
         'original_shape': intensity.shape
     }
 
-def create_interactive_exploration_plot(file_data, data_type, threshold_desc):
+def create_interactive_exploration_plot(file_data, data_type, threshold_desc, output_dir=None):
     """
     Create an interactive exploration plot with phasor plot and intensity image overlay.
     
@@ -194,6 +194,7 @@ def create_interactive_exploration_plot(file_data, data_type, threshold_desc):
         file_data: Dictionary containing processed data
         data_type: Data type being used
         threshold_desc: Description of thresholding applied
+        output_dir: Output directory for saving masks (optional)
         
     Returns:
         bool: True if successful, False otherwise
@@ -414,15 +415,12 @@ def create_interactive_exploration_plot(file_data, data_type, threshold_desc):
         mask_name = f"{os.path.splitext(base_name)[0]}_exploration_mask_{data_type}_{timestamp}.tiff"
         
         # Create output directory for masks
-        # Get the original NPZ file path from the data
-        original_npz_path = file_data['npz_data'].get('original_file_path', None)
-        if original_npz_path is None:
-            # Try to reconstruct the path from the filename
-            filename = file_data['npz_data'].get('filename', 'unknown')
-            # This is a fallback - in practice, the path should be available
-            masks_dir = os.path.join(os.getcwd(), 'exploration_masks')
+        # Use the main output directory from config
+        if output_dir:
+            masks_dir = os.path.join(output_dir, 'masks')
         else:
-            masks_dir = os.path.join(os.path.dirname(original_npz_path), 'exploration_masks')
+            # Fallback to current directory if output_dir not provided
+            masks_dir = os.path.join(os.getcwd(), 'masks')
         
         os.makedirs(masks_dir, exist_ok=True)
         mask_path = os.path.join(masks_dir, mask_name)
@@ -902,7 +900,7 @@ def main(config=None, npz_dir=None, output_dir=None, interactive=True, selected_
             file_data['intensity'] = thresholded_intensity
             
             # Create interactive exploration plot
-            success = create_interactive_exploration_plot(file_data, current_data_type, threshold_desc)
+            success = create_interactive_exploration_plot(file_data, current_data_type, threshold_desc, output_dir)
             if not success:
                 print(f"  Failed to create exploration plot for {os.path.basename(npz_path)} ({current_data_type})")
                 continue
