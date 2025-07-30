@@ -389,6 +389,215 @@ def create_interactive_exploration_plot(file_data, data_type, threshold_desc):
     
     return True
 
+def interactive_data_type_selection():
+    """
+    Interactive data type selection for phasor plots.
+    
+    Returns:
+        str: Selected data type ('filtered' or 'unfiltered')
+    """
+    print("\n=== Data Type Selection ===")
+    print("Choose which data to use for phasor plots:")
+    print("  [1] Filtered data (G/S coordinates) - default")
+    print("  [2] Unfiltered data (GU/SU coordinates)")
+    print("  [3] Both (will process each file twice)")
+    
+    while True:
+        choice = input("Select option (1, 2, or 3, default: 1): ").strip()
+        if choice == "" or choice == "1":
+            print("→ Using filtered data (G/S coordinates)")
+            return 'filtered'
+        elif choice == "2":
+            print("→ Using unfiltered data (GU/SU coordinates)")
+            return 'unfiltered'
+        elif choice == "3":
+            print("→ Processing both filtered and unfiltered data")
+            return 'both'
+        else:
+            print("Please enter 1, 2, or 3.")
+
+def interactive_mask_selection(npz_dir):
+    """
+    Interactive mask source selection for data exploration.
+    
+    Args:
+        npz_dir: Directory containing NPZ files
+        
+    Returns:
+        tuple: (mask_source, selected_mask_name) where mask_source is 'none', 'masked', or None for quit
+    """
+    print("\n=== Mask Source Selection ===")
+    print("Choose mask source for segmentation:")
+    print("  [1] No mask (use original data)")
+    print("  [2] Use masked NPZ files")
+    print("  [q] Quit")
+    
+    while True:
+        choice = input("Select option (1, 2, or q): ").strip().lower()
+        
+        if choice == 'q':
+            print("→ Quitting mask selection")
+            return None, None
+        elif choice == "1":
+            print("→ Using original data (no mask)")
+            return 'none', None
+        elif choice == "2":
+            print("→ Using masked NPZ files")
+            # Find available masks in the first NPZ file
+            npz_files = []
+            for root, _, files in os.walk(npz_dir):
+                for file in files:
+                    if file.endswith('.npz') and not file.endswith('_segmented.npz'):
+                        npz_path = os.path.join(root, file)
+                        npz_files.append(npz_path)
+                        break  # Just need one file to check masks
+                if npz_files:
+                    break
+            
+            if not npz_files:
+                print("  No NPZ files found to check for masks")
+                return 'none', None
+            
+            # Load the first NPZ file to check available masks
+            data = load_npz_data(npz_files[0])
+            if data is None:
+                print("  Could not load NPZ file to check masks")
+                return 'none', None
+            
+            # Find mask keys (keys that contain 'mask' in the name)
+            mask_keys = [key for key in data.keys() if 'mask' in key.lower()]
+            
+            if not mask_keys:
+                print("  No masks found in NPZ files")
+                return 'none', None
+            
+            print(f"  Found {len(mask_keys)} masks:")
+            for i, mask_key in enumerate(mask_keys, 1):
+                print(f"    {i}. {mask_key}")
+            
+            while True:
+                mask_choice = input(f"Select mask (1-{len(mask_keys)} or 'all'): ").strip().lower()
+                
+                if mask_choice == 'all':
+                    print("→ Using all available masks")
+                    return 'masked', 'all'
+                elif mask_choice.isdigit():
+                    mask_idx = int(mask_choice) - 1
+                    if 0 <= mask_idx < len(mask_keys):
+                        selected_mask = mask_keys[mask_idx]
+                        print(f"→ Using mask: {selected_mask}")
+                        return 'masked', selected_mask
+                    else:
+                        print(f"Invalid mask number. Please enter 1-{len(mask_keys)} or 'all'.")
+                else:
+                    print(f"Invalid input. Please enter 1-{len(mask_keys)} or 'all'.")
+        else:
+            print("Please enter 1, 2, or q.")
+
+def interactive_threshold_selection():
+    """
+    Interactive thresholding selection for data exploration.
+    
+    Returns:
+        dict: Thresholding configuration with keys 'method', 'value', 'percentile'
+    """
+    print("\nThresholding options:")
+    print("  [1] No threshold (use all data)")
+    print("  [2] Manual threshold (enter a specific value)")
+    print("  [3] Auto-threshold on combined data (remove bottom 90% of intensity values)")
+    print("  [4] Custom auto-threshold on combined data (specify percentile to remove)")
+    print("  [5] Individual dataset auto-threshold (remove bottom 90% from each dataset)")
+    print("  [6] Custom individual dataset auto-threshold (specify percentile to remove from each dataset)")
+    
+    while True:
+        choice = input("Select option (1-6): ").strip()
+        
+        if choice == "1":
+            print("→ No thresholding applied")
+            return {'method': 'none', 'value': None, 'percentile': None}
+        elif choice == "2":
+            while True:
+                try:
+                    threshold_value = float(input("Enter threshold value: "))
+                    print(f"→ Manual threshold: {threshold_value}")
+                    return {'method': 'manual', 'value': threshold_value, 'percentile': None}
+                except ValueError:
+                    print("Please enter a valid number.")
+        elif choice == "3":
+            print("→ Auto-threshold on combined data (remove bottom 90%)")
+            return {'method': 'auto_combined', 'value': None, 'percentile': 90}
+        elif choice == "4":
+            while True:
+                try:
+                    percentile = float(input("Enter percentile to remove (0-100): "))
+                    if 0 <= percentile <= 100:
+                        print(f"→ Custom auto-threshold on combined data (remove bottom {percentile}%)")
+                        return {'method': 'auto_combined', 'value': None, 'percentile': percentile}
+                    else:
+                        print("Please enter a value between 0 and 100.")
+                except ValueError:
+                    print("Please enter a valid number.")
+        elif choice == "5":
+            print("→ Individual dataset auto-threshold (remove bottom 90% from each dataset)")
+            return {'method': 'auto_individual', 'value': None, 'percentile': 90}
+        elif choice == "6":
+            while True:
+                try:
+                    percentile = float(input("Enter percentile to remove from each dataset (0-100): "))
+                    if 0 <= percentile <= 100:
+                        print(f"→ Custom individual dataset auto-threshold (remove bottom {percentile}% from each dataset)")
+                        return {'method': 'auto_individual', 'value': None, 'percentile': percentile}
+                    else:
+                        print("Please enter a value between 0 and 100.")
+                except ValueError:
+                    print("Please enter a valid number.")
+        else:
+            print("Please enter a number between 1 and 6.")
+
+def apply_thresholding(intensity_data, threshold_config):
+    """
+    Apply thresholding to intensity data based on the configuration.
+    
+    Args:
+        intensity_data: Intensity data array
+        threshold_config: Dictionary with thresholding configuration
+        
+    Returns:
+        tuple: (masked_intensity, threshold_desc) where masked_intensity is the thresholded data
+    """
+    method = threshold_config.get('method', 'none')
+    value = threshold_config.get('value')
+    percentile = threshold_config.get('percentile')
+    
+    if method == 'none':
+        return intensity_data, "No threshold"
+    
+    elif method == 'manual':
+        if value is None:
+            return intensity_data, "No threshold (invalid manual value)"
+        mask = intensity_data >= value
+        masked_intensity = intensity_data * mask
+        return masked_intensity, f"Manual threshold: {value}"
+    
+    elif method == 'auto_combined':
+        if percentile is None:
+            return intensity_data, "No threshold (invalid percentile)"
+        threshold_value = np.percentile(intensity_data, percentile)
+        mask = intensity_data >= threshold_value
+        masked_intensity = intensity_data * mask
+        return masked_intensity, f"Auto-threshold combined: {percentile}% ({threshold_value:.2f})"
+    
+    elif method == 'auto_individual':
+        if percentile is None:
+            return intensity_data, "No threshold (invalid percentile)"
+        threshold_value = np.percentile(intensity_data, percentile)
+        mask = intensity_data >= threshold_value
+        masked_intensity = intensity_data * mask
+        return masked_intensity, f"Auto-threshold individual: {percentile}% ({threshold_value:.2f})"
+    
+    else:
+        return intensity_data, "No threshold (unknown method)"
+
 def main(config=None, npz_dir=None, output_dir=None, interactive=True, selected_files=None, data_type='filtered', naming_variables=None, selected_mask_name=None):
     """
     Main execution function for data exploration.
@@ -399,7 +608,7 @@ def main(config=None, npz_dir=None, output_dir=None, interactive=True, selected_
         output_dir: Main output directory (unused, kept for compatibility)
         interactive: Whether to prompt for user input (default: True)
         selected_files: List of selected NPZ file paths (if None, will find all NPZ files)
-        data_type: Data type to use ('filtered' for G/S or 'unfiltered' for GU/SU)
+        data_type: Data type to use ('filtered' for G/S, 'unfiltered' for GU/SU, or 'both')
         naming_variables: Dictionary containing naming variables for output files (unused)
         selected_mask_name: Name of the selected mask to apply (if any)
         
@@ -412,6 +621,25 @@ def main(config=None, npz_dir=None, output_dir=None, interactive=True, selected_
     if not os.path.isdir(npz_dir): 
         print(f"Error: NPZ dir not found: {npz_dir}", file=sys.stderr)
         return False
+    
+    # Interactive selections if interactive mode is enabled
+    mask_source = None
+    selected_mask_name = None
+    threshold_config = {'method': 'none', 'value': None, 'percentile': None}
+    
+    if interactive:
+        # Data type selection
+        if data_type == 'filtered':  # Only prompt if using default
+            data_type = interactive_data_type_selection()
+        
+        # Mask selection
+        mask_source, selected_mask_name = interactive_mask_selection(npz_dir)
+        if mask_source is None:  # User chose to quit
+            print("Exiting data exploration.")
+            return True
+        
+        # Thresholding selection
+        threshold_config = interactive_threshold_selection()
     
     # Handle file selection based on the select_files parameter
     # This parameter is passed from the stage class
@@ -440,30 +668,49 @@ def main(config=None, npz_dir=None, output_dir=None, interactive=True, selected_
         print("No files selected for data exploration")
         return False
     
+    # Determine which data types to process
+    data_types_to_process = []
+    if data_type == 'both':
+        data_types_to_process = ['filtered', 'unfiltered']
+    else:
+        data_types_to_process = [data_type]
+    
     # Process each NPZ file individually
     for npz_path in selected_files:
         print(f"\nProcessing: {os.path.basename(npz_path)}")
         
-        # Process the NPZ file
-        file_data = process_npz_file_for_exploration(npz_path, data_type, selected_mask_name)
-        if file_data is None:
-            print(f"  Skipping {os.path.basename(npz_path)} due to processing error")
-            continue
-        
-        # Add filename to data for display
-        file_data['npz_data']['filename'] = os.path.basename(npz_path)
-        
-        # Create interactive exploration plot
-        success = create_interactive_exploration_plot(file_data, data_type, "No threshold")
-        if not success:
-            print(f"  Failed to create exploration plot for {os.path.basename(npz_path)}")
-            continue
-        
-        # Ask if user wants to continue with next file
-        if len(selected_files) > 1:
-            continue_choice = input(f"\nContinue to next file? (y/n): ").strip().lower()
-            if continue_choice not in ['y', 'yes']:
-                break
+        for current_data_type in data_types_to_process:
+            if data_type == 'both':
+                print(f"  Processing {current_data_type} data...")
+            
+            # Process the NPZ file
+            file_data = process_npz_file_for_exploration(npz_path, current_data_type, selected_mask_name)
+            if file_data is None:
+                print(f"  Skipping {os.path.basename(npz_path)} ({current_data_type}) due to processing error")
+                continue
+            
+            # Add filename to data for display
+            file_data['npz_data']['filename'] = os.path.basename(npz_path)
+            
+            # Apply thresholding to intensity data
+            thresholded_intensity, threshold_desc = apply_thresholding(file_data['intensity'], threshold_config)
+            file_data['intensity'] = thresholded_intensity
+            
+            # Create interactive exploration plot
+            success = create_interactive_exploration_plot(file_data, current_data_type, threshold_desc)
+            if not success:
+                print(f"  Failed to create exploration plot for {os.path.basename(npz_path)} ({current_data_type})")
+                continue
+            
+            # Ask if user wants to continue with next data type or file
+            if data_type == 'both' and current_data_type == 'filtered':
+                continue_choice = input(f"\nContinue to unfiltered data for this file? (y/n): ").strip().lower()
+                if continue_choice not in ['y', 'yes']:
+                    break
+            elif len(selected_files) > 1 or (data_type == 'both' and current_data_type == 'unfiltered'):
+                continue_choice = input(f"\nContinue to next file? (y/n): ").strip().lower()
+                if continue_choice not in ['y', 'yes']:
+                    return True  # Exit the entire function
     
     return True
 
