@@ -369,10 +369,180 @@ def create_interactive_exploration_plot(file_data, data_type, threshold_desc):
         # Redraw the figure
         fig.canvas.draw_idle()
     
-    # Create apply button
-    ax_apply = plt.axes([0.8, 0.02, 0.1, 0.04])
-    button_apply = Button(ax_apply, 'Apply ROI')
-    button_apply.on_clicked(apply_roi)
+    # Remove buttons and use command line interface instead
+    # The plot will stay open and user can interact via command line
+    
+    def save_mask_from_roi():
+        """Save mask from current ROI position using command line interface."""
+        # Get final parameters
+        center_x = s_center_x.val
+        center_y = s_center_y.val
+        width = s_width.val
+        height = s_height.val
+        angle = s_angle.val
+        angle_rad = np.radians(angle)
+        
+        # Create mask for the selected region
+        roi_mask = np.zeros_like(g_data, dtype=bool)
+        
+        # Get coordinates of all pixels
+        mask_indices = np.where(np.ones_like(g_data, dtype=bool))
+        mask_g_values = g_data[mask_indices]
+        mask_s_values = s_data[mask_indices]
+        
+        if len(mask_g_values) == 0:
+            print("  Warning: No pixels to process")
+            return
+        
+        # Check which points are inside the ellipse
+        inside_ellipse = are_points_inside_ellipse(
+            mask_g_values, mask_s_values, 
+            center_x, center_y, 
+            width, height, angle_rad
+        )
+        
+        # Set mask values
+        roi_mask[mask_indices[0][inside_ellipse], mask_indices[1][inside_ellipse]] = True
+        
+        # Create binary mask (0 = background, 1 = selected region)
+        binary_mask = np.zeros_like(g_data, dtype=np.int32)
+        binary_mask[roi_mask] = 1  # Selected region = 1
+        
+        # Generate timestamp and filename
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        base_name = os.path.basename(file_data['npz_data'].get('filename', 'unknown'))
+        mask_name = f"{os.path.splitext(base_name)[0]}_exploration_mask_{data_type}_{timestamp}.tiff"
+        
+        # Create output directory for masks
+        # Get the original NPZ file path from the data
+        original_npz_path = file_data['npz_data'].get('original_file_path', None)
+        if original_npz_path is None:
+            # Try to reconstruct the path from the filename
+            filename = file_data['npz_data'].get('filename', 'unknown')
+            # This is a fallback - in practice, the path should be available
+            masks_dir = os.path.join(os.getcwd(), 'exploration_masks')
+        else:
+            masks_dir = os.path.join(os.path.dirname(original_npz_path), 'exploration_masks')
+        
+        os.makedirs(masks_dir, exist_ok=True)
+        mask_path = os.path.join(masks_dir, mask_name)
+        
+        # Save mask as TIFF
+        save_tiff(mask_path, binary_mask)
+        print(f"\nSaved mask: {mask_path}")
+        
+        # Append mask to NPZ file
+        npz_data_dict = dict(file_data['npz_data'])
+        
+        # Add mask data to NPZ
+        npz_data_dict['exploration_mask'] = binary_mask
+        npz_data_dict['exploration_mask_bool'] = roi_mask
+        
+        # Add metadata
+        npz_data_dict['exploration_metadata'] = {
+            'data_type': 'exploration_segmented',
+            'ellipse_center': [center_x, center_y],
+            'ellipse_width': width,
+            'ellipse_height': height,
+            'ellipse_angle_degrees': angle,
+            'threshold_desc': threshold_desc,
+            'pixels_selected': np.sum(roi_mask),
+            'total_pixels': g_data.size,
+            'mask_type': 'binary',
+            'created_by': 'DataExploration',
+            'created_timestamp': datetime.datetime.now().isoformat()
+        }
+        
+        # Add mask registry to track available masks
+        if 'mask_registry' not in npz_data_dict:
+            npz_data_dict['mask_registry'] = {}
+        elif not isinstance(npz_data_dict['mask_registry'], dict):
+            # If mask_registry exists but is not a dict, replace it
+            npz_data_dict['mask_registry'] = {}
+        
+        npz_data_dict['mask_registry']['exploration_mask'] = {
+            'type': 'binary',
+            'description': f'Data exploration mask ({data_type} data)',
+            'created_by': 'DataExploration',
+            'created_timestamp': datetime.datetime.now().isoformat()
+        }
+        
+        # Save updated NPZ file (overwrite the original)
+        original_npz_path = file_data['npz_data'].get('original_file_path', None)
+        if original_npz_path:
+            np.savez_compressed(original_npz_path, **npz_data_dict)
+            print(f"  Updated NPZ file with mask data: {original_npz_path}")
+        else:
+            print("  Warning: Could not update NPZ file - original path not found")
+        
+        print(f"  Mask saved with {np.sum(roi_mask)} pixels selected out of {g_data.size} total")
+    
+    def apply_roi_cli():
+        """Apply ROI using command line interface."""
+        # Get final parameters
+        center_x = s_center_x.val
+        center_y = s_center_y.val
+        width = s_width.val
+        height = s_height.val
+        angle = s_angle.val
+        angle_rad = np.radians(angle)
+        
+        # Create mask for the selected region
+        roi_mask = np.zeros_like(g_data, dtype=bool)
+        
+        # Get coordinates of all pixels
+        mask_indices = np.where(np.ones_like(g_data, dtype=bool))
+        mask_g_values = g_data[mask_indices]
+        mask_s_values = s_data[mask_indices]
+        
+        if len(mask_g_values) == 0:
+            print("  Warning: No pixels to process")
+            return
+        
+        # Check which points are inside the ellipse
+        inside_ellipse = are_points_inside_ellipse(
+            mask_g_values, mask_s_values, 
+            center_x, center_y, 
+            width, height, angle_rad
+        )
+        
+        # Set mask values
+        roi_mask[mask_indices[0][inside_ellipse], mask_indices[1][inside_ellipse]] = True
+        
+        # Create a colored overlay for the ROI - use bright red for visibility
+        overlay_colored = np.zeros((*intensity.shape, 4))  # RGBA
+        overlay_colored[:, :, 0] = 1.0  # Red channel (bright red)
+        overlay_colored[:, :, 1] = 0.0  # Green channel
+        overlay_colored[:, :, 2] = 0.0  # Blue channel
+        overlay_colored[:, :, 3] = 0.0  # Alpha (transparent by default)
+        
+        # Add ROI mask as bright red overlay
+        overlay_colored[roi_mask, 0] = 1.0  # Bright red for ROI
+        overlay_colored[roi_mask, 3] = 0.6  # Semi-transparent red for ROI
+        
+        # Update intensity image with overlay
+        ax_intensity.clear()
+        ax_intensity.imshow(intensity, cmap='gray', interpolation='nearest')
+        ax_intensity.imshow(overlay_colored, interpolation='nearest')
+        ax_intensity.set_title(f"Intensity Image with ROI Overlay\n{os.path.basename(file_data['npz_data'].get('filename', 'Unknown'))}")
+        ax_intensity.set_xlabel('X pixels')
+        ax_intensity.set_ylabel('Y pixels')
+        
+        # Print statistics
+        total_pixels = roi_mask.size
+        selected_pixels = np.sum(roi_mask)
+        percentage = (selected_pixels / total_pixels) * 100
+        
+        print(f"\nROI Statistics:")
+        print(f"  Total pixels: {total_pixels}")
+        print(f"  Selected pixels: {selected_pixels}")
+        print(f"  Percentage: {percentage:.2f}%")
+        print(f"  Ellipse center: ({center_x:.3f}, {center_y:.3f})")
+        print(f"  Ellipse size: {width:.3f} x {height:.3f}")
+        print(f"  Ellipse angle: {angle:.1f}°")
+        
+        # Redraw the figure
+        fig.canvas.draw_idle()
     
     # Add keyboard shortcut for closing
     def on_key(event):
@@ -385,7 +555,41 @@ def create_interactive_exploration_plot(file_data, data_type, threshold_desc):
     # Removed close button to avoid matplotlib widget conflicts
     
     # Show the plot
-    plt.show(block=True)
+    plt.show(block=False)  # Don't block, so we can use command line
+    
+    # Command line interface for ROI actions
+    print(f"\n=== Data Exploration Interactive Mode ===")
+    print(f"File: {os.path.basename(file_data['npz_data'].get('filename', 'Unknown'))}")
+    print(f"Data type: {data_type}")
+    print(f"Threshold: {threshold_desc}")
+    print(f"\nAdjust the ellipse using the sliders, then choose an action:")
+    print(f"  [1] Apply ROI (show selected pixels on intensity image)")
+    print(f"  [2] Save mask (create and save mask from current ROI)")
+    print(f"  [q] Quit")
+    
+    while True:
+        try:
+            choice = input("\nEnter your choice (1, 2, or q): ").strip().lower()
+            
+            if choice == 'q':
+                print("Closing data exploration...")
+                plt.close('all')
+                break
+            elif choice == '1':
+                print("Applying ROI...")
+                apply_roi_cli()
+            elif choice == '2':
+                print("Saving mask...")
+                save_mask_from_roi()
+            else:
+                print("Invalid choice. Please enter 1, 2, or q.")
+        except KeyboardInterrupt:
+            print("\nClosing data exploration...")
+            plt.close('all')
+            break
+        except Exception as e:
+            print(f"Error: {e}")
+            print("Please try again.")
     
     return True
 
@@ -689,8 +893,9 @@ def main(config=None, npz_dir=None, output_dir=None, interactive=True, selected_
                 print(f"  Skipping {os.path.basename(npz_path)} ({current_data_type}) due to processing error")
                 continue
             
-            # Add filename to data for display
+            # Add filename and original path to data for display and mask saving
             file_data['npz_data']['filename'] = os.path.basename(npz_path)
+            file_data['npz_data']['original_file_path'] = npz_path
             
             # Apply thresholding to intensity data
             thresholded_intensity, threshold_desc = apply_thresholding(file_data['intensity'], threshold_config)
