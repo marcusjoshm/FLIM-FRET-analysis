@@ -415,7 +415,7 @@ def create_interactive_exploration_plot(file_data, data_type, threshold_desc, ou
         mask_name = f"{os.path.splitext(base_name)[0]}_exploration_mask_{data_type}_{timestamp}.tiff"
         
         # Create output directory for masks
-        # Use the main output directory from config
+        # Use the main analysis directory (output_dir is the main analysis directory)
         if output_dir:
             masks_dir = os.path.join(output_dir, 'masks')
         else:
