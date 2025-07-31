@@ -28,6 +28,15 @@ Users can apply various thresholding methods to the intensity data:
 - **Individual dataset auto-threshold** - Remove bottom 90% from each dataset separately
 - **Custom individual dataset auto-threshold** - Specify percentile to remove from each dataset
 
+### 4. Interactive ROI Actions
+Users can perform actions on the current ROI position via command line:
+
+- **Apply ROI** - Shows selected pixels on the intensity image with statistics
+- **Save mask** - Creates a binary mask from the current ellipse ROI
+- **TIFF export** - Saves mask as a TIFF file in an 'exploration_masks' directory
+- **NPZ integration** - Appends mask data to the original NPZ file
+- **Metadata tracking** - Includes comprehensive metadata about the mask creation
+
 ## Implementation Details
 
 ### New Functions Added
@@ -36,6 +45,7 @@ Users can apply various thresholding methods to the intensity data:
 2. `interactive_mask_selection(npz_dir)` - Handles mask source selection
 3. `interactive_threshold_selection()` - Handles thresholding method selection
 4. `apply_thresholding(intensity_data, threshold_config)` - Applies thresholding to data
+5. `save_mask_from_roi(event)` - Creates and saves masks from current ROI position
 
 ### Integration
 
@@ -44,6 +54,7 @@ The main function has been updated to:
 - Apply thresholding to intensity data before creating plots
 - Handle mask selection and application
 - Support processing both filtered and unfiltered data for the same files
+- Pass original file paths for mask saving functionality
 
 ### Stage Integration
 
@@ -62,10 +73,20 @@ The module will prompt for:
 2. Mask source selection (none/masked files)
 3. Thresholding method selection (6 options)
 
+During the interactive plot, users can:
+- Adjust ellipse parameters with sliders
+- Use command line interface for ROI actions:
+  - Apply ROI to see selected pixels on intensity image
+  - Save mask from current ROI position
+- Press 'q' to quit the interactive session
+
 ## Technical Notes
 
 - All thresholding is applied to intensity data before creating phasor plots
 - Mask selection automatically detects available masks in NPZ files
 - The 'both' data type option processes each file twice (filtered then unfiltered)
 - Threshold descriptions are displayed in plot titles for reference
+- Interactive ROI actions use command line interface to avoid matplotlib button conflicts
+- Save mask functionality creates binary masks and integrates with NPZ files
+- Masks are saved as TIFF files and appended to NPZ files with metadata
 - All features are backward compatible with existing functionality 

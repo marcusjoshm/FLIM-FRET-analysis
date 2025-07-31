@@ -58,7 +58,15 @@ def test_function_implementation():
         ('method == \'none\'', 'Threshold method none'),
         ('method == \'manual\'', 'Threshold method manual'),
         ('method == \'auto_combined\'', 'Threshold method auto_combined'),
-        ('method == \'auto_individual\'', 'Threshold method auto_individual')
+        ('method == \'auto_individual\'', 'Threshold method auto_individual'),
+        
+        # Save mask functionality
+        ('save_mask_from_roi', 'Save mask function'),
+        ('exploration_mask', 'Exploration mask key'),
+        ('exploration_metadata', 'Exploration metadata'),
+        ('mask_registry', 'Mask registry'),
+        ('Apply ROI (show selected pixels on intensity image)', 'CLI Apply ROI option'),
+        ('Save mask (create and save mask from current ROI)', 'CLI Save mask option')
     ]
     
     all_passed = True
