@@ -22,7 +22,7 @@ os.environ['MPLBACKEND'] = 'MacOSX'  # Use MacOSX backend which is more reliable
 
 import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Slider, Button
+from matplotlib.widgets import Slider
 from matplotlib.patches import Ellipse
 from matplotlib.colors import LogNorm
 from matplotlib.ticker import LogFormatter
@@ -556,22 +556,49 @@ def process_combined_npz_files(npz_files, segmented_dir, masks_dir, plots_dir, l
         print(f"\nManual segmentation completed for {len(file_data_mapping)} files!")
         plt.close()
     
-    # Create apply button
-    ax_apply = plt.axes([0.8, 0.02, 0.1, 0.04])
-    button_apply = Button(ax_apply, 'Apply')
-    button_apply.on_clicked(apply_segmentation)
+    # Add keyboard shortcut for closing
+    def on_key(event):
+        if event.key == 'escape':
+            plt.close('all')
     
-    # Create cancel button
-    ax_cancel = plt.axes([0.65, 0.02, 0.1, 0.04])
-    button_cancel = Button(ax_cancel, 'Cancel')
+    fig.canvas.mpl_connect('key_press_event', on_key)
     
-    def cancel_segmentation(event):
-        plt.close()
+    # Note: Use the window's close button (X) or press Escape to close
+    # Removed buttons to avoid matplotlib widget conflicts
     
-    button_cancel.on_clicked(cancel_segmentation)
+    # Show the plot
+    plt.show(block=False)  # Don't block, so we can use command line
     
-    # Show the plot and wait for user interaction
-    plt.show(block=True)
+    # Command line interface for segmentation actions
+    print(f"\n=== Manual Segmentation Interactive Mode ===")
+    print(f"Files: {len(file_data_mapping)} files for combined segmentation")
+    print(f"Data type: {data_type}")
+    print(f"Threshold: {threshold_desc}")
+    print(f"\nAdjust the ellipse using the sliders, then choose an action:")
+    print(f"  [1] Apply segmentation (create and save masks for all files)")
+    print(f"  [q] Quit")
+    
+    while True:
+        try:
+            choice = input("\nEnter your choice (1 or q): ").strip().lower()
+            
+            if choice == 'q':
+                print("Closing manual segmentation...")
+                plt.close('all')
+                break
+            elif choice == '1':
+                print("Applying segmentation...")
+                apply_segmentation(None)  # Pass None since it's not a button event
+                break
+            else:
+                print("Invalid choice. Please enter 1 or q.")
+        except KeyboardInterrupt:
+            print("\nClosing manual segmentation...")
+            plt.close('all')
+            break
+        except Exception as e:
+            print(f"Error: {e}")
+            print("Please try again.")
     
     return True
 
