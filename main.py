@@ -44,7 +44,9 @@ def main():
             # Check if user wants to set directories
             if hasattr(args, 'set_directories') and args.set_directories:
                 # Set default directories
-                set_default_directories(config.to_dict(), config_path)
+                input_path, output_path, updated_config = set_default_directories(config.to_dict(), config_path)
+                # Update the config object with the new values
+                config.update(updated_config)
                 print("Directory setup complete.")
                 continue  # Return to menu
             

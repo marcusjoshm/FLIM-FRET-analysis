@@ -22,7 +22,7 @@ from .directory_setup import (
 )
 
 
-def set_default_directories(config: Dict, config_path: str) -> Tuple[str, str]:
+def set_default_directories(config: Dict, config_path: str) -> Tuple[str, str, Dict]:
     """
     Set default input and output directories interactively.
     
@@ -31,7 +31,7 @@ def set_default_directories(config: Dict, config_path: str) -> Tuple[str, str]:
         config_path (str): Path to config file
         
     Returns:
-        Tuple[str, str]: (input_path, output_path)
+        Tuple[str, str, Dict]: (input_path, output_path, updated_config)
     """
     print("\n=== Set Default Directories ===")
     print("This will set the default input and output directories for future runs.")
@@ -76,7 +76,7 @@ def set_default_directories(config: Dict, config_path: str) -> Tuple[str, str]:
     print(f"  Output: {output_path}")
     print(f"  Config saved to: {config_path}")
     
-    return input_path, output_path
+    return input_path, output_path, config
 
 
 def check_default_directories(config: Dict) -> Tuple[bool, str, str]:
