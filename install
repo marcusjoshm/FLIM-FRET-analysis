@@ -1,162 +1,24 @@
-#!/usr/bin/env python3
-"""
-Installation script for FLIM-FRET Analysis Pipeline
+#!/bin/bash
 
-This script installs the package in development mode and sets up the necessary configuration.
-"""
+# FLIM-FRET Installation Wrapper
+# This script runs the Python installation script
 
-import os
-import sys
-import subprocess
-from pathlib import Path
+echo "FLIM-FRET Installation"
+echo "=================================="
+echo "This will install FLIM-FRET globally - you will be able to run flimfret from any directory!"
+echo ""
 
-def print_header(title):
-    """Print a formatted header"""
-    print("\n" + "="*60)
-    print(f" {title}")
-    print("="*60)
+# Check if Python 3.8+ is available
+if ! command -v python3 &> /dev/null; then
+    echo "Error: Python 3 is not installed or not in PATH"
+    echo "Please install Python 3.8+ and try again"
+    echo ""
+    echo "Installation options:"
+    echo "  macOS: brew install python@3.11"
+    echo "  Ubuntu: sudo apt install python3"
+    echo "  Or download from: https://www.python.org/downloads/"
+    exit 1
+fi
 
-def check_python_version():
-    """Check if Python version is compatible"""
-    print("Checking Python version...")
-    version = sys.version_info
-    print(f"Python version: {version.major}.{version.minor}.{version.micro}")
-    
-    if version.major < 3 or (version.major == 3 and version.minor < 8):
-        print("❌ Error: Python 3.8 or higher is required")
-        return False
-    
-    print("✅ Python version is compatible")
-    return True
-
-def install_package():
-    """Install the package in development mode"""
-    print("Installing FLIM-FRET package...")
-    
-    try:
-        # Install in development mode
-        subprocess.check_call([
-            sys.executable, "-m", "pip", "install", "-e", "."
-        ])
-        print("✅ Package installed successfully!")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Error installing package: {e}")
-        return False
-
-def run_setup():
-    """Run the original setup script to configure the package"""
-    print("Running package setup...")
-    
-    try:
-        # Run the setup script
-        subprocess.check_call([
-            sys.executable, "src/python/setup.py"
-        ])
-        print("✅ Package setup completed!")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Error running setup: {e}")
-        return False
-
-def test_installation():
-    """Test if the package was installed correctly"""
-    print("Testing installation...")
-    
-    try:
-        # Test if the command is available
-        result = subprocess.run([
-            "flimfret", "--help"
-        ], capture_output=True, text=True, timeout=10)
-        
-        if result.returncode == 0:
-            print("✅ Package installation test successful!")
-            print("You can now use the 'flimfret' command.")
-            return True
-        else:
-            print("❌ Package installation test failed")
-            print(f"Error output: {result.stderr}")
-            return False
-    except FileNotFoundError:
-        print("❌ 'flimfret' command not found. Installation may have failed.")
-        return False
-    except subprocess.TimeoutExpired:
-        print("⚠️  Command timed out, but this might be normal for interactive commands")
-        return True
-
-
-def setup_global_launcher():
-    """Set up global launcher for running flimfret from any directory"""
-    print("\n--- Setting up Global Launcher ---")
-    
-    # Create ~/bin directory if it doesn't exist
-    bin_dir = Path.home() / "bin"
-    bin_dir.mkdir(exist_ok=True)
-    
-    # Copy the global launcher script
-    launcher_source = Path("flimfret_global.sh")
-    launcher_dest = bin_dir / "flimfret"
-    
-    if launcher_source.exists():
-        import shutil
-        shutil.copy2(launcher_source, launcher_dest)
-        
-        # Make it executable
-        launcher_dest.chmod(0o755)
-        
-        print(f"✅ Global launcher installed at: {launcher_dest}")
-        print("You can now run 'flimfret' from any directory!")
-        
-        # Check if ~/bin is in PATH
-        path_dirs = os.environ.get('PATH', '').split(':')
-        if str(bin_dir) not in path_dirs:
-            print("⚠️  Warning: ~/bin is not in your PATH")
-            print("Add this line to your ~/.zshrc or ~/.bashrc:")
-            print(f"export PATH=\"$HOME/bin:$PATH\"")
-            print("Then restart your terminal or run: source ~/.zshrc")
-    else:
-        print("⚠️  Global launcher script not found, skipping global setup")
-
-def main():
-    """Main installation function"""
-    print_header("FLIM-FRET Package Installation")
-    
-    # Check if we're in the right directory
-    if not Path("setup.py").exists():
-        print("❌ Error: Please run this script from the flimfret directory")
-        print("Current directory:", os.getcwd())
-        sys.exit(1)
-    
-    # Check Python version
-    if not check_python_version():
-        sys.exit(1)
-    
-    # Install the package
-    if not install_package():
-        print("❌ Package installation failed")
-        sys.exit(1)
-    
-    # Run setup
-    if not run_setup():
-        print("❌ Package setup failed")
-        sys.exit(1)
-    
-    # Test installation
-    if not test_installation():
-        print("❌ Installation test failed")
-        sys.exit(1)
-    
-    print_header("Installation Complete!")
-    print("✅ FLIM-FRET package has been installed successfully!")
-    print("\nYou can now use the following commands:")
-    print("  flimfret --help                    # Show help")
-    print("  flimfret                          # Interactive mode")
-    print("  flimfret --preprocessing --input <dir> --output <dir>  # Run preprocessing")
-    print("  flimfret --processing --input <dir> --output <dir>     # Run complete pipeline")
-    print("\nFor more information, see the documentation in the docs/ directory.")
-    
-    # Set up global launcher
-    setup_global_launcher()
-
-if __name__ == "__main__":
-    main()
+# Run the Python installation script
+python3 src/python/install.py "$@"
