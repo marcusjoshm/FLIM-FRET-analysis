@@ -123,7 +123,7 @@ def main():
     
     # Check if we're in the right directory
     if not Path("setup.py").exists():
-        print("❌ Error: Please run this script from the FLIM-FRET-analysis directory")
+        print("❌ Error: Please run this script from the flimfret directory")
         print("Current directory:", os.getcwd())
         sys.exit(1)
     

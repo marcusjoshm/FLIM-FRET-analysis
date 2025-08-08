@@ -18,7 +18,7 @@ echo "Project directory: $PROJECT_DIR"
 
 # Check if we're in the correct directory
 if [ ! -f "$PROJECT_DIR/main.py" ]; then
-    echo "❌ Error: Please run this script from the FLIM-FRET-analysis directory"
+    echo "❌ Error: Please run this script from the flimfret directory"
     echo "Current directory: $(pwd)"
     exit 1
 fi

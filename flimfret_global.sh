@@ -5,7 +5,7 @@
 # Then you can run 'flimfret' from any directory
 
 # Define the project directory (update this path to match your installation)
-PROJECT_DIR="$HOME/FLIM-FRET-analysis"
+PROJECT_DIR="$HOME/flimfret"
 
 # Check if project directory exists
 if [ ! -d "$PROJECT_DIR" ]; then

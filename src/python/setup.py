@@ -277,7 +277,7 @@ def main():
     
     # Check if we're in the right directory
     if not os.path.exists(os.path.join(project_root, "main.py")):
-        print("❌ Error: Please run this script from the FLIM-FRET-analysis directory")
+        print("❌ Error: Please run this script from the flimfret directory")
         print("Current directory:", os.getcwd())
         print("Project root:", project_root)
         sys.exit(1)

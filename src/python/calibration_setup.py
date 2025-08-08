@@ -67,7 +67,7 @@ def main():
     root_directory = args.input
     
     # Configuration - hardcoded output file
-    output_csv = "/Users/joshuamarcus/FLIM-FRET-analysis/data/calibration.csv"
+    output_csv = "/Users/joshuamarcus/flimfret/data/calibration.csv"
     
     print(f"Searching for .bin files in: {root_directory}")
     

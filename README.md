@@ -8,8 +8,8 @@ A comprehensive Python package for automated Fluorescence Lifetime Imaging Micro
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/marcusjoshm/FLIM-FRET-analysis.git
-   cd FLIM-FRET-analysis
+   git clone https://github.com/marcusjoshm/flimfret.git
+   cd flimfret
    ```
 
 2. **Run the installation script:**
@@ -33,7 +33,7 @@ Once the installation is complete, you can use the tool:
 flimfret
 
 # Option 2: Run from project directory with activated environment
-cd ~/FLIM-FRET-analysis
+cd ~/flimfret
 source venv/bin/activate
 flimfret
 ```
@@ -111,7 +111,7 @@ Select an option (1-8):
 3. [Step 2: Set Up Input Directory Structure](#step-2-set-up-input-directory-structure)
 4. [Step 3: Create Calibration File](#step-3-create-calibration-file)
 5. [Step 4: Navigate and Activate Environment](#step-4-navigate-and-activate-environment)
-6. [Step 5: Run FLIM-FRET Analysis](#step-5-run-flim-fret-analysis)
+6. [Step 5: Run FLIM-FRET Analysis](#step-5-run-flimfret)
 7. [Tips and Troubleshooting](#tips-and-troubleshooting)
 8. [Technical Documentation](#technical-documentation)
 
@@ -205,7 +205,7 @@ file_path,phi_cal,m_cal
 
 1. In Terminal, navigate to the FLIM-FRET analysis directory:
    ```bash
-   cd ~/FLIM-FRET-analysis
+   cd ~/flimfret
    ```
    Press **Enter**.
 
@@ -217,7 +217,7 @@ file_path,phi_cal,m_cal
 
 3. You should now see `(venv)` at the beginning of your command prompt, indicating the environment is activated:
    ```
-   (venv) ➜  FLIM-FRET-analysis
+   (venv) ➜  flimfret
    ```
 
 ## Step 5: Run FLIM-FRET Analysis
@@ -468,8 +468,8 @@ Follow these steps to set up the FLIM-FRET analysis pipeline on your system:
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/marcusjoshm/FLIM-FRET-analysis.git
-cd FLIM-FRET-analysis
+git clone https://github.com/marcusjoshm/flimfret.git
+cd flimfret
 ```
 
 ### Step 2: Create a Python Virtual Environment

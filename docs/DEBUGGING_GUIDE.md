@@ -208,7 +208,7 @@ import traceback
 def trace_calls(frame, event, arg):
     if event == 'call':
         filename = frame.f_code.co_filename
-        if 'FLIM-FRET-analysis' in filename:  # Only our code
+        if 'flimfret' in filename:  # Only our code
             line_no = frame.f_lineno
             func_name = frame.f_code.co_name
             print(f"TRACE: {filename}:{line_no} in {func_name}()")

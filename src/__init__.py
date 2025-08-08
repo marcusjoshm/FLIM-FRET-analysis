@@ -12,7 +12,7 @@ __email__ = "joshua.marcus@bcm.edu"
 # Package information
 __title__ = "FLIM-FRET Analysis Pipeline"
 __description__ = "Automated FLIM-FRET analysis from raw .bin files to complete analysis"
-__url__ = "https://github.com/marcusjoshm/FLIM-FRET-analysis"
+__url__ = "https://github.com/marcusjoshm/flimfret"
 
 # Import main components for easier access
 from .python.core.pipeline import Pipeline

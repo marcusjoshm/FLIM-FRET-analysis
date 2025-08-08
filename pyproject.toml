@@ -54,10 +54,10 @@ dev = [
 flimfret = "python.main:main"
 
 [project.urls]
-Homepage = "https://github.com/marcusjoshm/FLIM-FRET-analysis"
-Documentation = "https://github.com/marcusjoshm/FLIM-FRET-analysis/docs"
-Repository = "https://github.com/marcusjoshm/FLIM-FRET-analysis"
-"Bug Tracker" = "https://github.com/marcusjoshm/FLIM-FRET-analysis/issues"
+Homepage = "https://github.com/marcusjoshm/flimfret"
+Documentation = "https://github.com/marcusjoshm/flimfret/docs"
+Repository = "https://github.com/marcusjoshm/flimfret"
+"Bug Tracker" = "https://github.com/marcusjoshm/flimfret/issues"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

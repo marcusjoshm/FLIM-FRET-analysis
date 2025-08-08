@@ -24,7 +24,7 @@ The FLIM-FRET analysis pipeline has been completely refactored to improve readab
 ## Architecture Overview
 
 ```
-FLIM-FRET-analysis/
+flimfret/
 ├── main.py                    # New streamlined entry point (50 lines vs 1400+)
 ├── src/
 │   ├── __init__.py           # Package initialization

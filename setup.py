@@ -24,7 +24,7 @@ setup(
     description="FLIM-FRET Analysis Pipeline - Global Installation Available",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
-    url="https://github.com/marcusjoshm/FLIM-FRET-analysis",
+    url="https://github.com/marcusjoshm/flimfret",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     classifiers=[

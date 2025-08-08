@@ -9,7 +9,7 @@ PROJECT_DIR="$SCRIPT_DIR"
 
 # Check if we're in the correct directory
 if [ ! -f "$PROJECT_DIR/main.py" ]; then
-    echo "❌ Error: This launcher script must be in the FLIM-FRET-analysis directory"
+    echo "❌ Error: This launcher script must be in the flimfret directory"
     echo "Current directory: $(pwd)"
     echo "Expected project directory: $PROJECT_DIR"
     exit 1
