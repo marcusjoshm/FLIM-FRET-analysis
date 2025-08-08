@@ -35,4 +35,4 @@ fi
 cd "$PROJECT_DIR"
 
 # Run the flimfret command with all arguments
-python -m python.main "$@"
+flimfret "$@"
