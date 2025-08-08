@@ -1,24 +1,135 @@
 #!/bin/bash
 
 # FLIM-FRET Installation Wrapper
-# This script runs the Python installation script
+# This script runs the Python installation orchestrator
 
-echo "FLIM-FRET Installation"
-echo "=================================="
-echo "This will install FLIM-FRET globally - you will be able to run flimfret from any directory!"
+set -e  # Exit on any error
+
+echo "============================================================"
+echo " FLIM-FRET Analysis Pipeline Installation"
+echo "============================================================"
+echo "This will install FLIM-FRET with full orchestration"
 echo ""
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$SCRIPT_DIR"
+
+echo "Project directory: $PROJECT_DIR"
+
+# Check if we're in the correct directory
+if [ ! -f "$PROJECT_DIR/main.py" ]; then
+    echo "❌ Error: Please run this script from the flimfret directory"
+    echo "Current directory: $(pwd)"
+    exit 1
+fi
+
 # Check if Python 3.8+ is available
+echo "🔍 Checking Python installation..."
 if ! command -v python3 &> /dev/null; then
-    echo "Error: Python 3 is not installed or not in PATH"
+    echo "❌ Error: Python 3 is not installed or not in PATH"
     echo "Please install Python 3.8+ and try again"
     echo ""
     echo "Installation options:"
     echo "  macOS: brew install python@3.11"
-    echo "  Ubuntu: sudo apt install python3"
+    echo "  Ubuntu: sudo apt install python3.11"
     echo "  Or download from: https://www.python.org/downloads/"
     exit 1
 fi
 
-# Run the Python installation script
-python3 src/python/install.py "$@"
+# Check Python version
+python3 --version
+if ! python3 -c "import sys; exit(0 if sys.version_info >= (3, 8) else 1)"; then
+    echo "❌ Error: Python 3.8 or higher is required"
+    exit 1
+fi
+echo "✅ Python version is compatible"
+
+# Check if the orchestration script exists
+ORCHESTRATOR_SCRIPT="$PROJECT_DIR/src/python/install.py"
+if [ ! -f "$ORCHESTRATOR_SCRIPT" ]; then
+    echo "❌ Error: Installation orchestrator not found at: $ORCHESTRATOR_SCRIPT"
+    exit 1
+fi
+
+echo ""
+echo "🚀 Starting FLIM-FRET Installation Orchestration"
+echo ""
+
+# Parse command line arguments
+SKIP_CONFIG=""
+FORCE=""
+VERBOSE=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --skip-config)
+            SKIP_CONFIG="--skip-config"
+            shift
+            ;;
+        --force)
+            FORCE="--force"
+            shift
+            ;;
+        --verbose)
+            VERBOSE="--verbose"
+            shift
+            ;;
+        --help)
+            echo "Usage: ./install [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --skip-config     Skip configuration file creation"
+            echo "  --force           Force reinstallation (recreates venv)"
+            echo "  --verbose         Enable verbose output"
+            echo "  --help            Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  ./install                    # Standard installation"
+            echo "  ./install --force            # Force reinstall"
+            echo "  ./install --verbose          # Verbose output"
+            echo "  ./install --skip-config     # Skip config creation"
+            exit 0
+            ;;
+        *)
+            echo "❌ Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Run the Python installation orchestrator
+echo "🔧 Running installation orchestrator..."
+python3 "$ORCHESTRATOR_SCRIPT" $SKIP_CONFIG $FORCE $VERBOSE
+
+# Check the exit code
+if [ $? -eq 0 ]; then
+    echo ""
+    echo "============================================================"
+    echo "✅ Installation completed successfully!"
+    echo "============================================================"
+    echo ""
+    echo "🎉 FLIM-FRET is now ready to use!"
+    echo ""
+    echo "Quick start:"
+    echo "  ./flimfret --help                    # Show help"
+    echo "  ./flimfret --interactive             # Interactive mode"
+    echo "  source venv/bin/activate && python main.py  # Manual activation"
+    echo ""
+    echo "For more information, see the README.md file."
+else
+    echo ""
+    echo "============================================================"
+    echo "❌ Installation failed!"
+    echo "============================================================"
+    echo ""
+    echo "Please check the error messages above and try again."
+    echo ""
+    echo "Common solutions:"
+    echo "  - Ensure you have Python 3.8+ installed"
+    echo "  - Check your internet connection"
+    echo "  - Try running with --force flag"
+    echo "  - Check system permissions"
+    exit 1
+fi

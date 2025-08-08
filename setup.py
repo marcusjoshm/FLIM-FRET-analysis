@@ -53,7 +53,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "flimfret=python.main:main",
+            "flimfret=main:main",
         ],
     },
     include_package_data=True,
