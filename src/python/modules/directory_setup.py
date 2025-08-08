@@ -159,25 +159,31 @@ def prompt_for_directory(directory_type: str, recent_dirs: List[str], default_pa
         return path
 
 
-def get_paths_interactively(config: Dict, args_input: Optional[str] = None, args_output: Optional[str] = None) -> Tuple[str, str, bool]:
+def get_paths_interactively(config, args_input: Optional[str] = None, args_output: Optional[str] = None) -> Tuple[str, str, bool]:
     """
     Get input and output paths interactively if not provided.
     
     Args:
-        config (Dict): Configuration dictionary
+        config: Configuration dictionary or Config object
         args_input (Optional[str]): Input path from command line args
         args_output (Optional[str]): Output path from command line args
         
     Returns:
         Tuple[str, str, bool]: (input_path, output_path, config_modified)
     """
+    # Convert Config object to dict if needed
+    if hasattr(config, 'to_dict'):
+        config_dict = config.to_dict()
+    else:
+        config_dict = config
+    
     # Get recent directories
-    recent_inputs = get_recent_directories(config, 'input')
-    recent_outputs = get_recent_directories(config, 'output')
+    recent_inputs = get_recent_directories(config_dict, 'input')
+    recent_outputs = get_recent_directories(config_dict, 'output')
     
     # Get default paths from config
-    default_input = config.get('directories', {}).get('input', '')
-    default_output = config.get('directories', {}).get('output', '')
+    default_input = config_dict.get('directories', {}).get('input', '')
+    default_output = config_dict.get('directories', {}).get('output', '')
     
     # Get input path
     if not args_input:
@@ -205,14 +211,27 @@ def get_paths_interactively(config: Dict, args_input: Optional[str] = None, args
     save_defaults = input("\nSave these paths as defaults? (y/n): ").strip().lower()
     config_modified = False
     if save_defaults in ['y', 'yes']:
-        if 'directories' not in config:
-            config['directories'] = {}
-        config['directories']['input'] = input_path
-        config['directories']['output'] = output_path
-        
-        # Add to recent directories
-        add_recent_directory(config, 'input', input_path)
-        add_recent_directory(config, 'output', output_path)
+        # Handle both Config objects and dictionaries
+        if hasattr(config, 'to_dict'):
+            # Config object
+            if 'directories' not in config:
+                config['directories'] = {}
+            config['directories']['input'] = input_path
+            config['directories']['output'] = output_path
+            
+            # Add to recent directories
+            add_recent_directory(config.to_dict(), 'input', input_path)
+            add_recent_directory(config.to_dict(), 'output', output_path)
+        else:
+            # Dictionary
+            if 'directories' not in config:
+                config['directories'] = {}
+            config['directories']['input'] = input_path
+            config['directories']['output'] = output_path
+            
+            # Add to recent directories
+            add_recent_directory(config, 'input', input_path)
+            add_recent_directory(config, 'output', output_path)
         
         config_modified = True
         print("Paths saved as defaults!")
@@ -229,10 +248,30 @@ def save_config(config: Dict, config_path: str) -> None:
         config_path (str): Path to config file
     """
     try:
+        # Load existing config if it exists
+        existing_config = {}
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, 'r') as f:
+                    existing_config = json.load(f)
+            except Exception:
+                # If we can't read the existing config, start fresh
+                existing_config = {}
+        
+        # Merge the new config with existing config
+        merged_config = existing_config.copy()
+        merged_config.update(config)
+        
+        # Ensure the config directory exists
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        
+        # Save the merged config
         with open(config_path, 'w') as f:
-            json.dump(config, f, indent=4)
+            json.dump(merged_config, f, indent=4)
+            
+        print(f"✅ Configuration saved to: {config_path}")
     except Exception as e:
-        print(f"Warning: Could not save config to {config_path}: {e}")
+        print(f"❌ Error saving config to {config_path}: {e}")
 
 
 def load_config(config_path: str) -> Dict:

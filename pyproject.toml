@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=60.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flimfret"
+version = "1.0.0"
+description = "FLIM-FRET Analysis Pipeline - Global Installation Available"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Joshua Marcus", email = "joshua.marcus@bcm.edu"}
+]
+keywords = ["flim", "fret", "fluorescence", "lifetime", "microscopy", "imagej", "bioinformatics"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.22.0,<2.0",
+    "pandas>=1.4.0",
+    "scipy>=1.8.0",
+    "matplotlib>=3.5.0",
+    "scikit-image>=0.19.0",
+    "tifffile>=2021.11.2",
+    "pillow>=9.0.0",
+    "opencv-python>=4.5.0",
+    "scikit-learn>=1.0.0",
+    "dtcwt>=0.14.0",
+    "setuptools>=60.0.0",
+    "wheel>=0.37.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "pytest-cov>=2.0",
+    "black>=21.0",
+    "flake8>=3.8",
+    "mypy>=0.800",
+]
+
+[project.scripts]
+flimfret = "python.main:main"
+
+[project.urls]
+Homepage = "https://github.com/marcusjoshm/FLIM-FRET-analysis"
+Documentation = "https://github.com/marcusjoshm/FLIM-FRET-analysis/docs"
+Repository = "https://github.com/marcusjoshm/FLIM-FRET-analysis"
+"Bug Tracker" = "https://github.com/marcusjoshm/FLIM-FRET-analysis/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"python" = ["config/*.json", "scripts/*.sh", "scripts/imagej/*.ijm"]

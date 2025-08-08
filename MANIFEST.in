@@ -1,0 +1,36 @@
+# Include configuration files
+include config/config.template.json
+include config/config.json
+
+# Include ImageJ scripts
+include src/scripts/imagej/*.ijm
+
+# Include shell scripts
+include src/scripts/*.sh
+
+# Include requirements
+include src/scripts/requirements.txt
+
+# Include documentation
+include README.md
+include docs/*.md
+
+# Include test files
+include tests/*.py
+include tests/*.ijm
+
+# Include installation script
+include install.sh
+
+# Include data files
+include data/calibration.csv
+include data/logs/*.txt
+
+# Recursively include all Python files
+recursive-include src *.py
+
+# Exclude __pycache__ directories
+global-exclude __pycache__
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *.pyd

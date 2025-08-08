@@ -1,6 +1,76 @@
-# FLIM-FRET Analysis Automation Protocol
+# FLIM-FRET Analysis Pipeline
 
-## Introduction
+A comprehensive Python package for automated Fluorescence Lifetime Imaging Microscopy (FLIM) and Förster Resonance Energy Transfer (FRET) analysis.
+
+## Quick Start
+
+### Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/marcusjoshm/FLIM-FRET-analysis.git
+   cd FLIM-FRET-analysis
+   ```
+
+2. **Run the installation script:**
+   ```bash
+   ./install
+   ```
+
+This single command will:
+- ✅ Install all dependencies
+- ✅ Install the package in development mode
+- ✅ Detect software paths (ImageJ/Fiji)
+- ✅ Create configuration files
+- ✅ Verify the installation
+
+### After Installation
+
+Once the installation is complete, you can use the tool:
+
+```bash
+# Option 1: Run from anywhere (recommended)
+flimfret
+
+# Option 2: Run from project directory with activated environment
+cd ~/FLIM-FRET-analysis
+source venv/bin/activate
+flimfret
+```
+
+**Global Installation Benefits:**
+- ✅ Run `flimfret` from any directory
+- ✅ No need to navigate to project folder
+- ✅ No need to activate virtual environment manually
+- ✅ Works seamlessly across different terminals
+
+**Why development mode?**
+- ✅ Changes to code are immediately reflected (no reinstall needed)
+- ✅ Command-line tool available: `flimfret`
+- ✅ Proper package imports work
+- ✅ Ideal for development and testing
+
+### Usage
+
+Once installed, you can use the `flimfret` command:
+
+```bash
+# Interactive mode
+flimfret
+
+# Run preprocessing
+flimfret --preprocessing --input /path/to/data --output /path/to/output
+
+# Run complete processing
+flimfret --processing --input /path/to/data --output /path/to/output
+
+# Show help
+flimfret --help
+```
+
+## FLIM-FRET Analysis Automation Protocol
+
+### Introduction
 This document provides step-by-step instructions for running our FLIM-FRET analysis workflow. Each section includes detailed explanations and commands you can copy and paste directly into your Terminal.
 
 **Note:** Terminal is Mac's command-line interface where you can type commands to interact with your computer.
